@@ -12,7 +12,7 @@ import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 
-public class Global {
+public class Platform {
 
     public static DatagramChannel getDatagramChannel(){
         if (Epoll.isAvailable()){

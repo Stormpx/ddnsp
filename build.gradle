@@ -25,6 +25,7 @@ jar {
 }
 
 dependencies {
+    compile 'org.bouncycastle:bcprov-jdk15on:1.69'
     compile 'io.vertx:vertx-core:4.0.0'
     compile 'io.vertx:vertx-config:4.0.0'
     compile 'io.vertx:vertx-config-yaml:4.0.0'

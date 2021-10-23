@@ -1,6 +1,6 @@
 package io.crowds.proxy;
 
-import io.crowds.Global;
+import io.crowds.Platform;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.*;
 import io.netty.channel.epoll.EpollChannelOption;
@@ -8,7 +8,6 @@ import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.DatagramPacket;
 import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.handler.timeout.IdleStateHandler;
-import io.vertx.core.net.impl.PartialPooledByteBufAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,6 +29,10 @@ public class ChannelCreator {
         this.tupleMap=new ConcurrentHashMap<>();
     }
 
+    public EventLoopGroup getEventLoopGroup() {
+        return eventLoopGroup;
+    }
+
     public ChannelCreator setProxyOption(ProxyOption proxyOption) {
         this.proxyOption = proxyOption;
         return this;
@@ -38,7 +41,7 @@ public class ChannelCreator {
     public ChannelFuture createTcpChannel(SocketAddress address, ChannelInitializer<Channel> initializer) {
         Bootstrap bootstrap = new Bootstrap();
         var cf=bootstrap.group(eventLoopGroup)
-                .channel(Global.getSocketChannelClass())
+                .channel(Platform.getSocketChannelClass())
                 .handler(initializer)
                 .connect(address);
         return cf;
@@ -78,9 +81,7 @@ public class ChannelCreator {
         if (bindAddr==null)
             bindAddr=new InetSocketAddress("0.0.0.0",0);
 
-        DatagramChannel udpChannel=Global.getDatagramChannel();
-        udpChannel.config()
-                .setAllocator(PartialPooledByteBufAllocator.DEFAULT);
+        DatagramChannel udpChannel= Platform.getDatagramChannel();
         if (option.isIpTransport()){
             udpChannel.config().setOption(EpollChannelOption.IP_TRANSPARENT,true);
         }

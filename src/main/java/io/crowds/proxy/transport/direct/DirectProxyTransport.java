@@ -1,6 +1,7 @@
 package io.crowds.proxy.transport.direct;
 
 import io.crowds.proxy.*;
+import io.crowds.proxy.transport.EndPoint;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoopGroup;
@@ -12,8 +13,8 @@ import java.net.InetSocketAddress;
 public class DirectProxyTransport extends AbstractProxyTransport {
 
 
-    public DirectProxyTransport(ProxyOption proxyOption, EventLoopGroup eventLoopGroup, ChannelCreator channelCreator) {
-        super(proxyOption, eventLoopGroup, channelCreator);
+    public DirectProxyTransport( EventLoopGroup eventLoopGroup, ChannelCreator channelCreator) {
+        super( eventLoopGroup, channelCreator);
     }
 
 
@@ -24,7 +25,7 @@ public class DirectProxyTransport extends AbstractProxyTransport {
         try {
             TP tp = netLocation.getTp();
             if (TP.TCP== tp){
-                var cf= channelCreator.createTcpChannel(netLocation.getDest(), new ChannelInitializer<Channel>() {
+                var cf= channelCreator.createTcpChannel(netLocation.getDest().getAddress(), new ChannelInitializer<Channel>() {
                     @Override
                     protected void initChannel(Channel ch) throws Exception {
 
@@ -39,8 +40,8 @@ public class DirectProxyTransport extends AbstractProxyTransport {
                 });
             }else{
                 promise.trySuccess(new UdpEndPoint(
-                        channelCreator.createDatagramChannel((InetSocketAddress) netLocation.getSrc(),new DataGramChOption()),
-                        (InetSocketAddress) netLocation.getDest())
+                        channelCreator.createDatagramChannel((InetSocketAddress) netLocation.getSrc().getAddress(),new DataGramChOption()),
+                        (InetSocketAddress) netLocation.getDest().getAddress())
                 );
             }
         } catch (Exception e) {

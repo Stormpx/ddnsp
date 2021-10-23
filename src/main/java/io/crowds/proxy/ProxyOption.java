@@ -5,8 +5,6 @@ public class ProxyOption {
     private String host;
     private Integer port;
 
-    private String outHost;
-    private Integer outPort;
 
     public String getHost() {
         return host;

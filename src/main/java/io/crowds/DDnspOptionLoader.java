@@ -26,9 +26,9 @@ import org.slf4j.LoggerFactory;
 import java.net.*;
 import java.util.*;
 
-public class DdnspOptionLoader {
+public class DDnspOptionLoader {
 
-    private Logger logger= LoggerFactory.getLogger(DdnspOptionLoader.class);
+    private Logger logger= LoggerFactory.getLogger(DDnspOptionLoader.class);
 
     private Vertx vertx;
 
@@ -36,7 +36,7 @@ public class DdnspOptionLoader {
 
     private Handler<DDnspOption> optionChangeHandler;
 
-    public DdnspOptionLoader(Vertx vertx) {
+    public DDnspOptionLoader(Vertx vertx) {
         this.vertx = vertx;
     }
 
@@ -56,7 +56,7 @@ public class DdnspOptionLoader {
 
     }
 
-    public DdnspOptionLoader optionChangeHandler(Handler<DDnspOption> optionChangeHandler) {
+    public DDnspOptionLoader optionChangeHandler(Handler<DDnspOption> optionChangeHandler) {
         this.optionChangeHandler = optionChangeHandler;
         return this;
     }
@@ -70,7 +70,7 @@ public class DdnspOptionLoader {
             Handler<DDnspOption> optionChangeHandler = this.optionChangeHandler;
             if (optionChangeHandler!=null){
                 JsonObject configuration = cc.getNewConfiguration();
-                optionChangeHandler.handle(new DDnspOption().setDns(toOption(configuration)).setDdns(toDDnsOption(configuration)));
+                optionChangeHandler.handle(new DDnspOption().setDns(toOption(configuration)).setDdns(toDDnsOption(configuration)).setProxy(toProxyOption(configuration)));
             }
         });
 

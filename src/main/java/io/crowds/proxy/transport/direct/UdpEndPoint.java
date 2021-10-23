@@ -1,13 +1,16 @@
 package io.crowds.proxy.transport.direct;
 
-import io.crowds.proxy.EndPoint;
+import io.crowds.proxy.transport.EndPoint;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.socket.DatagramPacket;
+import io.netty.util.concurrent.Future;
 
 import java.net.InetSocketAddress;
 
-public class UdpEndPoint implements EndPoint {
+public class UdpEndPoint extends EndPoint {
 
     private Channel channel;
     private InetSocketAddress recipient;
@@ -16,6 +19,7 @@ public class UdpEndPoint implements EndPoint {
         this.channel = channel;
         this.recipient = recipient;
     }
+
 
     @Override
     public void write(ByteBuf buf) {
@@ -30,5 +34,10 @@ public class UdpEndPoint implements EndPoint {
     @Override
     public void close() {
 
+    }
+
+    @Override
+    public Future<Void> closeFuture() {
+        return this.channel.closeFuture();
     }
 }

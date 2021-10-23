@@ -4,12 +4,10 @@ import io.netty.channel.*;
 
 public abstract class AbstractProxyTransport implements ProxyTransport {
 
-    protected ProxyOption proxyOption;
     protected EventLoopGroup eventLoopGroup;
     protected ChannelCreator channelCreator;
 
-    public AbstractProxyTransport(ProxyOption proxyOption, EventLoopGroup eventLoopGroup, ChannelCreator channelCreator) {
-        this.proxyOption = proxyOption;
+    public AbstractProxyTransport( EventLoopGroup eventLoopGroup, ChannelCreator channelCreator) {
         this.eventLoopGroup = eventLoopGroup;
         this.channelCreator = channelCreator;
     }

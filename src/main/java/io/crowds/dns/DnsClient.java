@@ -1,12 +1,11 @@
 package io.crowds.dns;
 
 
-import io.crowds.Global;
+import io.crowds.Platform;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.socket.DatagramChannel;
-import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.handler.codec.dns.*;
 import io.netty.util.concurrent.ScheduledFuture;
 import io.vertx.core.Future;
@@ -37,7 +36,7 @@ public class DnsClient {
         this.dnsOption = dnsOption;
         this.eventLoopGroup=eventLoopGroup;
         this.queryRequestMap=new HashMap<>();
-        this.channel= Global.getDatagramChannel();
+        this.channel= Platform.getDatagramChannel();
         channel.config().setAllocator(PartialPooledByteBufAllocator.DEFAULT);
         this.channel.pipeline()
                 .addLast(new DatagramDnsQueryEncoder())

@@ -1,10 +1,9 @@
 package io.crowds.dns;
 
 
-import io.crowds.Global;
+import io.crowds.Platform;
 import io.netty.channel.*;
 import io.netty.channel.socket.DatagramChannel;
-import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.handler.codec.dns.*;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
@@ -30,7 +29,7 @@ public class DnsServer {
         this.eventLoopGroup = eventLoopGroup;
         this.dnsClient=dnsClient;
         this.dnsCache=new DnsCache();
-        this.channel= Global.getDatagramChannel();
+        this.channel= Platform.getDatagramChannel();
         channel.config().setAllocator(PartialPooledByteBufAllocator.DEFAULT);
         this.channel.pipeline()
                 .addLast(new DatagramDnsQueryDecoder())

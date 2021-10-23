@@ -6,7 +6,6 @@ import io.crowds.dns.DnsOption;
 import io.crowds.proxy.ProxyOption;
 import io.crowds.proxy.ProxyServer;
 import io.netty.channel.epoll.Epoll;
-import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
@@ -18,7 +17,6 @@ import io.vertx.core.cli.Option;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
 
-//docker run -d -p 0.0.0.0:53:53/udp -v /app/ddnsp/config:/config -v /app/ddnsp/logs:/logs  --name ddns a547426153/ddnsp -c /config/config.yaml
 
 public class Main {
     public static void main(String[] args) {
@@ -30,7 +28,7 @@ public class Main {
         CommandLine line = cli.parse(Arrays.asList(args));
         String configFile=line.getOptionValue("c");
 
-        DdnspOptionLoader loader = new DdnspOptionLoader(vertx);
+        DDnspOptionLoader loader = new DDnspOptionLoader(vertx);
 
         if (configFile != null) {
            loader.setFilePath(configFile);

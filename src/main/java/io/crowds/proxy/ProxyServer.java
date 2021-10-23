@@ -1,9 +1,14 @@
 package io.crowds.proxy;
 
-import io.crowds.Global;
+import io.crowds.Platform;
+import io.crowds.proxy.transport.EndPoint;
 import io.crowds.proxy.transport.direct.DirectProxyTransport;
 import io.crowds.proxy.transport.direct.TcpEndPoint;
 import io.crowds.proxy.transport.direct.UdpEndPoint;
+import io.crowds.proxy.transport.vmess.Security;
+import io.crowds.proxy.transport.vmess.User;
+import io.crowds.proxy.transport.vmess.VmessOption;
+import io.crowds.proxy.transport.vmess.VmessProxyTransport;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
@@ -19,6 +24,7 @@ import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.UUID;
 
 public class ProxyServer {
     private final static Logger logger= LoggerFactory.getLogger(ProxyServer.class);
@@ -26,7 +32,6 @@ public class ProxyServer {
     private ProxyOption proxyOption;
     private EventLoopGroup eventLoopGroup;
 
-    private Channel udpChannel;
     private ChannelCreator channelCreator;
 
     public ProxyServer(EventLoopGroup eventLoopGroup) {
@@ -50,7 +55,7 @@ public class ProxyServer {
     private Future<Void> startTcp(SocketAddress socketAddress){
         Promise<Void> promise=Promise.promise();
         ServerBootstrap serverBootstrap = new ServerBootstrap();
-        serverBootstrap.channel(Global.getServerSocketChannelClass())
+        serverBootstrap.channel(Platform.getServerSocketChannelClass())
                         .option(EpollChannelOption.IP_TRANSPARENT,true)
                         .childOption(EpollChannelOption.IP_TRANSPARENT,true);
 
@@ -84,7 +89,7 @@ public class ProxyServer {
         Bootstrap bootstrap = new Bootstrap();
         bootstrap
                 .group(eventLoopGroup)
-                .channel(Global.getDatagramChannelClass())
+                .channel(Platform.getDatagramChannelClass())
                 .option(EpollChannelOption.IP_TRANSPARENT,true)
                 .option(EpollChannelOption.IP_RECVORIGDSTADDR,true)
                 .handler(new ChannelInitializer<>() {
@@ -111,8 +116,22 @@ public class ProxyServer {
 
     private ProxyTransport getTransport(ChannelHandlerContext ctx){
         Channel channel = ctx.channel();
-        return new DirectProxyTransport(proxyOption,eventLoopGroup,channelCreator);
+//        InetSocketAddress dest = new InetSocketAddress("127.0.0.1", 16823);
+//        var option=new VmessOption()
+//                .setConnIdle(300)
+//                .setAddress(dest)
+//                .setSecurity(Security.ChaCha20_Poly1305)
+//                .setUser(new User(UUID.fromString("b831381d-6324-4d53-ad4f-8cda48b30811"),0));
+//        return new VmessProxyTransport(option,eventLoopGroup,channelCreator);
+        return new DirectProxyTransport(eventLoopGroup,channelCreator);
     }
+
+    private void bridging(EndPoint src,EndPoint dest,NetLocation netLocation){
+        var proxyCtx=new ProxyContext(src,dest,netLocation);
+        dest.bufferHandler(src::write);
+        src.bufferHandler(dest::write);
+    }
+
 
     private class ProxyUdpHandler extends SimpleChannelInboundHandler<DatagramPacket> {
         public ProxyUdpHandler() {
@@ -138,8 +157,10 @@ public class ProxyServer {
                         return;
                     }
                     EndPoint dest= (EndPoint) future.get();
-                    var proxyCtx=new ProxyContext(src,dest,netLocation);
-                    dest.channel().pipeline().addLast(new ProxyChannelHandler(proxyCtx,1));
+
+//                    dest.channel().pipeline().addLast(new ProxyChannelHandler(proxyCtx,1));
+                    bridging(src,dest,netLocation);
+
                     dest.write(msg.content());
                 });
         }
@@ -167,14 +188,14 @@ public class ProxyServer {
                     if (!future.isSuccess()){
                         if (logger.isDebugEnabled())
                             logger.error("",future.cause());
-                        logger.error("connect remote: {} failed cause: {}",netLocation.getDest(),future.cause().getMessage());
+                        logger.error("connect remote: {} failed cause: {}",netLocation.getDest().getAddress(),future.cause().getMessage());
                         channel.close();
                         return;
                     }
                     EndPoint dest= (EndPoint) future.get();
-                    this.proxyContext=new ProxyContext(src,dest,netLocation);
-                    dest.channel().pipeline().addLast(new ProxyChannelHandler(proxyContext,1));
-                    src.channel().pipeline().addLast(new ProxyChannelHandler(proxyContext,0));
+//                    dest.channel().pipeline().addLast(new ProxyChannelHandler(proxyContext,1));
+//                    src.channel().pipeline().addLast(new ProxyChannelHandler(proxyContext,0));
+                    bridging(src,dest,netLocation);
 
                     channel.config().setAutoRead(true);
                 });

@@ -1,6 +1,6 @@
 package io.crowds.proxy;
 
-import io.netty.channel.Channel;
+import io.crowds.proxy.transport.EndPoint;
 
 public class ProxyContext {
 
@@ -12,10 +12,10 @@ public class ProxyContext {
         this.src = src;
         this.dest = dest;
         this.netLocation=netLocation;
-        src.channel().closeFuture().addListener(closeFuture->{
+        src.closeFuture().addListener(closeFuture->{
             dest.close();
         });
-        dest.channel().closeFuture().addListener(closeFuture->{
+        dest.closeFuture().addListener(closeFuture->{
             src.close();
         });
     }
