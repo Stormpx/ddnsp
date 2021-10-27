@@ -7,9 +7,12 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.util.concurrent.Future;
 
+import java.util.function.Consumer;
+
 public class TcpEndPoint extends EndPoint {
 
     private Channel channel;
+    private Consumer<Throwable> throwableHandler;
 
     public TcpEndPoint(Channel channel) {
         this.channel = channel;
@@ -22,7 +25,18 @@ public class TcpEndPoint extends EndPoint {
             protected void channelRead0(ChannelHandlerContext ctx, ByteBuf msg) throws Exception {
                 fireBuf(msg);
             }
+            @Override
+            public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+//                logger.info("src {} caught exception :{}",ctx.channel().remoteAddress(),cause.getMessage());
+                if (throwableHandler!=null)
+                    throwableHandler.accept(cause);
+            }
         });
+    }
+
+    public TcpEndPoint exceptionHandler(Consumer<Throwable> throwableHandler) {
+        this.throwableHandler = throwableHandler;
+        return this;
     }
 
     @Override

@@ -47,7 +47,8 @@ public class Main {
                     Future<Void> dnsFuture = dnsServer.start(socketAddress);
 
                     ProxyServer proxyServer = new ProxyServer(vertx.nettyEventLoopGroup()).setProxyOption(proxyOption);
-                    Future<Void> proxyFuture = proxyServer.start(new InetSocketAddress(proxyOption.getHost(), proxyOption.getPort()));
+//                    new InetSocketAddress(proxyOption.getHost(), proxyOption.getPort())
+                    Future<Void> proxyFuture = proxyServer.start();
 
                     loader.optionChangeHandler(it -> {
                         DnsOption po = it.getDns();

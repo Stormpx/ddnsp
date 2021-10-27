@@ -1,3 +1,4 @@
+import io.crowds.proxy.ProxyOption;
 import io.crowds.proxy.ProxyServer;
 import io.crowds.util.Hash;
 import io.netty.buffer.Unpooled;
@@ -12,7 +13,8 @@ public class ProxyTest {
     public static void main(String[] args) throws InterruptedException {
 
         Vertx vertx = Vertx.vertx();
-        ProxyServer server = new ProxyServer(vertx.nettyEventLoopGroup());
+        ProxyServer server = new ProxyServer(vertx.nettyEventLoopGroup())
+                .setProxyOption(new ProxyOption());
         server.start(new InetSocketAddress("0.0.0.0",23451));
 
     }

@@ -1,14 +1,10 @@
 package io.crowds.proxy;
 
 import io.crowds.Platform;
+import io.crowds.proxy.services.socks.SocksServer;
 import io.crowds.proxy.transport.EndPoint;
 import io.crowds.proxy.transport.direct.DirectProxyTransport;
 import io.crowds.proxy.transport.direct.TcpEndPoint;
-import io.crowds.proxy.transport.direct.UdpEndPoint;
-import io.crowds.proxy.transport.vmess.Security;
-import io.crowds.proxy.transport.vmess.User;
-import io.crowds.proxy.transport.vmess.VmessOption;
-import io.crowds.proxy.transport.vmess.VmessProxyTransport;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
@@ -24,19 +20,24 @@ import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import java.util.UUID;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ProxyServer {
     private final static Logger logger= LoggerFactory.getLogger(ProxyServer.class);
 
     private ProxyOption proxyOption;
     private EventLoopGroup eventLoopGroup;
-
     private ChannelCreator channelCreator;
+
+    private Axis axis;
+
+    private SocksServer server;
 
     public ProxyServer(EventLoopGroup eventLoopGroup) {
         this.eventLoopGroup = eventLoopGroup;
         this.channelCreator=new ChannelCreator(eventLoopGroup);
+        this.axis=new Axis(eventLoopGroup,channelCreator);
     }
 
     public ProxyServer setProxyOption(ProxyOption proxyOption) {
@@ -51,6 +52,18 @@ public class ProxyServer {
         return CompositeFuture.any(startTcp(socketAddress), startUdp(socketAddress))
                 .map((Void)null);
     }
+
+    public Future<Void> start(){
+        List<Future> futures=new ArrayList<>();
+        if (proxyOption.getSocks()!=null){
+            this.server = new SocksServer(proxyOption.getSocks(),this.axis);
+            futures.add(server.start());
+        }
+
+        return CompositeFuture.any(futures)
+                .map((Void)null);
+    }
+
 
     private Future<Void> startTcp(SocketAddress socketAddress){
         Promise<Void> promise=Promise.promise();
@@ -139,7 +152,7 @@ public class ProxyServer {
         }
 
         private DatagramChannel createNonLocalChannel(InetSocketAddress address){
-            return channelCreator.createDatagramChannel(address,new DataGramChOption().setBindAddr(address).setIpTransport(true));
+            return channelCreator.createDatagramChannel(address,new DatagramOption().setBindAddr(address).setIpTransport(true));
         }
 
         @Override
@@ -147,22 +160,24 @@ public class ProxyServer {
             InetSocketAddress recipient = msg.recipient();
             InetSocketAddress sender = msg.sender();
             logger.info("udp data packet receive sender: {} recipient: {}",sender,recipient);
-            var src=new UdpEndPoint(createNonLocalChannel(recipient),sender);
-            ProxyTransport provider = getTransport(ctx);
-            NetLocation netLocation = new NetLocation(sender, recipient, TP.UDP);
-            provider.createEndPoint(netLocation)
-                .addListener(future -> {
-                    if (!future.isSuccess()){
-                        logger.info("......");
-                        return;
-                    }
-                    EndPoint dest= (EndPoint) future.get();
+            axis.handleUdp(createNonLocalChannel(recipient),msg);
 
-//                    dest.channel().pipeline().addLast(new ProxyChannelHandler(proxyCtx,1));
-                    bridging(src,dest,netLocation);
-
-                    dest.write(msg.content());
-                });
+//            var src=new UdpEndPoint(createNonLocalChannel(recipient),sender);
+//            ProxyTransport provider = getTransport(ctx);
+//            NetLocation netLocation = new NetLocation(sender, recipient, TP.UDP);
+//            provider.createEndPoint(netLocation)
+//                .addListener(future -> {
+//                    if (!future.isSuccess()){
+//                        logger.info("......");
+//                        return;
+//                    }
+//                    EndPoint dest= (EndPoint) future.get();
+//
+////                    dest.channel().pipeline().addLast(new ProxyChannelHandler(proxyCtx,1));
+//                    bridging(src,dest,netLocation);
+//
+//                    dest.write(msg.content());
+//                });
         }
     }
 
@@ -207,7 +222,9 @@ public class ProxyServer {
 
         @Override
         public void channelActive(ChannelHandlerContext ctx) throws Exception {
-            initContext(ctx);
+//            initContext(ctx);
+            Channel channel = ctx.channel();
+            axis.handleTcp(channel, channel.remoteAddress(),selectRemoteAddress(channel));
             super.channelActive(ctx);
         }
 

@@ -5,7 +5,7 @@ import io.netty.channel.Channel;
 import java.net.SocketAddress;
 import java.util.function.Consumer;
 
-public class DataGramChOption {
+public class DatagramOption {
 
     private boolean ipTransport=false;
     private SocketAddress bindAddr;
@@ -17,7 +17,7 @@ public class DataGramChOption {
         return ipTransport;
     }
 
-    public DataGramChOption setIpTransport(boolean ipTransport) {
+    public DatagramOption setIpTransport(boolean ipTransport) {
         this.ipTransport = ipTransport;
         return this;
     }
@@ -26,7 +26,7 @@ public class DataGramChOption {
         return bindAddr;
     }
 
-    public DataGramChOption setBindAddr(SocketAddress bindAddr) {
+    public DatagramOption setBindAddr(SocketAddress bindAddr) {
         this.bindAddr = bindAddr;
         return this;
     }
@@ -35,7 +35,7 @@ public class DataGramChOption {
         return onIdle;
     }
 
-    public DataGramChOption setOnIdle(Consumer<Channel> onIdle) {
+    public DatagramOption setOnIdle(Consumer<Channel> onIdle) {
         this.onIdle = onIdle;
         return this;
     }

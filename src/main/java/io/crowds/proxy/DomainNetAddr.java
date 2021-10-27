@@ -15,6 +15,17 @@ public class DomainNetAddr  extends NetAddr{
         this.port = port;
     }
 
+    public DomainNetAddr(InetSocketAddress address){
+        super(address);
+        this.host=address.getHostString();
+        this.port=address.getPort();
+
+    }
+
+    public SocketAddress getResolveAddress(){
+        return new InetSocketAddress(host,port);
+    }
+
     @Override
     public boolean isIpv4() {
         return false;
@@ -28,6 +39,11 @@ public class DomainNetAddr  extends NetAddr{
     @Override
     public byte[] getByte() {
         return host.getBytes();
+    }
+
+    @Override
+    public String getHost() {
+        return host;
     }
 
     @Override

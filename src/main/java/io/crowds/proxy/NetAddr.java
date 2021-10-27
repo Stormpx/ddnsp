@@ -34,6 +34,8 @@ public class NetAddr {
         return getAsInetAddr().getAddress().getAddress();
     }
 
+    public String getHost(){return getAsInetAddr().getHostName();}
+
     public int getPort(){
         return getAsInetAddr().getPort();
     }

@@ -49,7 +49,7 @@ public class ChannelCreator {
 
 
 
-    public DatagramChannel createDatagramChannel(InetSocketAddress tuple, DataGramChOption option) {
+    public DatagramChannel createDatagramChannel(InetSocketAddress tuple, DatagramOption option) {
         DatagramChannel channel = tupleMap.get(tuple);
         if (channel !=null) {
             logger.info("udp tuple {} fullcone {}",tuple,channel.localAddress());
@@ -76,7 +76,7 @@ public class ChannelCreator {
     }
 
 
-    public DatagramChannel createDatagramChannel(DataGramChOption option) {
+    public DatagramChannel createDatagramChannel(DatagramOption option) {
         SocketAddress bindAddr = option.getBindAddr();
         if (bindAddr==null)
             bindAddr=new InetSocketAddress("0.0.0.0",0);

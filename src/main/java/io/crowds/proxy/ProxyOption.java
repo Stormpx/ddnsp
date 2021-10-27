@@ -1,26 +1,44 @@
 package io.crowds.proxy;
 
+import io.crowds.proxy.services.socks.SocksOption;
+import io.crowds.proxy.services.transparent.TransparentOption;
+import io.crowds.proxy.transport.ProtocolOption;
+
+import java.util.List;
+
 public class ProxyOption {
-    private boolean enable=true;
-    private String host;
-    private Integer port;
+
+    private SocksOption socks;
+
+    private TransparentOption transparent;
+
+    private List<ProtocolOption> proxies;
 
 
-    public String getHost() {
-        return host;
+    public SocksOption getSocks() {
+        return socks;
     }
 
-    public ProxyOption setHost(String host) {
-        this.host = host;
+    public ProxyOption setSocks(SocksOption socks) {
+        this.socks = socks;
         return this;
     }
 
-    public Integer getPort() {
-        return port;
+    public TransparentOption getTransparent() {
+        return transparent;
     }
 
-    public ProxyOption setPort(Integer port) {
-        this.port = port;
+    public ProxyOption setTransparent(TransparentOption transparent) {
+        this.transparent = transparent;
+        return this;
+    }
+
+    public List<ProtocolOption> getProxies() {
+        return proxies;
+    }
+
+    public ProxyOption setProxies(List<ProtocolOption> proxies) {
+        this.proxies = proxies;
         return this;
     }
 }

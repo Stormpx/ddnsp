@@ -9,6 +9,7 @@ import io.netty.util.concurrent.DefaultPromise;
 import io.netty.util.concurrent.Future;
 
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 
 public class DirectProxyTransport extends AbstractProxyTransport {
 
@@ -23,9 +24,14 @@ public class DirectProxyTransport extends AbstractProxyTransport {
         DefaultPromise<EndPoint> promise = new DefaultPromise<>(eventLoopGroup.next());
 
         try {
+            NetAddr dest = netLocation.getDest();
+            SocketAddress target= dest.getAddress();
+            if (dest instanceof DomainNetAddr){
+                target=((DomainNetAddr) dest).getResolveAddress();
+            }
             TP tp = netLocation.getTp();
             if (TP.TCP== tp){
-                var cf= channelCreator.createTcpChannel(netLocation.getDest().getAddress(), new ChannelInitializer<Channel>() {
+                var cf= channelCreator.createTcpChannel(target, new ChannelInitializer<Channel>() {
                     @Override
                     protected void initChannel(Channel ch) throws Exception {
 
@@ -40,8 +46,8 @@ public class DirectProxyTransport extends AbstractProxyTransport {
                 });
             }else{
                 promise.trySuccess(new UdpEndPoint(
-                        channelCreator.createDatagramChannel((InetSocketAddress) netLocation.getSrc().getAddress(),new DataGramChOption()),
-                        (InetSocketAddress) netLocation.getDest().getAddress())
+                        channelCreator.createDatagramChannel((InetSocketAddress) netLocation.getSrc().getAddress(),new DatagramOption()),
+                        (InetSocketAddress) target)
                 );
             }
         } catch (Exception e) {

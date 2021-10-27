@@ -5,6 +5,7 @@ import io.crowds.dns.DnsOption;
 import io.crowds.dns.RR;
 import io.crowds.dns.RecordData;
 import io.crowds.proxy.ProxyOption;
+import io.crowds.proxy.services.socks.SocksOption;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.dns.DefaultDnsPtrRecord;
 import io.netty.handler.codec.dns.DefaultDnsRawRecord;
@@ -19,6 +20,7 @@ import io.vertx.core.Vertx;
 import io.vertx.core.dns.AddressResolverOptions;
 import io.vertx.core.impl.VertxImpl;
 import io.vertx.core.impl.resolver.DnsResolverProvider;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,8 +97,6 @@ public class DDnspOptionLoader {
             DDnspOption.setDdns(new DDnsOption().setEnable(false));
 
             ProxyOption proxyOption = new ProxyOption();
-            proxyOption.setHost("127.0.0.1")
-                    .setPort(23540);
             DDnspOption.setProxy(proxyOption);
 
             return Future.succeededFuture(DDnspOption);
@@ -143,9 +143,30 @@ public class DDnspOptionLoader {
 
     private ProxyOption toProxyOption(JsonObject config){
         JsonObject json = config.getJsonObject("proxy", new JsonObject());
-        return new ProxyOption()
-                .setHost(Optional.ofNullable(json.getString("host")).orElse("127.0.0.1"))
-                .setPort(Optional.ofNullable(json.getInteger("port")).filter(p->p>0&&p<=65535).orElse(23540));
+        var proxy=new ProxyOption();
+        JsonObject socksJson = json.getJsonObject("socks");
+        if (socksJson!=null){
+            SocksOption socksOption = new SocksOption();
+            socksOption.setEnable(socksJson.getBoolean("enable",false))
+                    .setHost(socksJson.getString("host","127.0.0.1"))
+                    .setPort(socksJson.getInteger("port",13450))
+                    .setUsername(socksJson.getString("username"))
+                    .setPassword(socksJson.getString("password"))
+            ;
+            proxy.setSocks(socksOption);
+        }
+        JsonObject transparentJson = json.getJsonObject("transparent");
+        if (transparentJson!=null){
+
+        }
+        JsonArray proxiesArray = json.getJsonArray("proxies");
+        if (proxiesArray!=null){
+
+        }
+        //                .setHost(Optional.ofNullable(json.getString("host")).orElse("127.0.0.1"))
+//                .setPort(Optional.ofNullable(json.getInteger("port")).filter(p->p>0&&p<=65535).orElse(23540));
+
+        return proxy;
     }
 
     private List<InetSocketAddress> convert(List<String> serverList){
