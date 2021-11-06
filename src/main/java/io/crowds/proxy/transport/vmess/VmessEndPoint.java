@@ -2,10 +2,14 @@ package io.crowds.proxy.transport.vmess;
 
 import io.crowds.proxy.*;
 import io.crowds.proxy.transport.EndPoint;
+import io.crowds.proxy.transport.vmess.stream.StreamCreator;
+import io.crowds.proxy.transport.vmess.stream.TcpStreamCreator;
+import io.crowds.proxy.transport.vmess.stream.WebSocketStreamCreator;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
+import io.netty.handler.codec.http.websocketx.WebSocketClientProtocolHandler;
 import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.handler.timeout.TimeoutException;
@@ -39,24 +43,28 @@ public class VmessEndPoint extends EndPoint {
         this.closePromise=channelCreator.getEventLoopGroup().next().newPromise();
     }
 
-    public Future<EndPoint> init(){
 
-        var cf=channelCreator.createTcpChannel(vmessOption.getAddress(), new ChannelInitializer<Channel>() {
-            @Override
-            protected void initChannel(Channel ch) throws Exception {
-                ch.pipeline()
-                        .addLast(new IdleStateHandler(0,0,vmessOption.getConnIdle()))
-                        .addLast(new VmessMessageCodec())
-                        .addLast(new VmessChannelHandler());
-            }
-        });
+    private StreamCreator getCreator(){
+        if ("ws".equalsIgnoreCase(vmessOption.getNetWork())&&vmessOption.getWs()!=null){
+            return new WebSocketStreamCreator(vmessOption,channelCreator);
+        }
+        return new TcpStreamCreator(vmessOption,channelCreator);
+    }
+
+    public Future<EndPoint> init() throws Exception {
+        var cf=getCreator().create();
         cf.addListener(future -> {
             if (!future.isSuccess()){
                 promise.tryFailure(future.cause());
                 return;
             }
             this.channel=cf.channel();
-            handleResponse();
+            this.channel.pipeline()
+                    .addLast(new IdleStateHandler(0,0,vmessOption.getConnIdle()))
+                    .addLast(new VmessMessageCodec())
+                    .addLast(new VmessChannelHandler());
+
+            handshake(this.channel);
         });
         return promise;
     }
@@ -115,34 +123,27 @@ public class VmessEndPoint extends EndPoint {
         }
     }
 
+    private void handshake(Channel channel){
+        NetAddr dest = netLocation.getDest();
 
-    public class VmessChannelHandler extends ChannelDuplexHandler {
+        User user = vmessOption.getUser();
 
+        VmessRequest request = new VmessRequest( Set.of(Option.CHUNK_STREAM,Option.CHUNK_MASKING), netLocation.getTp(), dest);
+        request.setUser(user.randomUser());
+        request.setSecurity(vmessOption.getSecurity());
 
-        private void handshake(ChannelHandlerContext ctx){
-            NetAddr dest = netLocation.getDest();
-
-            User user = vmessOption.getUser();
-
-            VmessRequest request = new VmessRequest( Set.of(Option.CHUNK_STREAM,Option.CHUNK_MASKING), netLocation.getTp(), dest);
-            request.setUser(user.randomUser());
-            request.setSecurity(vmessOption.getSecurity());
-
-            ctx.writeAndFlush(request)
+        channel.write(request)
                 .addListener(future -> {
                     if (!future.isSuccess()) {
-                       handleThrowable(future.cause());
+                        handleThrowable(future.cause());
+                        return;
                     }
                 });
+        handleResponse();
 
-        }
+    }
 
-        @Override
-        public void channelActive(ChannelHandlerContext ctx) throws Exception {
-
-            handshake(ctx);
-            super.channelActive(ctx);
-        }
+    public class VmessChannelHandler extends ChannelInboundHandlerAdapter {
 
 
         @Override

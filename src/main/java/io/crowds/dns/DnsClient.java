@@ -2,25 +2,37 @@ package io.crowds.dns;
 
 
 import io.crowds.Platform;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.handler.codec.dns.*;
+import io.netty.resolver.dns.DnsNameResolverException;
 import io.netty.util.concurrent.ScheduledFuture;
+import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.net.impl.PartialPooledByteBufAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.Inet4Address;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class DnsClient {
     private final Logger logger= LoggerFactory.getLogger(DnsClient.class);
+    private AtomicLong reqId=new AtomicLong(0);
     private int curId=1;
 
     private DnsOption dnsOption;
@@ -62,10 +74,7 @@ public class DnsClient {
     }
 
     private int nextId(){
-        if (curId>65535){
-            curId=1;
-        }
-        return curId++;
+        return (int) (this.reqId.addAndGet(1)%65536L);
     }
 
     private InetSocketAddress getServer(){
@@ -98,6 +107,7 @@ public class DnsClient {
         return request.future();
     }
 
+
     public Future<DnsResponse> request(String target,DnsRecordType type){
         if (!target.endsWith("."))
             target+=".";
@@ -118,9 +128,42 @@ public class DnsClient {
     }
 
 
+    public Future<InetAddress> request(String target){
+        List<Future> fs=Stream.of(DnsRecordType.A,DnsRecordType.AAAA)
+                .map(type -> request(target, type)
+                        .map(resp->{
+                            try {
+                                int count = resp.count(DnsSection.ANSWER);
+                                for (int i = 0; i < count; i++) {
+                                    DnsRecord respRecord = resp.recordAt(DnsSection.ANSWER, i);
+                                    if (respRecord.type()==type){
+                                        DnsRawRecord record= (DnsRawRecord) respRecord;
+                                        return InetAddress.getByAddress(ByteBufUtil.getBytes(record.content()));
+                                    }
+                                }
+                                return null;
+                            } catch (UnknownHostException e) {
+                                //
+                                return null;
+                            }
+                        })
+                )
+                .collect(Collectors.toList());
+        return CompositeFuture.any(fs).map(cf->{
+            for (int i = 0; i < cf.size(); i++) {
+                if (cf.succeeded(i)){
+                    return cf.resultAt(i);
+                }
+            }
+            return null;
+        });
+
+    }
+
 
     class QueryRequest{
         private Integer id;
+
 
         private ScheduledFuture<?> schedule;
 
@@ -138,7 +181,11 @@ public class DnsClient {
         }
 
         public void resp(DnsResponse response){
-            promise.tryComplete(response);
+            if (response.code()==DnsResponseCode.NOERROR){
+                promise.tryComplete(response);
+            }else{
+                promise.tryFail("dns query error "+response.code().toString());
+            }
             release();
         }
 

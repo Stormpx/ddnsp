@@ -57,21 +57,20 @@ public class VmessMessageCodec extends ByteToMessageCodec<Object> {
         byte[] requestIv = session.getRequestIv();
         byte[] responseIv = session.getResponseIv();
 
-        switch (security){
-            case NONE:
-                this.requestCrypto= new VmessNoneCrypto();
-                this.responseCrypto=new VmessNoneCrypto();
-                break;
-            case AES_128_GCM:
-                this.requestCrypto= new VmessAesGCMCrypto(requestKey, requestIv);
-                this.responseCrypto=new VmessAesGCMCrypto(responseKey,responseIv);
-                break;
-            case ChaCha20_Poly1305:
-                this.requestCrypto= new VmessChaCha20Poly1305Crypto(requestKey, requestIv);
-                this.responseCrypto=new VmessChaCha20Poly1305Crypto(responseKey,responseIv);
-                break;
-            default:
-                throw new RuntimeException("");
+        switch (security) {
+            case NONE -> {
+                this.requestCrypto = new VmessNoneCrypto();
+                this.responseCrypto = new VmessNoneCrypto();
+            }
+            case AES_128_GCM -> {
+                this.requestCrypto = new VmessAesGCMCrypto(requestKey, requestIv);
+                this.responseCrypto = new VmessAesGCMCrypto(responseKey, responseIv);
+            }
+            case ChaCha20_Poly1305 -> {
+                this.requestCrypto = new VmessChaCha20Poly1305Crypto(requestKey, requestIv);
+                this.responseCrypto = new VmessChaCha20Poly1305Crypto(responseKey, responseIv);
+            }
+            default -> throw new RuntimeException("");
         }
     }
 

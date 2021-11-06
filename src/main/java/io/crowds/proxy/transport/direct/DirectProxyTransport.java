@@ -1,12 +1,16 @@
 package io.crowds.proxy.transport.direct;
 
 import io.crowds.proxy.*;
+import io.crowds.proxy.common.BaseChannelInitializer;
 import io.crowds.proxy.transport.EndPoint;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.EventLoopGroup;
+import io.crowds.proxy.transport.UdpChannel;
+import io.netty.channel.*;
+import io.netty.channel.socket.DatagramChannel;
+import io.netty.channel.socket.DatagramPacket;
 import io.netty.util.concurrent.DefaultPromise;
 import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.FutureListener;
+import io.netty.util.concurrent.Promise;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -19,9 +23,8 @@ public class DirectProxyTransport extends AbstractProxyTransport {
     }
 
 
-    @Override
-    public Future<EndPoint> createEndPoint(NetLocation netLocation) {
-        DefaultPromise<EndPoint> promise = new DefaultPromise<>(eventLoopGroup.next());
+    protected Future<EndPoint> createEndPoint0(String namespace,NetLocation netLocation, ChannelInitializer<Channel> initializer) {
+        Promise<EndPoint> promise = eventLoopGroup.next().newPromise();
 
         try {
             NetAddr dest = netLocation.getDest();
@@ -31,12 +34,8 @@ public class DirectProxyTransport extends AbstractProxyTransport {
             }
             TP tp = netLocation.getTp();
             if (TP.TCP== tp){
-                var cf= channelCreator.createTcpChannel(target, new ChannelInitializer<Channel>() {
-                    @Override
-                    protected void initChannel(Channel ch) throws Exception {
+                var cf= channelCreator.createTcpChannel(target, initializer);
 
-                    }
-                });
                 cf.addListener(future -> {
                     if (future.isSuccess()){
                         promise.trySuccess(new TcpEndPoint(cf.channel()));
@@ -45,14 +44,30 @@ public class DirectProxyTransport extends AbstractProxyTransport {
                     }
                 });
             }else{
-                promise.trySuccess(new UdpEndPoint(
-                        channelCreator.createDatagramChannel((InetSocketAddress) netLocation.getSrc().getAddress(),new DatagramOption()),
-                        (InetSocketAddress) target)
-                );
+                SocketAddress finalTarget = target;
+                channelCreator.createDatagramChannel(namespace, (InetSocketAddress) netLocation.getSrc().getAddress(),new DatagramOption(),initializer)
+                    .addListener((FutureListener<UdpChannel>) future -> {
+                        if (!future.isSuccess()){
+                            promise.tryFailure(future.cause());
+                            return;
+                        }
+                        UdpEndPoint udpEndPoint = new UdpEndPoint(future.get(), (InetSocketAddress) finalTarget);
+                        promise.trySuccess(udpEndPoint);
+                    });
+
+
             }
         } catch (Exception e) {
             promise.tryFailure(e);
         }
         return promise;
+    }
+
+    @Override
+    public Future<EndPoint> createEndPoint(NetLocation netLocation) throws Exception {
+        BaseChannelInitializer initializer = new BaseChannelInitializer();
+        if (netLocation.getTp()==TP.UDP)
+            initializer.connIdle(60);
+        return createEndPoint0("direct", netLocation, initializer);
     }
 }

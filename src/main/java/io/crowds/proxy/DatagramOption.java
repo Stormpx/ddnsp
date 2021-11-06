@@ -9,6 +9,7 @@ public class DatagramOption {
 
     private boolean ipTransport=false;
     private SocketAddress bindAddr;
+    private int idleTimeout=60;
     private Consumer<Channel> onIdle;
 
 
@@ -37,6 +38,15 @@ public class DatagramOption {
 
     public DatagramOption setOnIdle(Consumer<Channel> onIdle) {
         this.onIdle = onIdle;
+        return this;
+    }
+
+    public int getIdleTimeout() {
+        return idleTimeout;
+    }
+
+    public DatagramOption setIdleTimeout(int idleTimeout) {
+        this.idleTimeout = idleTimeout;
         return this;
     }
 }

@@ -16,7 +16,7 @@ public class VmessProxyTransport extends AbstractProxyTransport {
     }
 
     @Override
-    public Future<EndPoint> createEndPoint(NetLocation netLocation) {
+    public Future<EndPoint> createEndPoint(NetLocation netLocation) throws Exception {
         //todo udp connect reuse support
         VmessEndPoint endPoint = new VmessEndPoint(netLocation, vmessOption, channelCreator);
         return endPoint.init();

@@ -20,7 +20,7 @@ import io.netty.handler.codec.socksx.v4.Socks4Message;
 import io.netty.handler.codec.socksx.v5.*;
 import io.netty.handler.proxy.Socks5ProxyHandler;
 import io.netty.util.ReferenceCountUtil;
-import io.vertx.core.Future;
+import io.netty.util.concurrent.Future;
 import io.vertx.core.Promise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,7 +41,7 @@ public class SocksServer {
         this.axis = axis;
     }
 
-    public Future<Void> start(){
+    public io.vertx.core.Future<Void> start(){
         Promise<Void> promise=Promise.promise();
         InetSocketAddress socketAddress = new InetSocketAddress(socksOption.getHost(), socksOption.getPort());
         ServerBootstrap serverBootstrap = new ServerBootstrap();
@@ -196,22 +196,38 @@ public class SocksServer {
 
         private void handleUdpAssociate(ChannelHandlerContext ctx,Socks5CommandRequest request){
             InetSocketAddress dest = getAddress(request);
-            DatagramChannel datagramChannel = axis.getChannelCreator().createDatagramChannel(new DatagramOption().setOnIdle(channel -> { }));
-            datagramChannel.pipeline().addLast(new SimpleChannelInboundHandler<DatagramPacket>(false) {
-                @Override
-                protected void channelRead0(ChannelHandlerContext ctx, DatagramPacket msg) throws Exception {
-                    if (!msg.sender().equals(ctx.channel().remoteAddress())){
-                        ReferenceCountUtil.safeRelease(msg);
-                        return;
-                    }
-                    ctx.fireChannelRead(msg);
+            Future<DatagramChannel> future=axis.getChannelCreator().createDatagramChannel(new DatagramOption(),
+                    new ChannelInitializer<>() {
+                        @Override
+                        protected void initChannel(Channel ch) throws Exception {
+                            ch.pipeline().addLast(new SimpleChannelInboundHandler<DatagramPacket>(false) {
+                                @Override
+                                protected void channelRead0(ChannelHandlerContext ctx, DatagramPacket msg) throws Exception {
+                                    if (!msg.sender().equals(ctx.channel().remoteAddress())) {
+                                        ReferenceCountUtil.safeRelease(msg);
+                                        return;
+                                    }
+                                    axis.handleUdp((DatagramChannel) ctx.channel(), new DatagramPacket(msg.content(), dest, msg.sender()));
+                                }
+                            });
                 }
             });
-            ctx.channel().closeFuture().addListener(future -> datagramChannel.close());
+            future.addListener(f -> {
+                if (!f.isSuccess()){
+                    logger.error("{}",f.cause().getMessage());
+                    ctx.close();
+                    return;
+                }
+                DatagramChannel datagramChannel= (DatagramChannel) f.get();
+                ctx.channel().closeFuture().addListener(it -> datagramChannel.close());
+                InetSocketAddress bindAddr = datagramChannel.localAddress();
+                writeMessage(ctx,new DefaultSocks5CommandResponse(Socks5CommandStatus.SUCCESS,request.dstAddrType(), bindAddr.getHostName(),bindAddr.getPort()),
+                        v->{});
+            });
 
-            InetSocketAddress bindAddr = datagramChannel.localAddress();
-            writeMessage(ctx,new DefaultSocks5CommandResponse(Socks5CommandStatus.SUCCESS,request.dstAddrType(), bindAddr.getHostName(),bindAddr.getPort()),
-                    v->axis.handleUdp(datagramChannel,new DatagramPacket(Unpooled.EMPTY_BUFFER,dest, (InetSocketAddress) ctx.channel().remoteAddress())));
+
+
+
         }
 
 

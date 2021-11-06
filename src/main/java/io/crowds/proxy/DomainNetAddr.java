@@ -1,5 +1,7 @@
 package io.crowds.proxy;
 
+import io.netty.util.CharsetUtil;
+
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.charset.StandardCharsets;
@@ -38,7 +40,7 @@ public class DomainNetAddr  extends NetAddr{
 
     @Override
     public byte[] getByte() {
-        return host.getBytes();
+        return host.getBytes(CharsetUtil.US_ASCII);
     }
 
     @Override

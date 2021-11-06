@@ -1,5 +1,6 @@
 import io.crowds.util.Crypto;
 import io.crowds.util.Hash;
+import io.crowds.util.Rands;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import org.junit.Assert;
@@ -54,17 +55,23 @@ public class CryptoTest {
 
     @Test
     public void gcm() throws Exception {
-        byte[] key=new byte[16];
+        byte[] key128= Rands.genBytes(16);
+        byte[] key192= Rands.genBytes(24);
+        byte[] key256= Rands.genBytes(32);
         byte[] iv=new byte[12];
-        ThreadLocalRandom.current().nextBytes(key);
         ThreadLocalRandom.current().nextBytes(iv);
 
-//        byte[] plain = "dhwioadh12315616iowadhwioadhwa".getBytes(StandardCharsets.UTF_8);
-        byte[] plain = new byte[0];
+        byte[] plain = "dhwioadh12315616iowadhwioadhwa".getBytes(StandardCharsets.UTF_8);
+//        byte[] plain = new byte[0];
 
-        byte[] encrypt = Crypto.gcmEncrypt(plain, key, iv);
-        System.out.println(encrypt.length);
-        byte[] decrypt = Crypto.gcmDecrypt(encrypt, key, iv);
+        byte[] encrypt128 = Crypto.gcmEncrypt(plain, key128, iv);
+        byte[] encrypt192 = Crypto.gcmEncrypt(plain, key192, iv);
+        byte[] encrypt256 = Crypto.gcmEncrypt(plain, key256, iv);
+        System.out.println(ByteBufUtil.hexDump(encrypt128));
+        System.out.println(ByteBufUtil.hexDump(encrypt192));
+        System.out.println(ByteBufUtil.hexDump(encrypt256));
+        System.out.println(encrypt128.length);
+        byte[] decrypt = Crypto.gcmDecrypt(encrypt128, key128, iv);
         System.out.println(decrypt.length);
         System.out.println(plain.length);
 

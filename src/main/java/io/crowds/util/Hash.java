@@ -1,7 +1,10 @@
 package io.crowds.util;
 
 import org.bouncycastle.crypto.digests.KeccakDigest;
+import org.bouncycastle.crypto.digests.SHA1Digest;
 import org.bouncycastle.crypto.digests.SHAKEDigest;
+import org.bouncycastle.crypto.generators.HKDFBytesGenerator;
+import org.bouncycastle.crypto.params.HKDFParameters;
 import org.bouncycastle.jcajce.provider.asymmetric.rsa.PSSSignatureSpi;
 import org.bouncycastle.jcajce.provider.digest.Keccak;
 import org.bouncycastle.jcajce.provider.digest.SHA3;
@@ -104,5 +107,14 @@ public class Hash {
         return hash;
     }
 
+
+    public static byte[] hkdfSHA1(byte[] key,byte[] salt,byte[] info,int len){
+        var gen=new HKDFBytesGenerator(new SHA1Digest());
+        gen.init(new HKDFParameters(key,salt,info));
+        byte[] bytes=new byte[len];
+        gen.generateBytes(bytes,0,len);
+
+        return bytes;
+    }
 
 }

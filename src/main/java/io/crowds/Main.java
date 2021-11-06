@@ -20,7 +20,6 @@ import java.util.Arrays;
 
 public class Main {
     public static void main(String[] args) {
-        System.out.println(Epoll.isAvailable());
         Vertx vertx = Vertx.vertx(new VertxOptions().setPreferNativeTransport(true));
         CLI cli = CLI.create("ddnsp")
                 .addOption(new Option().setShortName("c").setLongName("config").setMultiValued(false).setRequired(false));

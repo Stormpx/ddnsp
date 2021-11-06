@@ -9,6 +9,7 @@ import io.vertx.core.dns.DnsClient;
 
 import java.net.InetSocketAddress;
 import java.util.Arrays;
+import java.util.Objects;
 
 public class DnsTest {
 
@@ -16,7 +17,7 @@ public class DnsTest {
     public static void main(String[] args) {
         Vertx vertx = Vertx.vertx();
 
-        DnsClient dnsClient = vertx.createDnsClient(53,"114.114.114.114");
+//        DnsClient dnsClient = vertx.createDnsClient(53,"114.114.114.114");
 
 
 //        dnsClient.resolveCNAME("oss.davco.cn")
@@ -30,7 +31,7 @@ public class DnsTest {
         InetSocketAddress inetSocketAddress = new InetSocketAddress("114.114.114.114", 53);
         var dc=new io.crowds.dns.DnsClient(vertx.nettyEventLoopGroup(),new DnsOption()
                 .setDnsServers(Arrays.asList(inetSocketAddress)));
-        dc.request("www.baidu.com", DnsRecordType.A)
+        dc.request("www.baidu.com", DnsRecordType.AAAA)
                 .onFailure(Throwable::printStackTrace)
                 .onSuccess(message->{
                     System.out.println("question"+appendRecords(message,DnsSection.QUESTION));
@@ -38,6 +39,10 @@ public class DnsTest {
                     System.out.println("AUTHORITY"+appendRecords(message,DnsSection.AUTHORITY));
                     System.out.println("ADDITIONAL"+appendRecords(message,DnsSection.ADDITIONAL));
                 });
+
+        dc.request("www.baidu.com")
+            .onSuccess(System.out::println);
+
 //
 //        dc.request("oss.davco.cn", DnsRecordType.CNAME)
 //                .onFailure(Throwable::printStackTrace)

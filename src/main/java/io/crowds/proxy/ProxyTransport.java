@@ -6,7 +6,7 @@ import io.netty.util.concurrent.Future;
 
 public interface ProxyTransport {
 
-    Future<EndPoint> createEndPoint(NetLocation netLocation);
+    Future<EndPoint> createEndPoint(NetLocation netLocation) throws Exception;
 
 
 }

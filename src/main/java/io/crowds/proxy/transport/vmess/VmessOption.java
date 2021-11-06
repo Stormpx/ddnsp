@@ -1,5 +1,6 @@
 package io.crowds.proxy.transport.vmess;
 
+import io.crowds.proxy.transport.ProtocolOption;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaders;
 
@@ -7,14 +8,16 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.UUID;
 
-public class VmessOption {
+public class VmessOption extends ProtocolOption {
     private InetSocketAddress address;
     private Security security;
     private User user;
     private String netWork;
     private boolean tls;
+    private boolean tlsAllowInsecure=false;
+    private String tlsServerName;
     private WsOption ws;
-    private int connIdle=300;
+
 
 
     public InetSocketAddress getAddress() {
@@ -71,17 +74,27 @@ public class VmessOption {
         return this;
     }
 
-    public int getConnIdle() {
-        return connIdle;
+
+    public boolean isTlsAllowInsecure() {
+        return tlsAllowInsecure;
     }
 
-    public VmessOption setConnIdle(int connIdle) {
-        this.connIdle = connIdle;
+    public VmessOption setTlsAllowInsecure(boolean tlsAllowInsecure) {
+        this.tlsAllowInsecure = tlsAllowInsecure;
+        return this;
+    }
+
+    public String getTlsServerName() {
+        return tlsServerName;
+    }
+
+    public VmessOption setTlsServerName(String tlsServerName) {
+        this.tlsServerName = tlsServerName;
         return this;
     }
 
     public static class WsOption{
-        private String path;
+        private String path="/";
         private HttpHeaders headers;
 
 
