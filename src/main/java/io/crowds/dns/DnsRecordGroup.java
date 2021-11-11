@@ -1,5 +1,6 @@
 package io.crowds.dns;
 
+import io.crowds.util.DnsKit;
 import io.netty.handler.codec.dns.DnsRecord;
 import io.netty.handler.codec.dns.DnsRecordType;
 

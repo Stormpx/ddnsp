@@ -19,6 +19,7 @@ public class BaseChannelInitializer extends ChannelInitializer<Channel> {
 
     private Integer connIdle;
     private ChannelInitializer<Channel> subInitializer;
+    private HandlerConfigurer configurer;
 
     public BaseChannelInitializer tls(boolean tls,boolean allowInsecure,String serverName,int port) throws SSLException {
         if (tls){
@@ -39,6 +40,11 @@ public class BaseChannelInitializer extends ChannelInitializer<Channel> {
         return this;
     }
 
+    public BaseChannelInitializer configurer(HandlerConfigurer configurer) {
+        this.configurer = configurer;
+        return this;
+    }
+
     public BaseChannelInitializer initializer(ChannelInitializer<Channel>  initializer){
         this.subInitializer=initializer;
         return this;
@@ -52,7 +58,10 @@ public class BaseChannelInitializer extends ChannelInitializer<Channel> {
         if (this.subInitializer!=null){
             ch.pipeline().addLast(this.subInitializer);
         }
-        if (connIdle!=null){
+        if (this.configurer!=null){
+            ch.pipeline().addLast(this.configurer);
+        }
+        if (connIdle!=null&&connIdle!=0){
             ch.pipeline().addLast(new IdleStateHandler(0,0, connIdle));
         }
     }

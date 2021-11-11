@@ -52,4 +52,9 @@ public class DomainNetAddr  extends NetAddr{
     public int getPort() {
         return port;
     }
+
+    @Override
+    public String toString() {
+        return host+":"+port;
+    }
 }

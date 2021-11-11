@@ -9,6 +9,7 @@ import io.crowds.proxy.transport.UdpChannel;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
+import io.netty.channel.epoll.Epoll;
 import io.netty.channel.epoll.EpollChannelOption;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.DatagramPacket;
@@ -36,7 +37,10 @@ public class TransparentServer {
 
     public Future<Void> start(){
         InetSocketAddress socketAddress = new InetSocketAddress(option.getHost(), option.getPort());
-
+        if (!Epoll.isAvailable()){
+            logger.error("unable start transparent server because :{}",Epoll.unavailabilityCause().getCause().getMessage());
+            return Future.failedFuture("");
+        }
         return CompositeFuture.any(startTcp(socketAddress),startUdp(socketAddress))
                 .map((Void)null);
 
@@ -44,6 +48,7 @@ public class TransparentServer {
 
     private Future<Void> startTcp(SocketAddress socketAddress){
         Promise<Void> promise=Promise.promise();
+
         ServerBootstrap serverBootstrap = new ServerBootstrap();
         serverBootstrap.channel(Platform.getServerSocketChannelClass())
                 .option(EpollChannelOption.IP_TRANSPARENT,true)
@@ -62,11 +67,11 @@ public class TransparentServer {
                 .addListener(future -> {
                     if (future.isSuccess()) {
                         promise.complete();
-                        logger.info("start tcp proxy server {}", socketAddress);
+                        logger.info("start transparent tcp proxy server {}", socketAddress);
                     }else {
                         future.cause().printStackTrace();
                         promise.tryFail(future.cause());
-                        logger.error("start tcp proxy server failed cause:{}", future.cause().getMessage());
+                        logger.error("start transparent tcp proxy server failed cause:{}", future.cause().getMessage());
                     }
                 })
         ;
@@ -91,10 +96,10 @@ public class TransparentServer {
                 .addListener(future -> {
                     if (future.isSuccess()) {
                         promise.complete();
-                        logger.info("start udp proxy server {}", socketAddress);
+                        logger.info("start transparent udp proxy server {}", socketAddress);
                     }else {
                         promise.tryFail(future.cause());
-                        logger.error("start udp proxy server failed cause:{}", future.cause().getMessage());
+                        logger.error("start transparent udp proxy server failed cause:{}", future.cause().getMessage());
                     }
                 });
 

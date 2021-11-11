@@ -1,7 +1,7 @@
 package io.crowds.proxy.services.socks;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import io.crowds.Strs;
+import io.crowds.util.Strs;
 
 public class SocksOption {
     private boolean enable;

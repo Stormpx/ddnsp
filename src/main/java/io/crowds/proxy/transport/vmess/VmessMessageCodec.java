@@ -45,7 +45,7 @@ public class VmessMessageCodec extends ByteToMessageCodec<Object> {
 
     @Override
     public boolean acceptOutboundMessage(Object msg) throws Exception {
-        return msg instanceof ByteBuf||super.acceptOutboundMessage(msg);
+        return msg instanceof ByteBuf||msg instanceof VmessRequest;
     }
 
     private void createCrypto(Security security){

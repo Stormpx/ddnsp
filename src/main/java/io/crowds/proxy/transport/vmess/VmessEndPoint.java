@@ -60,7 +60,6 @@ public class VmessEndPoint extends EndPoint {
             }
             this.channel=cf.channel();
             this.channel.pipeline()
-                    .addLast(new IdleStateHandler(0,0,vmessOption.getConnIdle()))
                     .addLast(new VmessMessageCodec())
                     .addLast(new VmessChannelHandler());
 
@@ -87,7 +86,7 @@ public class VmessEndPoint extends EndPoint {
     @Override
     public void close() {
         if (this.channel.isActive()) {
-            channel.writeAndFlush(Unpooled.EMPTY_BUFFER);
+            channel.writeAndFlush(new VmessClose());
             channel.close();
         }
     }

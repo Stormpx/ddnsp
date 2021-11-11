@@ -24,4 +24,14 @@ public enum  Cipher {
     public int getSaltSize() {
         return saltSize;
     }
+
+
+    public static Cipher of(String name){
+        for (Cipher value : values()) {
+            if (value.name.equalsIgnoreCase(name)){
+                return value;
+            }
+        }
+        return null;
+    }
 }

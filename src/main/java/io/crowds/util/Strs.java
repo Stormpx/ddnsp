@@ -1,4 +1,4 @@
-package io.crowds;
+package io.crowds.util;
 
 
 import java.net.URI;

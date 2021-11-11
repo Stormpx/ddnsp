@@ -31,7 +31,7 @@ public class VmessTest {
         InetSocketAddress dest = new InetSocketAddress("127.0.0.1", 16823);
         var option=new VmessOption()
                 .setAddress(dest)
-                .setSecurity(Security.ChaCha20_Poly1305)
+                .setSecurity(Security.NONE)
                 .setUser(new User(UUID.fromString("b831381d-6324-4d53-ad4f-8cda48b30811"),0));
         option.setConnIdle(5);
 

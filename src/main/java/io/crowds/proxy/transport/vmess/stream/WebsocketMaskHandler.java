@@ -1,9 +1,11 @@
 package io.crowds.proxy.transport.vmess.stream;
+import io.crowds.proxy.transport.vmess.VmessClose;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.*;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.websocketx.*;
 import io.netty.util.CharsetUtil;
+import io.netty.util.ReferenceCountUtil;
 
 public class WebsocketMaskHandler extends ChannelDuplexHandler {
 
@@ -18,23 +20,34 @@ public class WebsocketMaskHandler extends ChannelDuplexHandler {
         return handshakeFuture;
     }
 
+    public WebsocketMaskHandler handshakeFuture(ChannelPromise handshakeFuture) {
+        this.handshakeFuture = handshakeFuture;
+        return this;
+    }
+
     public ChannelFuture handshake(){
         Channel channel = handshakeFuture.channel();
         handshaker.handshake(channel);
         return handshakeFuture;
     }
 
-    @Override
-    public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
-        handshakeFuture = ctx.newPromise();
-    }
+
+//    @Override
+//    public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
+//        handshakeFuture = ctx.newPromise();
+//    }
 
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
+        if (msg instanceof VmessClose){
+            ctx.write(new CloseWebSocketFrame(WebSocketCloseStatus.NORMAL_CLOSURE),promise);
+            return;
+        }
         if (!(msg instanceof ByteBuf)) {
             super.write(ctx, msg, promise);
             return;
         }
+
         ctx.write(new BinaryWebSocketFrame((ByteBuf) msg),promise);
 
     }
@@ -61,13 +74,17 @@ public class WebsocketMaskHandler extends ChannelDuplexHandler {
 
         WebSocketFrame frame = (WebSocketFrame) msg;
 
-        if (frame instanceof PongWebSocketFrame) {
+        if (frame instanceof PingWebSocketFrame) {
+            ctx.writeAndFlush(new PongWebSocketFrame(frame.content()));
         } else if (frame instanceof CloseWebSocketFrame) {
             ch.close();
+        }else if (frame instanceof PongWebSocketFrame){
+            ReferenceCountUtil.safeRelease(frame);
         }else{
             ctx.fireChannelRead(frame.content());
         }
     }
+
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {

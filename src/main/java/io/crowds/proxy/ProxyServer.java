@@ -1,10 +1,12 @@
 package io.crowds.proxy;
 
+import io.crowds.dns.DnsContext;
 import io.crowds.proxy.services.socks.SocksServer;
 import io.crowds.proxy.services.transparent.TransparentServer;
 import io.netty.channel.*;
 import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
+import io.vertx.core.Handler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,7 +38,7 @@ public class ProxyServer {
 
     public Future<Void> start(){
         List<Future> futures=new ArrayList<>();
-        if (proxyOption.getSocks()!=null){
+        if (proxyOption.getSocks()!=null&&proxyOption.getSocks().isEnable()){
             this.socksServer = new SocksServer(proxyOption.getSocks(),this.axis);
             futures.add(socksServer.start());
         }
@@ -49,7 +51,9 @@ public class ProxyServer {
                 .map((Void)null);
     }
 
-
+    public Handler<DnsContext> getFakeDnsHandler(){
+        return this.axis.getFakeDns();
+    }
 
 
 }

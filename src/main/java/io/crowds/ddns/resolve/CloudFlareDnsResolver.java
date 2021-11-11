@@ -1,7 +1,7 @@
 package io.crowds.ddns.resolve;
 
-import io.crowds.Https;
-import io.crowds.Strs;
+import io.crowds.util.Https;
+import io.crowds.util.Strs;
 import io.netty.handler.codec.http.HttpHeaderValues;
 import io.vertx.core.Future;
 import io.vertx.core.buffer.Buffer;

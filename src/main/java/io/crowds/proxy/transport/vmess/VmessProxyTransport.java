@@ -5,7 +5,7 @@ import io.crowds.proxy.transport.EndPoint;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.Future;
 
-public class VmessProxyTransport extends AbstractProxyTransport {
+public class VmessProxyTransport extends AbstractProxyTransport implements TransportProvider {
 
 
     private VmessOption vmessOption;
@@ -16,9 +16,17 @@ public class VmessProxyTransport extends AbstractProxyTransport {
     }
 
     @Override
+    public String getTag() {
+        return vmessOption.getName();
+    }
+
+    @Override
     public Future<EndPoint> createEndPoint(NetLocation netLocation) throws Exception {
         //todo udp connect reuse support
         VmessEndPoint endPoint = new VmessEndPoint(netLocation, vmessOption, channelCreator);
         return endPoint.init();
     }
+
+
+
 }

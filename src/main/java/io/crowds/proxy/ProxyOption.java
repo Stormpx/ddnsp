@@ -1,5 +1,6 @@
 package io.crowds.proxy;
 
+import io.crowds.proxy.dns.FakeOption;
 import io.crowds.proxy.services.socks.SocksOption;
 import io.crowds.proxy.services.transparent.TransparentOption;
 import io.crowds.proxy.transport.ProtocolOption;
@@ -14,6 +15,9 @@ public class ProxyOption {
 
     private List<ProtocolOption> proxies;
 
+    private List<String> rules;
+
+    private FakeOption fakeDns;
 
     public SocksOption getSocks() {
         return socks;
@@ -39,6 +43,24 @@ public class ProxyOption {
 
     public ProxyOption setProxies(List<ProtocolOption> proxies) {
         this.proxies = proxies;
+        return this;
+    }
+
+    public List<String> getRules() {
+        return rules;
+    }
+
+    public ProxyOption setRules(List<String> rules) {
+        this.rules = rules;
+        return this;
+    }
+
+    public FakeOption getFakeDns() {
+        return fakeDns;
+    }
+
+    public ProxyOption setFakeDns(FakeOption fakeDns) {
+        this.fakeDns = fakeDns;
         return this;
     }
 }

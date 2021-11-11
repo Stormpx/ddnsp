@@ -39,4 +39,9 @@ public class NetAddr {
     public int getPort(){
         return getAsInetAddr().getPort();
     }
+
+    @Override
+    public String toString() {
+        return address.toString();
+    }
 }

@@ -2,7 +2,7 @@ package io.crowds.proxy.transport.vmess;
 
 import java.util.UUID;
 
-public class VmessUser implements VmessMessage {
+public class VmessUser {
     private UUID uuid;
     private byte[] cmdKey;
 

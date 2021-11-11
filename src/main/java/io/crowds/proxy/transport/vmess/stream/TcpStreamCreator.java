@@ -1,6 +1,7 @@
 package io.crowds.proxy.transport.vmess.stream;
 
 import io.crowds.proxy.ChannelCreator;
+import io.crowds.proxy.common.BaseChannelInitializer;
 import io.crowds.proxy.transport.vmess.VmessEndPoint;
 import io.crowds.proxy.transport.vmess.VmessMessageCodec;
 import io.crowds.proxy.transport.vmess.VmessOption;
@@ -13,6 +14,7 @@ import io.netty.handler.ssl.SslProvider;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.netty.handler.timeout.IdleStateHandler;
 
+import javax.net.ssl.SSLException;
 import javax.net.ssl.TrustManagerFactory;
 import java.net.InetSocketAddress;
 
@@ -26,30 +28,26 @@ public class TcpStreamCreator implements StreamCreator {
         this.channelCreator = channelCreator;
     }
 
+    public ChannelFuture create0(ChannelInitializer<Channel> initializer) throws SSLException {
+        var base=new BaseChannelInitializer();
+        var address = vmessOption.getAddress();
+        var tls = vmessOption.isTls();
+        var serverName=vmessOption.getTlsServerName();
+
+        base.tls(tls,vmessOption.isTlsAllowInsecure(),serverName,address.getPort());
+        if (vmessOption.getConnIdle()!=0){
+            base.connIdle(vmessOption.getConnIdle());
+        }
+        if (initializer!=null){
+            base.initializer(initializer);
+        }
+
+        return channelCreator.createTcpChannel(address,base);
+
+    }
 
     @Override
     public ChannelFuture create() throws Exception {
-        boolean tls = vmessOption.isTls();
-        final SslContext sslCtx;
-
-        if (tls) {
-            var builder=SslContextBuilder.forClient();
-            if (vmessOption.isTlsAllowInsecure())
-                builder.trustManager(InsecureTrustManagerFactory.INSTANCE);
-            sslCtx= builder.build();
-        }else{
-            sslCtx=null;
-        }
-        InetSocketAddress address = vmessOption.getAddress();
-        var serverName=vmessOption.getTlsServerName();
-        var cf=channelCreator.createTcpChannel(address, new ChannelInitializer<Channel>() {
-            @Override
-            protected void initChannel(Channel ch) throws Exception {
-                if (sslCtx!=null)
-                    ch.pipeline().addLast("ssl",sslCtx.newHandler(ch.alloc(),serverName!=null?serverName:vmessOption.getAddress().getHostString(),address.getPort()));
-            }
-        });
-
-        return cf;
+        return create0(null);
     }
 }

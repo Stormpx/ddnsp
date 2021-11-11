@@ -1,6 +1,7 @@
 package io.crowds.proxy.transport.vmess.stream;
 
 import io.crowds.proxy.ChannelCreator;
+import io.crowds.proxy.common.HandlerConfigurer;
 import io.crowds.proxy.transport.vmess.VmessOption;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
@@ -36,12 +37,18 @@ public class WebSocketStreamCreator extends TcpStreamCreator{
                 WebSocketClientHandshakerFactory.newHandshaker(
                         uri, WebSocketVersion.V13,null,true,ws.getHeaders()!=null?ws.getHeaders():new DefaultHttpHeaders()));
 
-        ChannelFuture cf = super.create();
-        cf.channel().pipeline().addLast(
-                new HttpClientCodec(),
-                new HttpObjectAggregator(8192),
-                WebSocketClientCompressionHandler.INSTANCE,
-                maskHandler);
+        ChannelFuture cf = super.create0(new ChannelInitializer<Channel>() {
+            @Override
+            protected void initChannel(Channel ch) throws Exception {
+                ch.pipeline().addLast(
+                        new HttpClientCodec(),
+                        new HttpObjectAggregator(8192),
+                        WebSocketClientCompressionHandler.INSTANCE,
+                        maskHandler
+                );
+            }
+        });
+        maskHandler.handshakeFuture(cf.channel().newPromise());
         cf.addListener(future -> {
             if (!future.isSuccess()){
                 maskHandler.handshakePromise().tryFailure(future.cause());

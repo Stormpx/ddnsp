@@ -25,6 +25,11 @@ public class ShadowsocksTransport extends DirectProxyTransport {
     }
 
     @Override
+    public String getTag() {
+        return shadowsocksOption.getName();
+    }
+
+    @Override
     public Future<EndPoint> createEndPoint(NetLocation netLocation) {
         Promise<EndPoint> promise = eventLoopGroup.next().newPromise();
 

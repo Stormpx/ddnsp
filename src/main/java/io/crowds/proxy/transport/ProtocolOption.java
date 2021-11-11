@@ -3,7 +3,7 @@ package io.crowds.proxy.transport;
 public class ProtocolOption {
     protected String name;
     protected String protocol;
-    protected int connIdle=300;
+    protected int connIdle=500;
 
     public String getName() {
         return name;

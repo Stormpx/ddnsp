@@ -15,13 +15,18 @@ import io.netty.util.concurrent.Promise;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 
-public class DirectProxyTransport extends AbstractProxyTransport {
+public class DirectProxyTransport extends AbstractProxyTransport implements TransportProvider{
 
 
     public DirectProxyTransport( EventLoopGroup eventLoopGroup, ChannelCreator channelCreator) {
         super( eventLoopGroup, channelCreator);
     }
 
+
+    @Override
+    public String getTag() {
+        return "direct";
+    }
 
     protected Future<EndPoint> createEndPoint0(String namespace,NetLocation netLocation, ChannelInitializer<Channel> initializer) {
         Promise<EndPoint> promise = eventLoopGroup.next().newPromise();
@@ -70,4 +75,6 @@ public class DirectProxyTransport extends AbstractProxyTransport {
             initializer.connIdle(60);
         return createEndPoint0("direct", netLocation, initializer);
     }
+
+
 }

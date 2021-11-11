@@ -69,8 +69,9 @@ public class SocksServer {
 
         return promise.future();
 
-
     }
+
+
 
 
     public class Handler extends SimpleChannelInboundHandler<SocksMessage>{

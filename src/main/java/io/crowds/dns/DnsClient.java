@@ -2,13 +2,13 @@ package io.crowds.dns;
 
 
 import io.crowds.Platform;
+import io.crowds.util.DnsKit;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.handler.codec.dns.*;
-import io.netty.resolver.dns.DnsNameResolverException;
 import io.netty.util.concurrent.ScheduledFuture;
 import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
@@ -17,7 +17,6 @@ import io.vertx.core.net.impl.PartialPooledByteBufAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
@@ -25,7 +24,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -116,7 +114,7 @@ public class DnsClient {
         DatagramDnsQuery query = new DatagramDnsQuery(null, server, id, DnsOpCode.QUERY).setRecursionDesired(true);
         query.addRecord(DnsSection.QUESTION,new DefaultDnsQuestion(target,type,DnsRecord.CLASS_IN));
 
-        QueryRequest request = new QueryRequest(id);
+        QueryRequest request = new QueryRequest(id).failOnError();
         queryRequestMap.put(id,request);
 
         channel.writeAndFlush(query)
@@ -164,6 +162,7 @@ public class DnsClient {
     class QueryRequest{
         private Integer id;
 
+        private boolean failOnError;
 
         private ScheduledFuture<?> schedule;
 
@@ -180,8 +179,13 @@ public class DnsClient {
 
         }
 
+        public QueryRequest failOnError() {
+            this.failOnError = true;
+            return this;
+        }
+
         public void resp(DnsResponse response){
-            if (response.code()==DnsResponseCode.NOERROR){
+            if (!failOnError || response.code()==DnsResponseCode.NOERROR){
                 promise.tryComplete(response);
             }else{
                 promise.tryFail("dns query error "+response.code().toString());

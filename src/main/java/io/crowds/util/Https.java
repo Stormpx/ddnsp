@@ -1,4 +1,4 @@
-package io.crowds;
+package io.crowds.util;
 
 import io.vertx.core.Future;
 import io.vertx.core.buffer.Buffer;

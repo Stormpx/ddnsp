@@ -47,7 +47,12 @@ public class Main {
 
                     ProxyServer proxyServer = new ProxyServer(vertx.nettyEventLoopGroup()).setProxyOption(proxyOption);
 //                    new InetSocketAddress(proxyOption.getHost(), proxyOption.getPort())
-                    Future<Void> proxyFuture = proxyServer.start();
+                    Future<Void> proxyFuture = proxyServer.start()
+                            .onSuccess(v->{
+                                if (proxyServer.getFakeDnsHandler()!=null){
+                                    dnsServer.contextHandler(proxyServer.getFakeDnsHandler());
+                                }
+                            });
 
                     loader.optionChangeHandler(it -> {
                         DnsOption po = it.getDns();
