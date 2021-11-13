@@ -97,7 +97,7 @@ public class DnsClient {
         InetSocketAddress server = getServer();
         DatagramDnsQuery query = new DatagramDnsQuery(null, server, id, dnsQuery.opCode());
 
-        DnsKit.msgCopy(dnsQuery,query,false);
+        DnsKit.msgCopy(dnsQuery,query,true);
 
         QueryRequest request = new QueryRequest(id);
         queryRequestMap.put(id,request);
