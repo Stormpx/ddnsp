@@ -50,7 +50,7 @@ public class Axis {
             if (this.proxyOption==null||!proxyOption.getRules().equals(this.proxyOption.getRules())) {
                 this.router = new Router(proxyOption.getRules());
                 if (this.fakeDns != null) this.fakeDns.setRouter(router);
-                logger.info("router rules updated");
+                logger.info("router rules setup.");
             }
         }
         if (this.providerMap==null){
@@ -82,6 +82,7 @@ public class Axis {
                 }
             }
             this.fakeDns=new FakeDns(eventLoopGroup.next(), router,ipv4Cidr,ipv6Cidr,fakeOption.getDestStrategy());
+            logger.info("fake dns setup.");
         } catch (Exception e) {
             logger.warn("failed to create fakeDns cause:{}",e.getMessage());
         }
@@ -172,16 +173,17 @@ public class Axis {
 
             if (fakeDns!=null){
                 proxyContext.withFakeContext(getFakeContext(netLocation.getDest()));
+                netLocation=proxyContext.getNetLocation();
             }
             TransportProvider provider = getTransport(proxyContext);
             logger.info("tcp {} to {} via {}",proxyContext.getNetLocation().getSrc(),proxyContext.getNetLocation().getDest(),provider.getTag());
             ProxyTransport transport = provider.getTransport();
-            transport.createEndPoint(netLocation)
+            transport.createEndPoint(proxyContext.getNetLocation())
                     .addListener(future -> {
                         if (!future.isSuccess()){
                             if (logger.isDebugEnabled())
                                 logger.error("",future.cause());
-                            logger.error("connect remote: {} failed cause: {}",netLocation.getDest().getAddress(),future.cause().getMessage());
+                            logger.error("connect remote: {} failed cause: {}",proxyContext.getNetLocation().getDest().getAddress(),future.cause().getMessage());
                             channel.close();
                             return;
                         }
@@ -204,11 +206,12 @@ public class Axis {
             ProxyContext proxyContext = new ProxyContext(netLocation);
             if (fakeDns!=null){
                 proxyContext.withFakeContext(getFakeContext(netLocation.getDest()));
+                netLocation=proxyContext.getNetLocation();
             }
             TransportProvider provider = getTransport(proxyContext);
             logger.info("udp {} to {} via [{}]",proxyContext.getNetLocation().getSrc(),proxyContext.getNetLocation().getDest(),provider.getTag());
             ProxyTransport transport = provider.getTransport();
-            transport.createEndPoint(netLocation)
+            transport.createEndPoint(proxyContext.getNetLocation())
                     .addListener(future -> {
                         if (!future.isSuccess()){
                             if (logger.isDebugEnabled())

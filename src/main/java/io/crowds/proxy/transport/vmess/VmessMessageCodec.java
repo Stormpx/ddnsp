@@ -4,6 +4,7 @@ import io.crowds.proxy.NetAddr;
 import io.crowds.proxy.TP;
 import io.crowds.proxy.transport.vmess.crypto.*;
 import io.crowds.util.Bufs;
+import io.crowds.util.ByteBufCipher;
 import io.crowds.util.Crypto;
 import io.crowds.util.Hash;
 import io.netty.buffer.ByteBuf;
@@ -13,10 +14,8 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageCodec;
 import org.bouncycastle.crypto.digests.SHAKEDigest;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
-import javax.crypto.ShortBufferException;
+import javax.crypto.*;
+import java.nio.ByteBuffer;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -85,7 +84,7 @@ public class VmessMessageCodec extends ByteToMessageCodec<Object> {
     }
 
 
-    private void encodeRequest(VmessRequest request,ByteBuf out) throws NoSuchPaddingException, ShortBufferException, InvalidKeyException, NoSuchAlgorithmException, IllegalBlockSizeException, BadPaddingException, InvalidAlgorithmParameterException {
+    private void encodeRequest(VmessRequest request,ByteBuf out) throws Exception {
         VmessUser user = request.getUser();
         UUID uuid = user.getUuid();
 
@@ -101,52 +100,53 @@ public class VmessMessageCodec extends ByteToMessageCodec<Object> {
         );
         out.writeBytes(auth);
 
+
         byte[] cmdKey = user.getCmdKey();
         byte[] beforeIv = new byte[4*8];
         Unpooled.wrappedBuffer(beforeIv).writerIndex(0).writeLong(timestmap).writeLong(timestmap).writeLong(timestmap).writeLong(timestmap);
         byte[] cmdIv=Hash.md5(beforeIv);
 
 
-        int writerIndex = out.writerIndex();
-        out.markWriterIndex();
 
-        out.writeByte(1);
 
-        out.writeBytes(session.getRequestIv())
+        ByteBuf plain=out.alloc().buffer();
+        //start
+        plain.writeByte(1);
+
+        plain.writeBytes(session.getRequestIv())
                 .writeBytes(session.getRequestKey())
                 .writeByte(session.getResponseHeader());
 
 
-        encodeOptions(request.getOpts(),out);
+        encodeOptions(request.getOpts(),plain);
 
         int p = (ThreadLocalRandom.current().nextInt()&0b1111);
-        out.writeByte((p<<4)|request.getSecurity().getValue());
-        out.writeByte(0);
-        out.writeByte(request.getCmd()== TP.TCP?1:2);
+        plain.writeByte((p<<4)|request.getSecurity().getValue());
+        plain.writeByte(0);
+        plain.writeByte(request.getCmd()== TP.TCP?1:2);
 
         NetAddr addr = request.getAddr();
         byte[] addrBytes = addr.getByte();
-        out.writeShort(addr.getPort());
+        plain.writeShort(addr.getPort());
         if (addr.isIpv4()||addr.isIpv6()){
-            out.writeByte(addr.isIpv4()?1:3);
+            plain.writeByte(addr.isIpv4()?1:3);
         }else{
-            out.writeByte(2).writeByte(addrBytes.length);
+            plain.writeByte(2).writeByte(addrBytes.length);
         }
-        out.writeBytes(addrBytes);
-
+        plain.writeBytes(addrBytes);
         for (int i = 0; i < p; i++) {
-            out.writeByte(ThreadLocalRandom.current().nextInt(0,256));
+            plain.writeByte(ThreadLocalRandom.current().nextInt(0,256));
         }
-        out.writeInt(0);
-        byte[] cmdBytes = ByteBufUtil.getBytes(out, writerIndex, out.writerIndex() - writerIndex);
-        int f=Hash.fnv1a32(cmdBytes,cmdBytes.length-4);
-        Bufs.writeInt(cmdBytes,cmdBytes.length-4,f);
-        byte[] encryptBytes = Crypto.aes128CFBEncrypt(cmdKey, cmdIv, cmdBytes);
+        //end
+        int f=Hash.fnv1a32(plain.nioBuffer(),plain.readableBytes());
+        plain.writeInt(f);
 
-        out.resetWriterIndex();
-        out.writeBytes(encryptBytes);
+        ByteBufCipher.doFinal(Crypto.getCFBCipher(cmdKey,cmdIv,true),plain,out);
+
+        plain.release();
+
+
     }
-
 
     private int parseRequestLength(int len){
         if (this.requestMask==null){
@@ -165,23 +165,19 @@ public class VmessMessageCodec extends ByteToMessageCodec<Object> {
         if (!buf.isReadable()){
             return;
         }
-        int readBytesSize= this.requestCrypto.getMaxSize();
+        int paddingSize = this.requestCrypto.paddingSize();
+        int readBytesSize= 16384 - paddingSize;
         readBytesSize=Math.min(readBytesSize,buf.readableBytes());
-        byte[] bytes = new byte[readBytesSize];
-        buf.readBytes(bytes);
-        out.markWriterIndex();
-        out.writeShort(0);
-        this.requestCrypto.encrypt(bytes,out);
-        int writerIndex = out.writerIndex();
-        out.resetWriterIndex();
-        int len = writerIndex - out.writerIndex() - 2;
+
+        ByteBuf plainBuffer = buf.readSlice(readBytesSize);
+
+        int len=readBytesSize+paddingSize;
         if (session.isOptionExists(Option.CHUNK_MASKING)) {
             len=parseRequestLength(len);
         }
-        out.writeShort(len)
-                .writerIndex(writerIndex);
+        out.writeShort(len);
 
-
+        this.requestCrypto.encrypt(plainBuffer,out);
 
         encodeContent(buf, out);
     }
@@ -211,24 +207,30 @@ public class VmessMessageCodec extends ByteToMessageCodec<Object> {
                 if (in.readableBytes()<4){
                     return;
                 }
-
-                byte[] bytes=ByteBufUtil.getBytes(in,0,4);
-                byte[] decryptBytes = Crypto.aes128CFBDecrypt(Hash.md5(session.getRequestKey()), Hash.md5(session.getRequestIv()), bytes);
-                if (decryptBytes[0]!=session.getResponseHeader()){
-                    throw new RuntimeException("response header not match");
-                }
-                byte cmd = decryptBytes[2];
-                int cmdLength = decryptBytes[3];
-                if (cmd != 0&&cmdLength!=0) {
-                    this.expectCmdLength = cmdLength+4;
-                } else {
-                    in.skipBytes(4);
-                    state = 1;
-
+                in.markReaderIndex();
+                ByteBuf cipherText  = in.readSlice(4);
+                Cipher cipher = Crypto.getCFBCipher(Hash.md5(session.getRequestKey()), Hash.md5(session.getRequestIv()), false);
+                ByteBuf plain = ByteBufCipher.doFinal(cipher, cipherText, ctx.alloc());
+                try {
+                    var header = plain.readByte();
+                    if (header!=session.getResponseHeader()){
+                        throw new RuntimeException("response header not match");
+                    }
+                    plain.skipBytes(1);
+                    var cmd = plain.readByte();
+                    var cmdLength = plain.readByte();
+                    if (cmd != 0&&cmdLength!=0) {
+                        this.expectCmdLength = cmdLength+4;
+                        in.resetReaderIndex();
+                    } else {
+                        state = 1;
+                    }
+                } finally {
+                    plain.release();
                 }
                 decode(ctx, in, out);
             }else{
-                if (decodeCmd(in,out)) {
+                if (decodeCmd(ctx,in,out)) {
                     state = 1;
                     decode(ctx, in, out);
                 }
@@ -258,11 +260,10 @@ public class VmessMessageCodec extends ByteToMessageCodec<Object> {
                     return;
                 }
 
-                byte[] bytes = new byte[this.expectContentLength];
-                in.readBytes(bytes);
-                byte[] decrypt = this.responseCrypto.decrypt(bytes);
+                ByteBuf bytes = in.readSlice(this.expectContentLength);
+                ByteBuf decrypt = this.responseCrypto.decrypt(bytes);
 
-                out.add(Unpooled.wrappedBuffer(decrypt));
+                out.add(decrypt);
                 this.expectContentLength=null;
                 decode(ctx, in, out);
             }
@@ -271,23 +272,28 @@ public class VmessMessageCodec extends ByteToMessageCodec<Object> {
 
     }
 
-    public boolean decodeCmd(ByteBuf in, List<Object> out) throws Exception {
+    public boolean decodeCmd(ChannelHandlerContext ctx,ByteBuf in, List<Object> out) throws Exception {
         if (in.readableBytes()<this.expectCmdLength){
             return false;
         }
-        byte[] bytes = new byte[this.expectCmdLength];
-        in.readBytes(bytes);
-        byte[] decryptBytes = Crypto.aes128CFBDecrypt(session.getRequestKey(), session.getRequestIv(), bytes);
-        ByteBuf cmdBuffer = Unpooled.wrappedBuffer(decryptBytes);
-        cmdBuffer.skipBytes(4);
-        cmdBuffer.skipBytes(1);
-        int port=cmdBuffer.readUnsignedShort();
-        UUID uuid=new UUID(cmdBuffer.readLong(),cmdBuffer.readLong());
-        int alterId=cmdBuffer.readUnsignedShort();
-        byte level = cmdBuffer.readByte();
-        short min = cmdBuffer.readUnsignedByte();
-        out.add(new VmessDynamicPortCmd(port,uuid,alterId,level,min));
-        return true;
+//        byte[] bytes = new byte[this.expectCmdLength];
+//        in.readBytes(bytes);
+//        byte[] decryptBytes = Crypto.aes128CFBDecrypt(session.getRequestKey(), session.getRequestIv(), bytes);
+        ByteBuf cipherText = in.readSlice(this.expectCmdLength);
+        ByteBuf cmdBuffer = ByteBufCipher.doFinal(Crypto.getCFBCipher(session.getRequestKey(), session.getRequestIv(), false), cipherText, ctx.alloc());
+        try {
+            cmdBuffer.skipBytes(4);
+            cmdBuffer.skipBytes(1);
+            int port=cmdBuffer.readUnsignedShort();
+            UUID uuid=new UUID(cmdBuffer.readLong(),cmdBuffer.readLong());
+            int alterId=cmdBuffer.readUnsignedShort();
+            byte level = cmdBuffer.readByte();
+            short min = cmdBuffer.readUnsignedByte();
+            out.add(new VmessDynamicPortCmd(port,uuid,alterId,level,min));
+            return true;
+        } finally {
+            cmdBuffer.release();
+        }
     }
 
     public class Mask{

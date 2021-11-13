@@ -119,7 +119,8 @@ public class DnsClient {
 
         channel.writeAndFlush(query)
                 .addListener(future ->{
-                    logger.info("send query to server: {} result: {}",server,future.isSuccess());
+                    if (logger.isDebugEnabled())
+                        logger.debug("send query to server: {} result: {}",server,future.isSuccess());
                 });
         return request.future();
 

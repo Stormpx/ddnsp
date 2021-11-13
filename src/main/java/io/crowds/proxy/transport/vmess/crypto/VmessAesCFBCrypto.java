@@ -10,6 +10,7 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.ShortBufferException;
+import java.nio.ByteBuffer;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -41,6 +42,12 @@ public class VmessAesCFBCrypto implements VmessCrypto {
     }
 
     @Override
+    public void encrypt(ByteBuf bytes, ByteBuf out) throws Exception {
+
+    }
+
+
+    @Override
     public byte[] decrypt(byte[] bytes) throws Exception{
         byte[] decrypt = Crypto.aes128CFBDecrypt(key, iv, bytes);
         int remoteFnv1a32=Bufs.getInt(decrypt,0);
@@ -54,8 +61,9 @@ public class VmessAesCFBCrypto implements VmessCrypto {
     }
 
     @Override
-    public int getMaxSize() {
-
-        return 16384-4;
+    public ByteBuf decrypt(ByteBuf bytes) throws Exception {
+        return null;
     }
+
+
 }

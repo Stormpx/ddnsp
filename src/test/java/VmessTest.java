@@ -31,9 +31,9 @@ public class VmessTest {
         InetSocketAddress dest = new InetSocketAddress("127.0.0.1", 16823);
         var option=new VmessOption()
                 .setAddress(dest)
-                .setSecurity(Security.NONE)
+                .setSecurity(Security.AES_128_GCM)
                 .setUser(new User(UUID.fromString("b831381d-6324-4d53-ad4f-8cda48b30811"),0));
-        option.setConnIdle(5);
+        option.setConnIdle(2);
 
         VmessEndPoint endPoint = new VmessEndPoint(location, option, creator);
 
@@ -52,11 +52,11 @@ public class VmessTest {
         InetSocketAddress dest = new InetSocketAddress("127.0.0.1", 16825);
         var option=new VmessOption()
                 .setAddress(dest)
-                .setSecurity(Security.ChaCha20_Poly1305)
+                .setSecurity(Security.AES_128_GCM)
                 .setUser(new User(UUID.fromString("b831381d-6324-4d53-ad4f-8cda48b30811"),0))
                 .setNetWork("ws")
                 .setWs(new VmessOption.WsOption());
-        option.setConnIdle(5);
+        option.setConnIdle(2);
 
 
         VmessEndPoint endPoint = new VmessEndPoint(location, option, creator);
@@ -102,7 +102,7 @@ public class VmessTest {
     @Test
     public void websocketTcpTest() throws Exception {
 
-        NetLocation location = new NetLocation(null, new DomainNetAddr("www.google.com", 80), TP.TCP);
+        NetLocation location = new NetLocation(null, new DomainNetAddr("www.baidu.com", 80), TP.TCP);
         EndPoint endPoint = createWebsocketEndPoint(location);
         endPoint.bufferHandler(buf->{
             System.out.println(buf.toString(StandardCharsets.UTF_8));
@@ -110,7 +110,7 @@ public class VmessTest {
 
         EmbeddedChannel channel = new EmbeddedChannel(new HttpRequestEncoder());
         var header=new DefaultHttpHeaders()
-                .add(HttpHeaderNames.HOST,"www.google.com")
+                .add(HttpHeaderNames.HOST,"www.baidu.com")
                 .add(HttpHeaderNames.ACCEPT,"text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
                 .add(HttpHeaderNames.CONNECTION,"close");
 

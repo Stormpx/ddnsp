@@ -6,11 +6,14 @@ import io.crowds.proxy.ProxyOption;
 
 public class DDnspOption {
 
+    private String logLevel;
+
     private DnsOption dns;
 
     private DDnsOption ddns;
 
     private ProxyOption proxy;
+
 
 
     public DnsOption getDns() {
@@ -37,6 +40,15 @@ public class DDnspOption {
 
     public DDnspOption setProxy(ProxyOption proxy) {
         this.proxy = proxy;
+        return this;
+    }
+
+    public String getLogLevel() {
+        return logLevel;
+    }
+
+    public DDnspOption setLogLevel(String logLevel) {
+        this.logLevel = logLevel;
         return this;
     }
 }

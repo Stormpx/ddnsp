@@ -43,7 +43,8 @@ public class DnsProcessor {
 
     public void process(DnsQuery dnsQuery){
         DatagramDnsQuery datagramDnsQuery= (DatagramDnsQuery) dnsQuery;
-        logger.info("query :{}" ,datagramDnsQuery);
+        if (logger.isDebugEnabled())
+            logger.debug("query :{}" ,datagramDnsQuery);
         try {
             if (isLocal(datagramDnsQuery)) {
                 DnsQuestion question=datagramDnsQuery.recordAt(DnsSection.QUESTION);
@@ -54,7 +55,7 @@ public class DnsProcessor {
                     if (recordData!=null){
                         List<DnsRecord> records = recordData.get(questionRType);
                         if (records!=null&&!records.isEmpty()){
-                            logger.info("match static record :{}",records);
+                            logger.info("question {} match static record :{}",question,records);
                             DatagramDnsResponse response = new DatagramDnsResponse(datagramDnsQuery.recipient(), datagramDnsQuery.sender(), datagramDnsQuery.id());
                             response.addRecord(DnsSection.QUESTION, new DefaultDnsQuestion(question.name(), questionRType));
                             for (DnsRecord record : records) {
@@ -70,7 +71,7 @@ public class DnsProcessor {
                 }
 
                 DnsContext context = new DnsContext(datagramDnsQuery.id(), datagramDnsQuery.recipient(), datagramDnsQuery.sender(),
-                        question, channel, q->recursionQueryWithCache(q,new ArrayList<>()));
+                        question, channel, q->dnsClient.request(datagramDnsQuery));
 
                 contextHandler.handle(context);
                 //cache query
@@ -97,20 +98,7 @@ public class DnsProcessor {
 
     }
 
-
-    private String getCachedCname(String name,List<DnsRecord> result){
-        List<DnsRecord> records = dnsCache.get(name, DnsRecordType.CNAME);
-        if (records==null||records.isEmpty()){
-            return null;
-        }
-        DnsRecord record = records.get(0);
-        result.add(((DefaultDnsRawRecord)record).retain());
-        String domainName = DnsKit.decodeDomainName(((DefaultDnsRawRecord) record).content());
-        return domainName;
-    }
-
-
-     void recursionQuery(DatagramDnsQuery datagramDnsQuery){
+    void recursionQuery(DatagramDnsQuery datagramDnsQuery){
         int id = datagramDnsQuery.id();
         dnsClient.request(datagramDnsQuery)
                 .onFailure(t->logger.info("",t))
@@ -127,6 +115,17 @@ public class DnsProcessor {
 
     }
 
+    private String getCachedCname(String name,List<DnsRecord> result){
+        List<DnsRecord> records = dnsCache.get(name, DnsRecordType.CNAME);
+        if (records==null||records.isEmpty()){
+            return null;
+        }
+        DnsRecord record = records.get(0);
+        result.add(((DefaultDnsRawRecord)record).retain());
+        String domainName = DnsKit.decodeDomainName(((DefaultDnsRawRecord) record).content());
+        return domainName;
+    }
+
      Future<DnsResponse> recursionQueryWithCache(DnsRecord record, List<DnsRecord> result){
         String name = record.name();
         DnsRecordType type = record.type();
@@ -135,6 +134,7 @@ public class DnsProcessor {
             result.addAll(cacheDnsRecords);
             logger.info("{} {} hit cache",name,type.name());
             var resp=new DefaultDnsResponse(0,DnsOpCode.QUERY,DnsResponseCode.NOERROR);
+            resp.setRecursionDesired(true);
             for (DnsRecord dnsRecord : result) {
                 resp.addRecord(DnsSection.ANSWER,dnsRecord);
             }
@@ -164,4 +164,5 @@ public class DnsProcessor {
         query.release();
         return future;
     }
+
 }

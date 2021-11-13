@@ -1,3 +1,5 @@
+import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform
+
 plugins {
     id 'java'
     id "com.github.johnrengelman.shadow" version "6.1.0"
@@ -11,6 +13,10 @@ sourceCompatibility = 17
 repositories {
     mavenCentral()
 }
+task copyDependencies(type: Copy) {
+    from configurations.runtimeClasspath
+    into "$buildDir/libs"
+}
 
 shadowJar {
     archiveBaseName.set('ddnsp')
@@ -21,16 +27,32 @@ shadowJar {
 jar {
     manifest {
         attributes 'Main-Class': 'io.crowds.Main'
+//        attributes "Class-Path": configurations.runtimeClasspath.collect { 'libs/' + it.getName() }.join(' ')
     }
+    archiveBaseName = 'ddnsp-base'
+    archiveVersion = ''
 }
 
 dependencies {
+    OperatingSystem os = DefaultNativePlatform.currentOperatingSystem;
+    Architecture arch= DefaultNativePlatform.currentArchitecture;
+    println "os is ${os.toFamilyName()}"
+    println "arch is ${arch.name}"
     implementation 'org.bouncycastle:bcprov-jdk15on:1.69'
     implementation 'io.vertx:vertx-core:4.0.0'
     implementation 'io.vertx:vertx-config:4.0.0'
     implementation 'io.vertx:vertx-config-yaml:4.0.0'
     implementation 'ch.qos.logback:logback-core:1.2.3'
     implementation 'ch.qos.logback:logback-classic:1.2.3'
-    implementation 'io.netty:netty-transport-native-epoll:4.1.49.Final:linux-x86_64'
+
+    implementation "io.netty:netty-transport-native-epoll:4.1.50.Final:linux-${arch.isAmd64()?'x86_64':'aarch_64'}"
+
+    if (os.isWindows()){
+        implementation 'io.netty:netty-tcnative-boringssl-static:2.0.45.Final:windows-x86_64'
+    }else {
+        implementation "io.netty:netty-tcnative-boringssl-static:2.0.45.Final:${os.isLinux()?"linux":"osx"}-${arch.isAmd64()?'x86_64':'aarch_64'}"
+    }
+
+
     testImplementation group: 'junit', name: 'junit', version: '4.12'
 }

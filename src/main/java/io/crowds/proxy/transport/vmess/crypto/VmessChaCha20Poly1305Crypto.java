@@ -1,9 +1,12 @@
 package io.crowds.proxy.transport.vmess.crypto;
 
 import io.crowds.util.Bufs;
+import io.crowds.util.ByteBufCipher;
 import io.crowds.util.Crypto;
 import io.crowds.util.Hash;
 import io.netty.buffer.ByteBuf;
+
+import javax.crypto.Cipher;
 
 public class VmessChaCha20Poly1305Crypto implements VmessCrypto {
 
@@ -37,12 +40,26 @@ public class VmessChaCha20Poly1305Crypto implements VmessCrypto {
     }
 
     @Override
+    public void encrypt(ByteBuf bytes, ByteBuf out) throws Exception {
+        Cipher cipher = Crypto.getChaCha20Poly1305Cipher(key, getIv(true), true);
+        ByteBufCipher.doFinal(cipher,bytes,out);
+    }
+
+
+    @Override
     public byte[] decrypt(byte[] bytes) throws Exception {
         return Crypto.chaCha20Poly1305Decrypt(bytes,key,getIv(false));
     }
 
     @Override
-    public int getMaxSize() {
-        return VmessCrypto.super.getMaxSize()-16;
+    public ByteBuf decrypt(ByteBuf bytes) throws Exception {
+        Cipher cipher = Crypto.getChaCha20Poly1305Cipher(key, getIv(false), false);
+        return ByteBufCipher.doFinal(cipher,bytes);
+    }
+
+
+    @Override
+    public int paddingSize() {
+        return 16;
     }
 }

@@ -13,6 +13,7 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
+import java.nio.ByteBuffer;
 import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -87,13 +88,7 @@ public class Hash {
 
 
     public static int fnv1a32(byte[] bytes,int length){
-        int hash=0x811c9dc5;
-        for (int i = 0; i < length; i++) {
-            byte b=bytes[i];
-            hash ^= (b&0xff);
-            hash *= 16777619;
-        }
-        return hash;
+        return fnv1a32(bytes,0,length);
     }
 
     public static int fnv1a32(byte[] bytes,int index,int length){
@@ -107,13 +102,25 @@ public class Hash {
         return hash;
     }
 
+    public static int fnv1a32(ByteBuffer buffer,int length){
+        return fnv1a32(buffer,0,length);
+    }
+    public static int fnv1a32(ByteBuffer buffer,int index,int length){
+        int hash=0x811c9dc5;
+        int len=index+length;
+        for (int i = index; i < len; i++) {
+            byte b=buffer.get(i);
+            hash ^= (b&0xff);
+            hash *= 16777619;
+        }
+        return hash;
+    }
 
     public static byte[] hkdfSHA1(byte[] key,byte[] salt,byte[] info,int len){
         var gen=new HKDFBytesGenerator(new SHA1Digest());
         gen.init(new HKDFParameters(key,salt,info));
         byte[] bytes=new byte[len];
         gen.generateBytes(bytes,0,len);
-
         return bytes;
     }
 

@@ -1,9 +1,6 @@
 package io.crowds.proxy.transport.shadowsocks;
 
-import io.crowds.util.Bufs;
-import io.crowds.util.Crypto;
-import io.crowds.util.Hash;
-import io.crowds.util.Rands;
+import io.crowds.util.*;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
@@ -12,6 +9,7 @@ import io.netty.channel.socket.DatagramPacket;
 import io.netty.handler.codec.ByteToMessageCodec;
 import io.netty.handler.codec.MessageToMessageCodec;
 
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 
@@ -32,6 +30,12 @@ public class AEADCodec {
     private static byte[] genSubKey(Cipher cipher,byte[] masterKey,byte[] salt){
         return Hash.hkdfSHA1(masterKey,salt,"ss-subkey".getBytes(),cipher.getKeySize());
     }
+    private static javax.crypto.Cipher getEncryptCipher(Cipher cipher,byte[] key,byte[] nonce) throws Exception {
+        return switch (cipher) {
+            case CHACHA20_IETF_POLY1305 -> Crypto.getChaCha20Poly1305Cipher( key, nonce,true);
+            case AES_256_GCM, AES_192_GCM, AES_128_GCM -> Crypto.getGcmCipher(key, nonce,true);
+        };
+    }
 
     private static byte[] encrypt(Cipher cipher,byte[] key,byte[] nonce,byte[] plain) throws Exception {
         return switch (cipher) {
@@ -39,6 +43,14 @@ public class AEADCodec {
             case AES_256_GCM, AES_192_GCM, AES_128_GCM -> Crypto.gcmEncrypt(plain, key, nonce);
         };
     }
+
+    private static javax.crypto.Cipher getDecryptCipher(Cipher cipher,byte[] key,byte[] nonce) throws Exception {
+        return switch (cipher) {
+            case CHACHA20_IETF_POLY1305 -> Crypto.getChaCha20Poly1305Cipher( key, nonce,false);
+            case AES_256_GCM, AES_192_GCM, AES_128_GCM -> Crypto.getGcmCipher(key, nonce,false);
+        };
+    }
+
     private static byte[] decrypt(Cipher cipher,byte[] key,byte[] nonce,byte[] plain) throws Exception {
         return switch (cipher) {
             case CHACHA20_IETF_POLY1305 -> Crypto.chaCha20Poly1305Decrypt(plain, key, nonce);
@@ -95,19 +107,21 @@ public class AEADCodec {
                 out.writeBytes(this.encryptSalt);
                 sendSalt=true;
             }
-
             int maxLen=0x3fff-16;
             int readBytes=Math.min(maxLen,msg.readableBytes());
             //encode len
             byte[] lenBytes=new byte[2];
             Bufs.writeShort(lenBytes,0,readBytes);
-            byte[] lenEn = encrypt(this.cipher, this.encryptSubKey, incrementedAndGet(this.encryptNonce), lenBytes);
+            ByteBufCipher.doFinal(
+                    getEncryptCipher(this.cipher, this.encryptSubKey, incrementedAndGet(this.encryptNonce)),
+                    Unpooled.wrappedBuffer(lenBytes),out
+            );
 
-            out.writeBytes(lenEn);
             //encode payload
-            byte[] bytes=new byte[readBytes];
-            msg.readBytes(bytes);
-            out.writeBytes(encrypt(this.cipher,this.encryptSubKey,incrementedAndGet(this.encryptNonce),bytes));
+            ByteBufCipher.doFinal(
+                    getEncryptCipher(this.cipher, this.encryptSubKey, incrementedAndGet(this.encryptNonce)),
+                    msg.readSlice(readBytes),out
+            );
 
             if (msg.isReadable()){
                 encode(ctx, msg, out);
@@ -116,10 +130,15 @@ public class AEADCodec {
         }
 
 
-        private byte[] readAndDecrypt(ByteBuf buf,int length) throws Exception {
-            byte[] encryptedBytes=new byte[length];
-            buf.readBytes(encryptedBytes);
-            return decrypt(this.cipher,this.decryptSubKey,incrementedAndGet(this.decryptNonce),encryptedBytes);
+        private ByteBuf readAndDecrypt(ChannelHandlerContext ctx,ByteBuf buf,int length) throws Exception {
+//            byte[] encryptedBytes=new byte[length];
+//            buf.readBytes(encryptedBytes);
+//            return decrypt(this.cipher,this.decryptSubKey,incrementedAndGet(this.decryptNonce),encryptedBytes);
+
+            return ByteBufCipher.doFinal(
+                    getDecryptCipher(this.cipher,this.decryptSubKey,incrementedAndGet(this.decryptNonce)),
+                    buf.readSlice(length),ctx.alloc()
+            );
         }
 
         @Override
@@ -137,9 +156,8 @@ public class AEADCodec {
                     return;
                 }
 
-                byte[] decryptLenBytes = readAndDecrypt(in,this.expectLength);
-                assert decryptLenBytes != null;
-                this.expectPayloadLength = Bufs.readUnsignedShort(decryptLenBytes, 0);
+                ByteBuf decryptLenBytes = readAndDecrypt(ctx,in,this.expectLength);
+                this.expectPayloadLength = decryptLenBytes.readUnsignedShort();
                 this.expectPayloadLength+=16;
             }
 
@@ -147,8 +165,8 @@ public class AEADCodec {
                 return;
             }
 
-            byte[] payload = readAndDecrypt(in,this.expectPayloadLength);
-            out.add(Unpooled.wrappedBuffer(payload));
+            ByteBuf payload = readAndDecrypt(ctx,in,this.expectPayloadLength);
+            out.add(payload);
             this.expectPayloadLength=null;
             if (in.isReadable())
                 decode(ctx, in, out);
@@ -157,14 +175,13 @@ public class AEADCodec {
     }
 
     public static class UdpCodec extends MessageToMessageCodec<DatagramPacket,DatagramPacket>{
+        private final static byte[] ALWAYS_ZERO=new byte[12];
         private ShadowsocksOption shadowsocksOption;
         private Cipher cipher;
-        private byte[] nonce;
 
         public UdpCodec(ShadowsocksOption shadowsocksOption) {
             this.shadowsocksOption = shadowsocksOption;
             this.cipher=shadowsocksOption.getCipher();
-            this.nonce=new byte[12];
         }
 
 
@@ -175,9 +192,10 @@ public class AEADCodec {
                 byte[] subKey = genSubKey(this.cipher, shadowsocksOption.getMasterKey(), salt);
                 ByteBuf buf = ctx.alloc().buffer(salt.length+msg.content().readableBytes()+16);
                 buf.writeBytes(salt);
-                byte[] content = ByteBufUtil.getBytes(msg.content());
-                byte[] encryptedPayload = encrypt(this.cipher, subKey, nonce, content);
-                buf.writeBytes(encryptedPayload);
+                ByteBufCipher.doFinal(
+                        getEncryptCipher(this.cipher, subKey, ALWAYS_ZERO),
+                        msg.content(),buf
+                        );
 
                 out.add(new DatagramPacket(buf,msg.recipient()));
 
@@ -194,21 +212,19 @@ public class AEADCodec {
             ByteBuf buf = msg.content();
             buf.readBytes(salt);
             byte[] subKey = genSubKey(this.cipher, shadowsocksOption.getMasterKey(), salt);
-            byte[] bytes = ByteBufUtil.getBytes(buf);
-            byte[] payload = decrypt(this.cipher, subKey, nonce, bytes);
-            assert payload != null;
-//            Arrays.copyOfRange(payload,7,payload.length)
-            ByteBuf byteBuf = Unpooled.wrappedBuffer(payload);
-            byte type = byteBuf.readByte();
+            ByteBuf plain = ByteBufCipher.doFinal(getDecryptCipher(this.cipher, subKey, ALWAYS_ZERO),buf,ctx.alloc());
+            byte type = plain.readByte();
             if (type==1){
-                byteBuf.skipBytes(4);
+                plain.skipBytes(4);
             }else if (type==3){
-                byteBuf.skipBytes(byteBuf.readByte());
+                plain.skipBytes(plain.readByte());
             }else if (type==4){
-                byteBuf.skipBytes(16);
+                plain.skipBytes(16);
             }
-            byteBuf.skipBytes(2);
-            out.add(new DatagramPacket(Unpooled.copiedBuffer(byteBuf),msg.recipient(),msg.sender()));
+            plain.skipBytes(2);
+            ByteBuf content = plain.copy();
+            plain.release();
+            out.add(new DatagramPacket(content,msg.recipient(),msg.sender()));
         }
     }
 }

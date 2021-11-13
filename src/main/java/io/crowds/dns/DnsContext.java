@@ -56,8 +56,10 @@ public class DnsContext {
             return;
         }
         var response = new DatagramDnsResponse(recipient, sender, queryId, resp.opCode(),resp.code());
-        response.addRecord(DnsSection.QUESTION, question);
+
         DnsKit.msgCopy(resp,response,true);
+        response.clear(DnsSection.QUESTION);
+        response.addRecord(DnsSection.QUESTION, question);
         channel.writeAndFlush(response)
                 .addListener(future -> {
 

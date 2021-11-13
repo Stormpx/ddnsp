@@ -42,7 +42,7 @@ import java.util.*;
 
 public class DDnspOptionLoader {
 
-    private Logger logger= LoggerFactory.getLogger(DDnspOptionLoader.class);
+    private final static Logger logger= LoggerFactory.getLogger(DDnspOptionLoader.class);
 
     private Vertx vertx;
 
@@ -84,7 +84,9 @@ public class DDnspOptionLoader {
             Handler<DDnspOption> optionChangeHandler = this.optionChangeHandler;
             if (optionChangeHandler!=null){
                 JsonObject configuration = cc.getNewConfiguration();
+
                 optionChangeHandler.handle(new DDnspOption()
+                        .setLogLevel(configuration.getString("logLevel","info"))
                         .setDns(toOption(configuration))
                         .setDdns(toDDnsOption(configuration))
                         .setProxy(toProxyOption(configuration)));
@@ -101,20 +103,21 @@ public class DDnspOptionLoader {
                 throw new IllegalStateException("can not found default nameServers");
             }
             logger.info("find default nameServers: {}",provider.nameServerAddresses());
-            DDnspOption DDnspOption = new DDnspOption();
+            DDnspOption dDnspOption = new DDnspOption()
+                    .setLogLevel("info");
             DnsOption dnsOption =new DnsOption()
                     .setHost("127.0.0.1")
                     .setPort(53)
                     .setTtl(300)
                     .setDnsServers(provider.nameServerAddresses());
 
-            DDnspOption.setDns(dnsOption);
-            DDnspOption.setDdns(new DDnsOption().setEnable(false));
+            dDnspOption.setDns(dnsOption);
+            dDnspOption.setDdns(new DDnsOption().setEnable(false));
 
             ProxyOption proxyOption = new ProxyOption();
-            DDnspOption.setProxy(proxyOption);
+            dDnspOption.setProxy(proxyOption);
 
-            return Future.succeededFuture(DDnspOption);
+            return Future.succeededFuture(dDnspOption);
         }else{
 
             return configRetriever.getConfig()
@@ -122,6 +125,7 @@ public class DDnspOptionLoader {
                         reload();
                     })
                     .map(json-> new DDnspOption()
+                            .setLogLevel(json.getString("logLevel","info"))
                             .setDns(toOption(json))
                             .setDdns(toDDnsOption(json))
                             .setProxy(toProxyOption(json))

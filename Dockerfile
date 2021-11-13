@@ -1,6 +1,5 @@
-FROM  openjdk:11.0-jdk-slim as packager
+FROM  openjdk:17.0.1-jdk-slim as packager
 MAINTAINER crowds
-
 RUN { \
         java --version ; \
         echo "jlink version:" && \
@@ -13,9 +12,8 @@ ENV JAVA_MINIMAL=/opt/jre
 RUN jlink \
     --verbose \
     --add-modules \
-        java.base,java.logging,java.xml,jdk.unsupported,java.naming,java.security.jgss,java.instrument,java.net.http \
+        java.base,java.compiler,java.desktop,java.management,java.naming,java.sql,jdk.unsupported \
     --compress 2 \
-    --strip-debug \
     --no-header-files \
     --no-man-pages \
     --output "$JAVA_MINIMAL"
@@ -23,7 +21,7 @@ RUN jlink \
 # Second stage, add only our minimal "JRE" distr and our app
 FROM debian:stable-slim
 
-RUN apt-get install autoconf automake libtool make tar gcc
+#RUN apt-get install autoconf automake libtool make tar gcc
 
 RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 RUN echo 'Asia/Shanghai' >/etc/timezone

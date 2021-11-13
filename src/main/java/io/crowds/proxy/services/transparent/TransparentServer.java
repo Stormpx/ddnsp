@@ -134,7 +134,8 @@ public class TransparentServer {
 
             InetSocketAddress recipient = msg.recipient();
             InetSocketAddress sender = msg.sender();
-            logger.info("udp data packet receive sender: {} recipient: {}",sender,recipient);
+            if (logger.isDebugEnabled())
+                logger.debug("udp data packet receive sender: {} recipient: {}",sender,recipient);
             createNonLocalChannel(ctx,recipient)
                     .addListener((FutureListener<DatagramChannel>) future -> {
                         if (!future.isSuccess()){
@@ -160,7 +161,10 @@ public class TransparentServer {
         @Override
         public void channelActive(ChannelHandlerContext ctx) throws Exception {
             Channel channel = ctx.channel();
-            axis.handleTcp(channel, channel.remoteAddress(),selectRemoteAddress(channel));
+            SocketAddress remoteAddress = selectRemoteAddress(channel);
+            if (logger.isDebugEnabled())
+                logger.debug("tcp remote addr:{}",remoteAddress);
+            axis.handleTcp(channel, channel.remoteAddress(), remoteAddress);
             super.channelActive(ctx);
         }
 

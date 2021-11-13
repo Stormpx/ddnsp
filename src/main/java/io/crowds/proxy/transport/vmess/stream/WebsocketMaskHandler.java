@@ -6,9 +6,11 @@ import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.websocketx.*;
 import io.netty.util.CharsetUtil;
 import io.netty.util.ReferenceCountUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class WebsocketMaskHandler extends ChannelDuplexHandler {
-
+    private final static Logger logger= LoggerFactory.getLogger(WebsocketMaskHandler.class);
     private final WebSocketClientHandshaker handshaker;
     private ChannelPromise handshakeFuture;
 
@@ -61,6 +63,8 @@ public class WebsocketMaskHandler extends ChannelDuplexHandler {
                 handshakeFuture.trySuccess();
             } catch (WebSocketHandshakeException e) {
                 handshakeFuture.tryFailure(e);
+            }finally {
+                ReferenceCountUtil.safeRelease(msg);
             }
             return;
         }
@@ -77,6 +81,8 @@ public class WebsocketMaskHandler extends ChannelDuplexHandler {
         if (frame instanceof PingWebSocketFrame) {
             ctx.writeAndFlush(new PongWebSocketFrame(frame.content()));
         } else if (frame instanceof CloseWebSocketFrame) {
+            logger.debug("websocket closeFrame {} {} ",((CloseWebSocketFrame) frame).statusCode(),((CloseWebSocketFrame) frame).reasonText());
+            ReferenceCountUtil.safeRelease(frame);
             ch.close();
         }else if (frame instanceof PongWebSocketFrame){
             ReferenceCountUtil.safeRelease(frame);

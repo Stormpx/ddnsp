@@ -1,8 +1,12 @@
 package io.crowds.proxy.transport.vmess.crypto;
 
 import io.crowds.util.Bufs;
+import io.crowds.util.ByteBufCipher;
 import io.crowds.util.Crypto;
 import io.netty.buffer.ByteBuf;
+
+import javax.crypto.Cipher;
+import java.nio.ByteBuffer;
 
 public class VmessAesGCMCrypto implements VmessCrypto {
 
@@ -31,13 +35,36 @@ public class VmessAesGCMCrypto implements VmessCrypto {
     }
 
     @Override
+    public void encrypt(ByteBuf bytes, ByteBuf out) throws Exception {
+        Cipher cipher = Crypto.getGcmCipher(key, getIv(), true);
+        ByteBufCipher.doFinal(cipher,bytes,out);
+//        int writeBytes = bytes.readableBytes()+paddingSize();
+//        out.ensureWritable(writeBytes);
+//        int writerIndex = out.writerIndex();
+//        ByteBuffer outBuffer = out.nioBuffer(writerIndex, writeBytes);
+//        Crypto.gcmEncrypt(bytes.nioBuffer(),key,getIv(),outBuffer);
+//        out.writerIndex(writerIndex+writeBytes);
+    }
+
+    @Override
     public byte[] decrypt(byte[] bytes) throws Exception {
 
         return Crypto.gcmDecrypt(bytes,key,getIv());
     }
 
     @Override
-    public int getMaxSize() {
-        return 16384-16;
+    public ByteBuf decrypt(ByteBuf bytes) throws Exception {
+        Cipher cipher = Crypto.getGcmCipher(key, getIv(), false);
+        return ByteBufCipher.doFinal(cipher,bytes);
+//        int i = bytes.readableBytes() - paddingSize();
+//        ByteBuf out = bytes.alloc().directBuffer(i);
+//        Crypto.gcmDecrypt(bytes.nioBuffer(),key,getIv(),out.nioBuffer(0,i));
+//        out.writerIndex(i);
+//        return out;
+    }
+
+    @Override
+    public int paddingSize() {
+        return 16;
     }
 }

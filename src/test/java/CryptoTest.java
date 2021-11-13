@@ -20,15 +20,15 @@ import java.util.concurrent.ThreadLocalRandom;
 
 public class CryptoTest {
 
-    public static void main(String[] args) throws NoSuchPaddingException, ShortBufferException, InvalidKeyException, NoSuchAlgorithmException, IllegalBlockSizeException, BadPaddingException, InvalidAlgorithmParameterException {
+    public static void main(String[] args) throws Exception {
 
         byte[] key=new byte[16];
         byte[] iv=new byte[16];
         ThreadLocalRandom.current().nextBytes(key);
         ThreadLocalRandom.current().nextBytes(iv);
 
-//        byte[] plain = "dhwioadh12315616iowadhwioadhwa".getBytes(StandardCharsets.UTF_8);
-        byte[] plain = new byte[0];
+        byte[] plain = "dhwioadh12315616iowadhwioadhwa".getBytes(StandardCharsets.UTF_8);
+//        byte[] plain = new byte[0];
         System.out.println(plain.length);
         byte[] bytes = Crypto.aes128CFBEncrypt(key, iv, plain);
 
@@ -84,8 +84,8 @@ public class CryptoTest {
         ThreadLocalRandom.current().nextBytes(key);
         ThreadLocalRandom.current().nextBytes(iv);
 
-//        byte[] plain = "dhwioadh12315616iowadhwioadhwa".getBytes(StandardCharsets.UTF_8);
-        byte[] plain = new byte[0];
+        byte[] plain = "dhwioadh12315616iowadhwioadhwa".getBytes(StandardCharsets.UTF_8);
+//        byte[] plain = new byte[0];
 
         byte[] md5Key = Hash.md5(key);
         byte[] md5md5Key = Hash.md5(md5Key);
