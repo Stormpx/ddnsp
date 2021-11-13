@@ -31,7 +31,6 @@ import java.util.stream.Stream;
 public class DnsClient {
     private final Logger logger= LoggerFactory.getLogger(DnsClient.class);
     private AtomicLong reqId=new AtomicLong(0);
-    private int curId=1;
 
     private DnsOption dnsOption;
     private int curServersIndex=0;
@@ -57,6 +56,15 @@ public class DnsClient {
                         QueryRequest request = queryRequestMap.get(msg.id());
                         if (request!=null){
                             request.resp(msg);
+                        }
+                    }
+
+                    @Override
+                    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+                        if (logger.isDebugEnabled()){
+                            logger.error("",cause);
+                        }else{
+                            logger.warn(cause.getMessage());
                         }
                     }
                 });
@@ -98,7 +106,7 @@ public class DnsClient {
                 .addListener(future ->{
                     if (!future.isSuccess()){
 
-                        logger.info("send query to server: {} failed cause:{}",server,future.cause().getMessage());
+                        logger.warn("send query: {} to server: {} failed cause:{}",dnsQuery,server,future.cause().getMessage());
                     }
 
                 });

@@ -43,6 +43,15 @@ public class DnsServer {
                     protected void channelRead0(ChannelHandlerContext ctx, DnsQuery msg) throws Exception {
                         processor.process(msg);
                     }
+
+                    @Override
+                    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+                        if (logger.isDebugEnabled()){
+                            logger.error("",cause);
+                        }else {
+                            logger.warn("server exception occurred "+cause.getMessage());
+                        }
+                    }
                 });
 
         this.processor=new DnsProcessor(channel,dnsClient,dnsCache);

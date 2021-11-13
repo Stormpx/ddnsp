@@ -369,7 +369,7 @@ public class DDnspOptionLoader {
                 if (dnsRecordType==DnsRecordType.A){
                     record =new DefaultDnsRawRecord(domain,DnsRecordType.A,0, Unpooled.wrappedBuffer(Inet4Address.getByName(raw).getAddress()));
                 }else if (dnsRecordType==DnsRecordType.AAAA){
-                    record =new DefaultDnsRawRecord(domain,DnsRecordType.A,0, Unpooled.wrappedBuffer(Inet6Address.getByName(raw).getAddress()));
+                    record =new DefaultDnsRawRecord(domain,DnsRecordType.AAAA,0, Unpooled.wrappedBuffer(Inet6Address.getByName(raw).getAddress()));
                 }else if (dnsRecordType==DnsRecordType.CNAME){
                     new DefaultDnsRawRecord(domain,DnsRecordType.CNAME,0,Unpooled.wrappedBuffer(raw.getBytes()));
                 }else if (dnsRecordType==DnsRecordType.PTR) {
