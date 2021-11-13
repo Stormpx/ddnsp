@@ -45,7 +45,7 @@ dependencies {
     implementation 'ch.qos.logback:logback-core:1.2.3'
     implementation 'ch.qos.logback:logback-classic:1.2.3'
 
-    implementation "io.netty:netty-transport-native-epoll:4.1.50.Final:linux-${arch.isAmd64()?'x86_64':'aarch_64'}"
+    implementation "io.netty:netty-transport-native-epoll:4.1.50.Final:linux-${arch.isAmd64()?'x86_64':'aarch64'}"
 
     if (os.isWindows()){
         implementation 'io.netty:netty-tcnative-boringssl-static:2.0.45.Final:windows-x86_64'
