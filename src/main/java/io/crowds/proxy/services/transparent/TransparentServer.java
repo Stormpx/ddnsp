@@ -139,7 +139,7 @@ public class TransparentServer {
             createNonLocalChannel(ctx,recipient)
                     .addListener((FutureListener<DatagramChannel>) future -> {
                         if (!future.isSuccess()){
-                            logger.error("{}",future.cause().getMessage());
+                            logger.error("bind addr:{} failed cause:{}",recipient,future.cause().getMessage());
                             return;
                         }
                         DatagramChannel datagramChannel= future.get();

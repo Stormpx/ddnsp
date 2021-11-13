@@ -66,6 +66,11 @@ public class ChannelCreator {
         }
 
         synchronized(tuple.toString().intern()){
+            ch=tupleMap.get(tuple);
+            if (ch!=null){
+                logger.info("udp tuple {} fullcone {}",tuple,ch.getDatagramChannel().localAddress());
+                return new SucceededFuture<>(ch.getDatagramChannel().eventLoop(),ch);
+            }
             Promise<UdpChannel> promise = eventLoopGroup.next().newPromise();
             createDatagramChannel( option,initializer).addListener(future -> {
                 if (!future.isSuccess()){
