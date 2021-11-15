@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.Inet4Address;
+import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Collections;
@@ -66,9 +67,10 @@ public class FakeDns implements Handler<DnsContext> {
             executors.execute(()->domainFakeMap.remove(domain));
             return false;
         }
+//        logger.warn("fakedns hit cache domain: {} fakeAddr:{} realAddr: {}",domain,context.getFakeAddr(),context.getRealAddr());
         InetAddress fakeAddr = context.getFakeAddr();
         ctx.resp(DnsOpCode.QUERY,DnsResponseCode.NOERROR,
-                Collections.singletonList(new DefaultDnsRawRecord(domain.getName(), ctx.getQuestion().type(), context.remainTime(), Unpooled.wrappedBuffer(fakeAddr.getAddress()))));
+                Collections.singletonList(new DefaultDnsRawRecord(domain.getName(), ctx.getQuestion().type(), context.remainTimeMillis()/1000, Unpooled.wrappedBuffer(fakeAddr.getAddress()))));
 
         return true;
     }
@@ -86,7 +88,8 @@ public class FakeDns implements Handler<DnsContext> {
 
     private void mappingAndResp(DnsContext ctx, Domain domain, RealAddr realAddr, String tag){
         if (executors.inEventLoop()){
-            InetAddress fakeAddr = domain.getType()==DnsRecordType.A?this.ipv4Pool.getAvailableAddress():this.ipv6Pool.getAvailableAddress();
+            var ipPool=DnsRecordType.AAAA.equals(domain.getType()) ? this.ipv6Pool:ipv4Pool;
+            InetAddress fakeAddr = ipPool.getAvailableAddress();
             if (fakeAddr==null){
                 logger.warn("unable get available addr from ipPool");
                 return;
@@ -97,18 +100,20 @@ public class FakeDns implements Handler<DnsContext> {
             executors.schedule(()->{
                 boolean del = false;
                 FakeContext context = domainFakeMap.get(domain);
-                if (Objects.equals(context.getId(),fakeContext.getId())){
+                if (context!=null&&Objects.equals(context.getId(),fakeContext.getId())){
                     domainFakeMap.remove(domain);
                     del=true;
                 }
                 context=addrFakeMap.get(fakeAddr);
-                if (Objects.equals(context.getId(),fakeContext.getId())){
+                if (context!=null&&Objects.equals(context.getId(),fakeContext.getId())){
                     addrFakeMap.remove(fakeAddr);
                     del=true;
                 }
                 if (del)
-                    ipv4Pool.release(fakeAddr);
-            },realAddr.getTtl()+10, TimeUnit.SECONDS);
+                    ipPool.release(fakeAddr);
+            }, (long) (realAddr.getTtl()*1.5), TimeUnit.SECONDS);
+
+//            logger.warn("domain:{} fakeAddr:{}  realAddr: {}",domain,fakeAddr,realAddr);
 
             ctx.resp(DnsOpCode.QUERY,DnsResponseCode.NOERROR,
                     Collections.singletonList(new DefaultDnsRawRecord(domain.getName(), ctx.getQuestion().type(), realAddr.getTtl(), Unpooled.wrappedBuffer(fakeAddr.getAddress()))));
@@ -132,6 +137,9 @@ public class FakeDns implements Handler<DnsContext> {
                 return;
             }
             String tag = router.routing(name);
+//            if (tag!=null){
+//                logger.warn("domain: {} forward to tag: {}",domain,tag);
+//            }
             ctx.recursionQuery(resp->{
                 try {
                     if (resp.code()!= DnsResponseCode.NOERROR){
@@ -173,9 +181,11 @@ public class FakeDns implements Handler<DnsContext> {
     }
 
     public boolean isFakeIp(InetAddress address){
-        if (address instanceof Inet4Address)
+        if (this.ipv4Pool!=null&&address instanceof Inet4Address)
             return this.ipv4Pool.isMatch(address);
-        else
+        else if (this.ipv6Pool!=null&&address instanceof Inet6Address){
+            return this.ipv6Pool.isMatch(address);
+        }else
             return false;
     }
 
@@ -212,6 +222,11 @@ public class FakeDns implements Handler<DnsContext> {
         @Override
         public int hashCode() {
             return Objects.hash(name, type);
+        }
+
+        @Override
+        public String toString() {
+            return "{" + "name='" + name + '\'' + ", type=" + type + '}';
         }
     }
 

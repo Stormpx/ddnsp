@@ -8,6 +8,7 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.socket.DatagramPacket;
+import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.Future;
 
 import java.net.InetSocketAddress;
@@ -33,6 +34,10 @@ public class UdpEndPoint extends EndPoint {
 
     @Override
     public void write(ByteBuf buf) {
+        if (!channel.isActive()){
+            ReferenceCountUtil.safeRelease(buf);
+            return;
+        }
         channel.writeAndFlush(new DatagramPacket(buf,recipient,null));
     }
 

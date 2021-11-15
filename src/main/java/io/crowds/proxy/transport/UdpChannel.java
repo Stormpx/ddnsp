@@ -15,7 +15,7 @@ public class UdpChannel  extends ChannelInboundHandlerAdapter {
 
 
     private DatagramChannel datagramChannel;
-    private Consumer<ByteBuf> bufferHandler;
+    private volatile Consumer<ByteBuf> bufferHandler;
 
     public UdpChannel(DatagramChannel datagramChannel) {
         this.datagramChannel = datagramChannel;
@@ -43,8 +43,13 @@ public class UdpChannel  extends ChannelInboundHandlerAdapter {
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
         if (evt instanceof IdleStateEvent){
-            ctx.close();
+            datagramChannel.close();
         }else
             super.userEventTriggered(ctx, evt);
+    }
+
+    @Override
+    public String toString() {
+        return datagramChannel.localAddress().toString();
     }
 }

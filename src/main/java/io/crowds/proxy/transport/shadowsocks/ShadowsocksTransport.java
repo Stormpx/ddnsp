@@ -1,14 +1,12 @@
 package io.crowds.proxy.transport.shadowsocks;
 
-import io.crowds.proxy.ChannelCreator;
-import io.crowds.proxy.NetAddr;
-import io.crowds.proxy.NetLocation;
-import io.crowds.proxy.TP;
+import io.crowds.proxy.*;
 import io.crowds.proxy.common.BaseChannelInitializer;
 import io.crowds.proxy.transport.EndPoint;
 import io.crowds.proxy.transport.direct.DirectProxyTransport;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
+import io.netty.channel.EventLoop;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.Promise;
@@ -30,8 +28,10 @@ public class ShadowsocksTransport extends DirectProxyTransport {
     }
 
     @Override
-    public Future<EndPoint> createEndPoint(NetLocation netLocation) {
-        Promise<EndPoint> promise = eventLoopGroup.next().newPromise();
+    public Future<EndPoint> createEndPoint(ProxyContext proxyContext) {
+        EventLoop eventLoop = proxyContext.getEventLoop();
+        NetLocation netLocation = proxyContext.getNetLocation();
+        Promise<EndPoint> promise = eventLoop.newPromise();
 
         BaseChannelInitializer initializer = new BaseChannelInitializer()
                 .connIdle(shadowsocksOption.getConnIdle())
@@ -44,6 +44,7 @@ public class ShadowsocksTransport extends DirectProxyTransport {
 
         var f=super.createEndPoint0(
                 shadowsocksOption.getName(),
+                eventLoop,
                 new NetLocation(netLocation.getSrc(), new NetAddr(shadowsocksOption.getAddress()), netLocation.getTp()),
                 initializer
         );

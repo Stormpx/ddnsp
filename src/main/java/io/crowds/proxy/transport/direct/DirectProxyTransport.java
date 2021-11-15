@@ -28,8 +28,8 @@ public class DirectProxyTransport extends AbstractProxyTransport implements Tran
         return "direct";
     }
 
-    protected Future<EndPoint> createEndPoint0(String namespace,NetLocation netLocation, ChannelInitializer<Channel> initializer) {
-        Promise<EndPoint> promise = eventLoopGroup.next().newPromise();
+    protected Future<EndPoint> createEndPoint0(String namespace,EventLoop eventLoop,NetLocation netLocation, ChannelInitializer<Channel> initializer) {
+        Promise<EndPoint> promise = eventLoop.newPromise();
 
         try {
             NetAddr dest = netLocation.getDest();
@@ -39,7 +39,7 @@ public class DirectProxyTransport extends AbstractProxyTransport implements Tran
             }
             TP tp = netLocation.getTp();
             if (TP.TCP== tp){
-                var cf= channelCreator.createTcpChannel(target, initializer);
+                var cf= channelCreator.createTcpChannel(eventLoop,target, initializer);
 
                 cf.addListener(future -> {
                     if (future.isSuccess()){
@@ -69,11 +69,12 @@ public class DirectProxyTransport extends AbstractProxyTransport implements Tran
     }
 
     @Override
-    public Future<EndPoint> createEndPoint(NetLocation netLocation) throws Exception {
+    public Future<EndPoint> createEndPoint(ProxyContext proxyContext) throws Exception {
+        NetLocation netLocation = proxyContext.getNetLocation();
         BaseChannelInitializer initializer = new BaseChannelInitializer();
         if (netLocation.getTp()==TP.UDP)
             initializer.connIdle(60);
-        return createEndPoint0("direct", netLocation, initializer);
+        return createEndPoint0("direct", proxyContext.getEventLoop(),netLocation, initializer);
     }
 
 

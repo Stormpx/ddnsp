@@ -22,28 +22,26 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 
 public class ChannelCreator {
     private final static Logger logger= LoggerFactory.getLogger(ChannelCreator.class);
-    private ProxyOption proxyOption;
     private EventLoopGroup eventLoopGroup;
 
-    private Map<String,Map<InetSocketAddress, UdpChannel>> spaceTupleMap;
+    private Map<String,Map<InetSocketAddress, Future<UdpChannel>>> spaceTupleMap;
+    private Map<String,Map<InetSocketAddress,Object>> spaceTupleLockTable;
 
     public ChannelCreator(EventLoopGroup eventLoopGroup) {
         this.eventLoopGroup = eventLoopGroup;
         this.spaceTupleMap=new ConcurrentHashMap<>();
+        this.spaceTupleLockTable=new ConcurrentHashMap<>();
     }
 
     public EventLoopGroup getEventLoopGroup() {
         return eventLoopGroup;
     }
 
-    public ChannelCreator setProxyOption(ProxyOption proxyOption) {
-        this.proxyOption = proxyOption;
-        return this;
-    }
 
     public ChannelFuture createTcpChannel(SocketAddress address, ChannelInitializer<Channel> initializer) {
         Bootstrap bootstrap = new Bootstrap();
@@ -55,58 +53,92 @@ public class ChannelCreator {
         return cf;
     }
 
+    public ChannelFuture createTcpChannel(EventLoop eventLoop,SocketAddress address, ChannelInitializer<Channel> initializer) {
+        Bootstrap bootstrap = new Bootstrap();
+        var cf=bootstrap.group(eventLoop)
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS,0)
+                .channel(Platform.getSocketChannelClass())
+                .handler(initializer)
+                .connect(address);
+        return cf;
+    }
 
 
-    public Future<UdpChannel> createDatagramChannel(String group,InetSocketAddress tuple,DatagramOption option, ChannelInitializer<Channel> initializer) {
+
+    public Future<UdpChannel> createDatagramChannel(String group,InetSocketAddress tuple,DatagramOption option, ChannelInitializer<Channel> initializer) throws ExecutionException, InterruptedException {
         var tupleMap=spaceTupleMap.computeIfAbsent(group,k->new ConcurrentHashMap<>());
-        UdpChannel ch = tupleMap.get(tuple);
-        if (ch !=null) {
-            logger.info("udp tuple {} fullcone {}",tuple,ch.getDatagramChannel().localAddress());
-            return new SucceededFuture<>(ch.getDatagramChannel().eventLoop(),ch);
+        Future<UdpChannel> udpFuture = tupleMap.get(tuple);
+        if (udpFuture !=null) {
+            if (udpFuture.isSuccess())
+                logger.info("udp tuple {} fullcone {}",tuple,udpFuture.get().getDatagramChannel().localAddress());
+            return udpFuture;
         }
-
-        synchronized(tuple.toString().intern()){
-            ch=tupleMap.get(tuple);
-            if (ch!=null){
-                logger.info("udp tuple {} fullcone {}",tuple,ch.getDatagramChannel().localAddress());
-                return new SucceededFuture<>(ch.getDatagramChannel().eventLoop(),ch);
+        var lock=spaceTupleLockTable.computeIfAbsent(group,k->new ConcurrentHashMap<>()).computeIfAbsent(tuple,k->new Object());
+        synchronized(lock){
+            udpFuture=tupleMap.get(tuple);
+            if (udpFuture!=null){
+                if (udpFuture.isSuccess())
+                    logger.info("udp tuple {} fullcone {}",tuple,udpFuture.get().getDatagramChannel().localAddress());
+                return udpFuture;
             }
-            Promise<UdpChannel> promise = eventLoopGroup.next().newPromise();
-            createDatagramChannel( option,initializer).addListener(future -> {
-                if (!future.isSuccess()){
-                    promise.tryFailure(future.cause());
-                    return;
-                }
-                DatagramChannel datagramChannel= (DatagramChannel) future.get();
-                datagramChannel.closeFuture().addListener(it -> tupleMap.remove(tuple));
-                UdpChannel channel=new UdpChannel(datagramChannel);
-                tupleMap.put(tuple,channel);
-                promise.trySuccess(channel);
-            });
 
-            return promise;
+            udpFuture=createUdpChannel(option, initializer);
+            tupleMap.put(tuple,udpFuture);
+            Future<UdpChannel> finalUdpFuture = udpFuture;
+            udpFuture.addListener(future -> {
+                        if (!future.isSuccess()){
+                            var f=tupleMap.get(tuple);
+                            if (finalUdpFuture==f)
+                                tupleMap.remove(tuple);
+                        }else{
+                            DatagramChannel channel = finalUdpFuture.get().getDatagramChannel();
+                            channel.closeFuture().addListener(it->{
+                                if (tupleMap.get(tuple)==finalUdpFuture)
+                                    tupleMap.remove(tuple);
+                            });
+                        }
+                    });
+
+            return udpFuture;
+
         }
 
+    }
+
+    private Future<UdpChannel> createUdpChannel(DatagramOption option, ChannelInitializer<Channel> initializer){
+        Promise<UdpChannel> promise = eventLoopGroup.next().newPromise();
+        createDatagramChannel(option,initializer)
+                .addListener(future -> {
+                    if (!future.isSuccess()){
+                        promise.tryFailure(future.cause());
+                        return;
+                    }
+                    DatagramChannel datagramChannel= (DatagramChannel) future.get();
+                    UdpChannel channel=new UdpChannel(datagramChannel);
+                    promise.trySuccess(channel);
+                });
+
+        return promise;
     }
 
 
     public Future<DatagramChannel> createDatagramChannel(DatagramOption option, ChannelInitializer<Channel> initializer) {
         SocketAddress bindAddr = option.getBindAddr();
-        if (bindAddr==null)
-            bindAddr=new InetSocketAddress("0.0.0.0",0);
+
 
         DatagramChannel udpChannel= Platform.getDatagramChannel();
+        udpChannel.config().setOption(ChannelOption.SO_REUSEADDR,true);
         if (option.isIpTransport()&& udpChannel instanceof EpollDatagramChannel){
             udpChannel.config().setOption(EpollChannelOption.IP_TRANSPARENT,true);
         }
         if (initializer!=null) {
             udpChannel.pipeline().addLast(initializer);
         }
-        eventLoopGroup.register(udpChannel);
+        EventLoop eventLoop = eventLoopGroup.next();
+        eventLoop.register(udpChannel);
 
-
-        Promise<DatagramChannel> promise=eventLoopGroup.next().newPromise();
-        udpChannel.bind(bindAddr)
+        Promise<DatagramChannel> promise=eventLoop.newPromise();
+        udpChannel.bind(bindAddr!=null?bindAddr:new InetSocketAddress(0))
             .addListener(future -> {
                 if (!future.isSuccess()){
                     promise.tryFailure(future.cause());
@@ -118,23 +150,5 @@ public class ChannelCreator {
     }
 
 
-    private class UdpChannelHandler extends ChannelInboundHandlerAdapter{
 
-        private Consumer<Channel> onIdle;
-
-        public UdpChannelHandler(Consumer<Channel> onIdle) {
-            this.onIdle = onIdle;
-        }
-
-
-
-        @Override
-        public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-            if (evt instanceof IdleStateEvent){
-                if (onIdle!=null)
-                    onIdle.accept(ctx.channel());
-            }else
-                super.userEventTriggered(ctx, evt);
-        }
-    }
 }

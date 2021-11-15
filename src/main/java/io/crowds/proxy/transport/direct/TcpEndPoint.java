@@ -5,6 +5,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.Future;
 
 import java.util.function.Consumer;
@@ -16,6 +17,7 @@ public class TcpEndPoint extends EndPoint {
 
     public TcpEndPoint(Channel channel) {
         this.channel = channel;
+        this.channel.config().setAutoRead(false);
         init();
     }
 
@@ -23,6 +25,10 @@ public class TcpEndPoint extends EndPoint {
         this.channel.pipeline().addLast(new SimpleChannelInboundHandler<ByteBuf>(false) {
             @Override
             protected void channelRead0(ChannelHandlerContext ctx, ByteBuf msg) throws Exception {
+                if (!channel.isActive()){
+                    ReferenceCountUtil.safeRelease(msg);
+                    return;
+                }
                 fireBuf(msg);
             }
             @Override
@@ -34,6 +40,12 @@ public class TcpEndPoint extends EndPoint {
         });
     }
 
+    @Override
+    public void bufferHandler(Consumer<ByteBuf> bufferHandler) {
+        super.bufferHandler(bufferHandler);
+        this.channel.config().setAutoRead(true);
+    }
+
     public TcpEndPoint exceptionHandler(Consumer<Throwable> throwableHandler) {
         this.throwableHandler = throwableHandler;
         return this;
@@ -41,6 +53,10 @@ public class TcpEndPoint extends EndPoint {
 
     @Override
     public void write(ByteBuf buf) {
+        if (!channel.isActive()){
+            ReferenceCountUtil.safeRelease(buf);
+            return;
+        }
         channel.writeAndFlush(buf);
     }
 

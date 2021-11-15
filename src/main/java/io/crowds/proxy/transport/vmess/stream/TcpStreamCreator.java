@@ -8,6 +8,7 @@ import io.crowds.proxy.transport.vmess.VmessOption;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
+import io.netty.channel.EventLoop;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.SslProvider;
@@ -20,13 +21,17 @@ import java.net.InetSocketAddress;
 
 public class TcpStreamCreator implements StreamCreator {
 
+    protected EventLoop eventLoop;
     protected VmessOption vmessOption;
     protected ChannelCreator channelCreator;
 
-    public TcpStreamCreator(VmessOption vmessOption, ChannelCreator channelCreator) {
+    public TcpStreamCreator(EventLoop eventLoop, VmessOption vmessOption, ChannelCreator channelCreator) {
+        this.eventLoop = eventLoop;
         this.vmessOption = vmessOption;
         this.channelCreator = channelCreator;
     }
+
+
 
     public ChannelFuture create0(ChannelInitializer<Channel> initializer) throws SSLException {
         var base=new BaseChannelInitializer();
@@ -42,7 +47,7 @@ public class TcpStreamCreator implements StreamCreator {
             base.initializer(initializer);
         }
 
-        return channelCreator.createTcpChannel(address,base);
+        return channelCreator.createTcpChannel(eventLoop,address,base);
 
     }
 

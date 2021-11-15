@@ -4,7 +4,9 @@ package io.crowds.dns;
 import io.crowds.Platform;
 import io.crowds.util.DnsKit;
 import io.netty.channel.*;
+import io.netty.channel.epoll.Epoll;
 import io.netty.channel.socket.DatagramChannel;
+import io.netty.channel.unix.UnixChannelOption;
 import io.netty.handler.codec.dns.*;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
@@ -34,7 +36,11 @@ public class DnsServer {
         this.dnsClient=dnsClient;
         this.dnsCache=new DnsCache();
         this.channel= Platform.getDatagramChannel();
-        channel.config().setAllocator(PartialPooledByteBufAllocator.DEFAULT);
+        this.channel.config().setAllocator(PartialPooledByteBufAllocator.DEFAULT);
+        this.channel.config().setOption(ChannelOption.SO_REUSEADDR,true);
+        if (Epoll.isAvailable()){
+            this.channel.config().setOption(UnixChannelOption.SO_REUSEPORT,true);
+        }
         this.channel.pipeline()
                 .addLast(new DatagramDnsQueryDecoder())
                 .addLast(new DatagramDnsResponseEncoder())

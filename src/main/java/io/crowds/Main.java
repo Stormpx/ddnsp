@@ -18,6 +18,8 @@ import io.vertx.core.VertxOptions;
 import io.vertx.core.cli.CLI;
 import io.vertx.core.cli.CommandLine;
 import io.vertx.core.cli.Option;
+import io.vertx.core.dns.AddressResolverOptions;
+import io.vertx.core.spi.resolver.ResolverProvider;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
@@ -27,8 +29,10 @@ import java.util.Arrays;
 
 public class Main {
     public static void main(String[] args) {
-
-        Vertx vertx = Vertx.vertx(new VertxOptions().setPreferNativeTransport(true));
+//        ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.PARANOID);
+        System.getProperties().setProperty("vertx.disableDnsResolver","true");
+        Vertx vertx = Vertx.vertx(new VertxOptions()
+                .setPreferNativeTransport(true));
         CLI cli = CLI.create("ddnsp")
                 .addOption(new Option().setShortName("c").setLongName("config").setMultiValued(false).setRequired(false));
 

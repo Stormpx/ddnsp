@@ -57,7 +57,7 @@ public class Ddns {
         if (refreshInterval<=0)
             refreshInterval=3600;
 
-        vertx.setTimer(refreshInterval*1000, id->{
+        vertx.setTimer(refreshInterval* 1000L, id->{
 
             refreshResolve(true);
         });

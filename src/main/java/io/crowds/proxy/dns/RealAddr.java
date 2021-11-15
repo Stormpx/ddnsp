@@ -18,4 +18,9 @@ public class RealAddr {
     public InetAddress getAddr() {
         return addr;
     }
+
+    @Override
+    public String toString() {
+        return "{" + "ttl=" + ttl + ", addr=" + addr + '}';
+    }
 }

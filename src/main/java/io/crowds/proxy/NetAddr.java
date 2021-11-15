@@ -1,9 +1,6 @@
 package io.crowds.proxy;
 
-import java.net.Inet4Address;
-import java.net.Inet6Address;
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
+import java.net.*;
 
 public class NetAddr {
 
@@ -14,7 +11,6 @@ public class NetAddr {
     }
 
     public SocketAddress getAddress() {
-
         return address;
     }
 

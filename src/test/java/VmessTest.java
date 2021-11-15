@@ -34,8 +34,7 @@ public class VmessTest {
                 .setSecurity(Security.AES_128_GCM)
                 .setUser(new User(UUID.fromString("b831381d-6324-4d53-ad4f-8cda48b30811"),0));
         option.setConnIdle(2);
-
-        VmessEndPoint endPoint = new VmessEndPoint(location, option, creator);
+        VmessEndPoint endPoint = new VmessEndPoint(executors.next(),location, option, creator);
 
         Future<EndPoint> future = endPoint.init();
 
@@ -59,7 +58,7 @@ public class VmessTest {
         option.setConnIdle(2);
 
 
-        VmessEndPoint endPoint = new VmessEndPoint(location, option, creator);
+        VmessEndPoint endPoint = new VmessEndPoint(executors.next(),location, option, creator);
 
         Future<EndPoint> future = endPoint.init();
 

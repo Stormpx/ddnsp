@@ -3,6 +3,7 @@ package io.crowds.proxy.transport.block;
 import io.crowds.proxy.AbstractProxyTransport;
 import io.crowds.proxy.ChannelCreator;
 import io.crowds.proxy.NetLocation;
+import io.crowds.proxy.ProxyContext;
 import io.crowds.proxy.transport.EndPoint;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
@@ -23,7 +24,7 @@ public class BlockProxyTransport extends AbstractProxyTransport {
     }
 
     @Override
-    public Future<EndPoint> createEndPoint(NetLocation netLocation) throws Exception {
+    public Future<EndPoint> createEndPoint(ProxyContext proxyContext) throws Exception {
         EventLoop eventLoop = eventLoopGroup.next();
         return new SucceededFuture<>(eventLoop,new Block(new DefaultPromise<>(eventLoop)));
     }

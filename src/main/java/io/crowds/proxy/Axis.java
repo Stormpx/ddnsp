@@ -19,6 +19,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.DatagramPacket;
+import io.netty.util.ReferenceCountUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -161,7 +162,6 @@ public class Axis {
 
     public void handleTcp(Channel channel,SocketAddress srcAddr,SocketAddress destAddr){
         try {
-            channel.config().setAutoRead(false);
 
             TcpEndPoint src = new TcpEndPoint(channel)
                     .exceptionHandler(e->logger.info("src {} caught exception :{}",channel.remoteAddress(),e.getMessage()));
@@ -169,7 +169,7 @@ public class Axis {
 
             NetLocation netLocation = new NetLocation(getNetAddr(srcAddr),getNetAddr(destAddr), TP.TCP);
 
-            ProxyContext proxyContext = new ProxyContext(netLocation);
+            ProxyContext proxyContext = new ProxyContext(channel.eventLoop(),netLocation);
 
             if (fakeDns!=null){
                 proxyContext.withFakeContext(getFakeContext(netLocation.getDest()));
@@ -178,19 +178,18 @@ public class Axis {
             TransportProvider provider = getTransport(proxyContext);
             logger.info("tcp {} to {} via {}",proxyContext.getNetLocation().getSrc(),proxyContext.getNetLocation().getDest(),provider.getTag());
             ProxyTransport transport = provider.getTransport();
-            transport.createEndPoint(proxyContext.getNetLocation())
+            transport.createEndPoint(proxyContext)
                     .addListener(future -> {
                         if (!future.isSuccess()){
                             if (logger.isDebugEnabled())
                                 logger.error("",future.cause());
-                            logger.error("connect remote: {} failed cause: {}",proxyContext.getNetLocation().getDest().getAddress(),future.cause().getMessage());
+                            logger.error("failed to connect remote: {} > {}",proxyContext.getNetLocation().getDest().getAddress(),future.cause().getMessage());
                             channel.close();
                             return;
                         }
                         EndPoint dest= (EndPoint) future.get();
                         proxyContext.bridging(src,dest);
 
-                        channel.config().setAutoRead(true);
                     });
         } catch (Exception e) {
             e.printStackTrace();
@@ -203,7 +202,7 @@ public class Axis {
             InetSocketAddress sender = packet.sender();
             var src=new UdpEndPoint(datagramChannel,sender);
             NetLocation netLocation = new NetLocation(getNetAddr(sender), getNetAddr(recipient), TP.UDP);
-            ProxyContext proxyContext = new ProxyContext(netLocation);
+            ProxyContext proxyContext = new ProxyContext(datagramChannel.eventLoop(),netLocation);
             if (fakeDns!=null){
                 proxyContext.withFakeContext(getFakeContext(netLocation.getDest()));
                 netLocation=proxyContext.getNetLocation();
@@ -211,21 +210,22 @@ public class Axis {
             TransportProvider provider = getTransport(proxyContext);
             logger.info("udp {} to {} via [{}]",proxyContext.getNetLocation().getSrc(),proxyContext.getNetLocation().getDest(),provider.getTag());
             ProxyTransport transport = provider.getTransport();
-            transport.createEndPoint(proxyContext.getNetLocation())
+            transport.createEndPoint(proxyContext)
                     .addListener(future -> {
                         if (!future.isSuccess()){
                             if (logger.isDebugEnabled())
                                 logger.error("",future.cause());
+                            ReferenceCountUtil.safeRelease(packet);
                             return;
                         }
                         EndPoint dest= (EndPoint) future.get();
 
                         proxyContext.bridging(src,dest);
 
-                        if (packet.content().isReadable())
-                            dest.write(packet.content());
+                        dest.write(packet.content());
                     });
         } catch (Exception e) {
+            ReferenceCountUtil.safeRelease(packet);
             e.printStackTrace();
         }
     }

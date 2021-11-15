@@ -5,6 +5,8 @@ import io.crowds.proxy.Axis;
 import io.crowds.proxy.DatagramOption;
 import io.crowds.proxy.ProxyContext;
 import io.crowds.proxy.common.BaseChannelInitializer;
+import io.crowds.proxy.dns.FakeContext;
+import io.crowds.proxy.dns.FakeDns;
 import io.crowds.proxy.transport.UdpChannel;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
@@ -14,6 +16,8 @@ import io.netty.channel.epoll.EpollChannelOption;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.DatagramPacket;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.unix.UnixChannelOption;
+import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.FutureListener;
 import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
@@ -21,8 +25,10 @@ import io.vertx.core.Promise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.concurrent.ExecutionException;
 
 public class TransparentServer {
     private final static Logger logger= LoggerFactory.getLogger(TransparentServer.class);
@@ -51,8 +57,11 @@ public class TransparentServer {
 
         ServerBootstrap serverBootstrap = new ServerBootstrap();
         serverBootstrap.channel(Platform.getServerSocketChannelClass())
+                .option(ChannelOption.SO_REUSEADDR,true)
+                .option(UnixChannelOption.SO_REUSEPORT,true)
                 .option(EpollChannelOption.IP_TRANSPARENT,true)
-                .childOption(EpollChannelOption.IP_TRANSPARENT,true);
+                .childOption(EpollChannelOption.IP_TRANSPARENT,true)
+        ;
 
         serverBootstrap
                 .group(axis.getEventLoopGroup(),axis.getEventLoopGroup())
@@ -84,6 +93,8 @@ public class TransparentServer {
         bootstrap
                 .group(axis.getEventLoopGroup())
                 .channel(Platform.getDatagramChannelClass())
+                .option(ChannelOption.SO_REUSEADDR,true)
+                .option(UnixChannelOption.SO_REUSEPORT,true)
                 .option(EpollChannelOption.IP_TRANSPARENT,true)
                 .option(EpollChannelOption.IP_RECVORIGDSTADDR,true)
                 .handler(new ChannelInitializer<>() {
@@ -108,12 +119,22 @@ public class TransparentServer {
     }
 
 
+    private boolean accept(InetSocketAddress destAddr){
+        InetAddress dest = destAddr.getAddress();
+        FakeDns fakeDns = axis.getFakeDns();
+        if (fakeDns !=null&&fakeDns.isFakeIp(dest)){
+            FakeContext fake = fakeDns.getFake(dest);
+            return fake != null;
+        }
+        return true;
+    }
+
     private class ProxyUdpHandler extends SimpleChannelInboundHandler<DatagramPacket> {
         public ProxyUdpHandler() {
             super(false);
         }
 
-        private io.netty.util.concurrent.Future<DatagramChannel> createNonLocalChannel(ChannelHandlerContext ctx, InetSocketAddress address){
+        private io.netty.util.concurrent.Future<DatagramChannel> createNonLocalChannel(ChannelHandlerContext ctx, InetSocketAddress address) throws ExecutionException, InterruptedException {
             io.netty.util.concurrent.Promise<DatagramChannel> promise = ctx.executor().newPromise();
             axis.getChannelCreator().createDatagramChannel("transparent",address,new DatagramOption().setBindAddr(address).setIpTransport(true),
                     new BaseChannelInitializer().connIdle(300))
@@ -136,10 +157,19 @@ public class TransparentServer {
             InetSocketAddress sender = msg.sender();
             if (logger.isDebugEnabled())
                 logger.debug("udp data packet receive sender: {} recipient: {}",sender,recipient);
+            if (recipient.getPort()==0){
+                ReferenceCountUtil.safeRelease(msg);
+                return;
+            }
+            if (!accept(recipient)){
+                ReferenceCountUtil.safeRelease(msg);
+                return;
+            }
             createNonLocalChannel(ctx,recipient)
                     .addListener((FutureListener<DatagramChannel>) future -> {
                         if (!future.isSuccess()){
                             logger.error("bind addr:{} failed cause:{}",recipient,future.cause().getMessage());
+                            ReferenceCountUtil.safeRelease(msg);
                             return;
                         }
                         DatagramChannel datagramChannel= future.get();
@@ -154,7 +184,6 @@ public class TransparentServer {
 
         private SocketAddress selectRemoteAddress(Channel channel){
             return channel.localAddress();
-            //            return new InetSocketAddress("192.168.31.117",8889);
         }
 
 
@@ -164,6 +193,10 @@ public class TransparentServer {
             SocketAddress remoteAddress = selectRemoteAddress(channel);
             if (logger.isDebugEnabled())
                 logger.debug("tcp remote addr:{}",remoteAddress);
+            if (!accept((InetSocketAddress) remoteAddress)){
+                ctx.close();
+                return;
+            }
             axis.handleTcp(channel, channel.remoteAddress(), remoteAddress);
             super.channelActive(ctx);
         }

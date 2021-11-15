@@ -55,11 +55,13 @@ public class FakeContext {
         return tag;
     }
 
-    public long remainTime(){
+    public long remainTimeMillis(){
         return timestamp-System.currentTimeMillis();
     }
 
     public boolean isAvailable(){
-        return System.currentTimeMillis()<timestamp;
+        return System.currentTimeMillis()<(timestamp-5000);
     }
+
+
 }

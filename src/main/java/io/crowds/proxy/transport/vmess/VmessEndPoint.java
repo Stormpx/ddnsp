@@ -23,7 +23,7 @@ import java.util.Set;
 public class VmessEndPoint extends EndPoint {
     private final static Logger logger= LoggerFactory.getLogger(VmessEndPoint.class);
 
-
+    private EventLoop eventLoop;
     private NetLocation netLocation;
     private VmessOption vmessOption;
     private ChannelCreator channelCreator;
@@ -35,20 +35,21 @@ public class VmessEndPoint extends EndPoint {
 
 
 
-    public VmessEndPoint(NetLocation netLocation, VmessOption vmessOption, ChannelCreator channelCreator) {
+    public VmessEndPoint(EventLoop eventLoop,NetLocation netLocation, VmessOption vmessOption, ChannelCreator channelCreator) {
+        this.eventLoop=eventLoop;
         this.netLocation = netLocation;
         this.vmessOption = vmessOption;
         this.channelCreator = channelCreator;
-        this.promise = channelCreator.getEventLoopGroup().next().newPromise();
-        this.closePromise=channelCreator.getEventLoopGroup().next().newPromise();
+        this.promise = eventLoop.newPromise();
+        this.closePromise=eventLoop.newPromise();
     }
 
 
     private StreamCreator getCreator(){
         if ("ws".equalsIgnoreCase(vmessOption.getNetWork())&&vmessOption.getWs()!=null){
-            return new WebSocketStreamCreator(vmessOption,channelCreator);
+            return new WebSocketStreamCreator(eventLoop,vmessOption,channelCreator);
         }
-        return new TcpStreamCreator(vmessOption,channelCreator);
+        return new TcpStreamCreator(eventLoop,vmessOption,channelCreator);
     }
 
     public Future<EndPoint> init() throws Exception {

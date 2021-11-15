@@ -2,6 +2,7 @@ package io.crowds.proxy.transport.vmess;
 
 import io.crowds.proxy.*;
 import io.crowds.proxy.transport.EndPoint;
+import io.netty.channel.EventLoop;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.Future;
 
@@ -21,9 +22,11 @@ public class VmessProxyTransport extends AbstractProxyTransport implements Trans
     }
 
     @Override
-    public Future<EndPoint> createEndPoint(NetLocation netLocation) throws Exception {
+    public Future<EndPoint> createEndPoint(ProxyContext proxyContext) throws Exception {
+        EventLoop eventLoop = proxyContext.getEventLoop();
+        NetLocation netLocation = proxyContext.getNetLocation();
         //todo udp connect reuse support
-        VmessEndPoint endPoint = new VmessEndPoint(netLocation, vmessOption, channelCreator);
+        VmessEndPoint endPoint = new VmessEndPoint(eventLoop,netLocation, vmessOption, channelCreator);
         return endPoint.init();
     }
 

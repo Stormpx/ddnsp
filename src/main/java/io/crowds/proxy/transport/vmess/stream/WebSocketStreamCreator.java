@@ -3,10 +3,7 @@ package io.crowds.proxy.transport.vmess.stream;
 import io.crowds.proxy.ChannelCreator;
 import io.crowds.proxy.common.HandlerConfigurer;
 import io.crowds.proxy.transport.vmess.VmessOption;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelPromise;
+import io.netty.channel.*;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.HttpClientCodec;
 import io.netty.handler.codec.http.HttpObjectAggregator;
@@ -23,8 +20,8 @@ import java.net.URI;
 public class WebSocketStreamCreator extends TcpStreamCreator{
 
 
-    public WebSocketStreamCreator(VmessOption vmessOption, ChannelCreator channelCreator) {
-        super(vmessOption, channelCreator);
+    public WebSocketStreamCreator(EventLoop eventLoop, VmessOption vmessOption, ChannelCreator channelCreator) {
+        super(eventLoop, vmessOption, channelCreator);
     }
 
     @Override

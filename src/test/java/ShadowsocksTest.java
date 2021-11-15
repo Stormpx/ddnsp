@@ -28,7 +28,8 @@ public class ShadowsocksTest {
         option.setConnIdle(5);
         option.setName("ss");
         ShadowsocksTransport transport = new ShadowsocksTransport(executors, creator, option);
-        Future<EndPoint> future = transport.createEndPoint(location);
+        var context=new ProxyContext(executors.next(),location);
+        Future<EndPoint> future = transport.createEndPoint(context);
         future.sync();
 
         assert future.isSuccess();

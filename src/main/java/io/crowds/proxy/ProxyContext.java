@@ -2,13 +2,19 @@ package io.crowds.proxy;
 
 import io.crowds.proxy.dns.FakeContext;
 import io.crowds.proxy.transport.EndPoint;
+import io.netty.channel.EventLoop;
 
 public class ProxyContext {
-
+    private EventLoop eventLoop;
     private EndPoint src;
     private EndPoint dest;
     private NetLocation netLocation;
     private FakeContext fakeContext;
+
+    public ProxyContext(EventLoop eventLoop, NetLocation netLocation) {
+        this.eventLoop = eventLoop;
+        this.netLocation = netLocation;
+    }
 
     public ProxyContext(NetLocation netLocation) {
         this.netLocation=netLocation;
@@ -49,5 +55,9 @@ public class ProxyContext {
 
     public EndPoint getDest() {
         return dest;
+    }
+
+    public EventLoop getEventLoop() {
+        return eventLoop;
     }
 }

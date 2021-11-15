@@ -6,9 +6,11 @@ import io.crowds.proxy.DatagramOption;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
+import io.netty.channel.epoll.Epoll;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.DatagramPacket;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.unix.UnixChannelOption;
 import io.netty.handler.codec.socks.SocksInitRequestDecoder;
 import io.netty.handler.codec.socksx.SocksMessage;
 import io.netty.handler.codec.socksx.SocksPortUnificationServerHandler;
@@ -45,9 +47,14 @@ public class SocksServer {
         Promise<Void> promise=Promise.promise();
         InetSocketAddress socketAddress = new InetSocketAddress(socksOption.getHost(), socksOption.getPort());
         ServerBootstrap serverBootstrap = new ServerBootstrap();
-        serverBootstrap
-                .group(axis.getEventLoopGroup(),axis.getEventLoopGroup())
-                .channel(Platform.getServerSocketChannelClass())
+        ServerBootstrap bootstrap = serverBootstrap.group(axis.getEventLoopGroup(), axis.getEventLoopGroup()).channel(Platform.getServerSocketChannelClass());
+        if (Epoll.isAvailable()){
+            bootstrap.option(UnixChannelOption.SO_REUSEPORT,true)
+                    .childOption(UnixChannelOption.SO_REUSEPORT,true);
+        }
+        bootstrap
+                .option(ChannelOption.SO_REUSEADDR,true)
+                .childOption(ChannelOption.SO_REUSEADDR,true)
                 .childHandler(new ChannelInitializer<SocketChannel>() {
                     @Override
                     protected void initChannel(SocketChannel ch) throws Exception {

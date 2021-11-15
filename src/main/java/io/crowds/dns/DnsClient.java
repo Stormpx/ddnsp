@@ -98,8 +98,9 @@ public class DnsClient {
         DatagramDnsQuery query = new DatagramDnsQuery(null, server, id, dnsQuery.opCode());
 
         DnsKit.msgCopy(dnsQuery,query,true);
+//        logger.warn("server:{} query:{}",server,dnsQuery);
 
-        QueryRequest request = new QueryRequest(id);
+        QueryRequest request = new QueryRequest(id,server);
         queryRequestMap.put(id,request);
 
         channel.writeAndFlush(query)
@@ -122,7 +123,7 @@ public class DnsClient {
         DatagramDnsQuery query = new DatagramDnsQuery(null, server, id, DnsOpCode.QUERY).setRecursionDesired(true);
         query.addRecord(DnsSection.QUESTION,new DefaultDnsQuestion(target,type,DnsRecord.CLASS_IN));
 
-        QueryRequest request = new QueryRequest(id).failOnError();
+        QueryRequest request = new QueryRequest(id,server).failOnError();
         queryRequestMap.put(id,request);
 
         channel.writeAndFlush(query)
@@ -170,7 +171,7 @@ public class DnsClient {
 
     class QueryRequest{
         private Integer id;
-
+        private InetSocketAddress server;
         private boolean failOnError;
 
         private ScheduledFuture<?> schedule;
@@ -178,10 +179,11 @@ public class DnsClient {
         private Promise<DnsResponse> promise;
 
 
-        public QueryRequest(Integer id) {
+        public QueryRequest(Integer id,InetSocketAddress server) {
             this.id=id;
+            this.server=server;
             this.schedule=eventLoopGroup.schedule(()->{
-                promise.tryFail("dns query timeout");
+                promise.tryFail(server+" dns query timeout");
                 release();
             },5,TimeUnit.SECONDS);
             this.promise=Promise.promise();
@@ -197,7 +199,7 @@ public class DnsClient {
             if (!failOnError || response.code()==DnsResponseCode.NOERROR){
                 promise.tryComplete(response);
             }else{
-                promise.tryFail("dns query error "+response.code().toString());
+                promise.tryFail(server+" dns query error "+response.code().toString());
             }
             release();
         }
