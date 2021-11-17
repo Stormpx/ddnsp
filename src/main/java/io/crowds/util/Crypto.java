@@ -19,6 +19,17 @@ import java.util.Arrays;
 
 public class Crypto {
 
+    public static Cipher getCipher(byte[] key,boolean encrypt) throws Exception{
+        SecretKeySpec key_spec = new SecretKeySpec(key, "AES");
+        Cipher cipher = Cipher.getInstance("AES");
+        if (encrypt){
+            cipher.init(Cipher.ENCRYPT_MODE, key_spec);
+        }else{
+            cipher.init(Cipher.DECRYPT_MODE, key_spec);
+        }
+        return cipher;
+    }
+
     public static Cipher getCFBCipher(byte[] key, byte[] ivByte, boolean encrypt) throws Exception {
         // unchanged
         SecretKeySpec key_spec = new SecretKeySpec(key, "AES");

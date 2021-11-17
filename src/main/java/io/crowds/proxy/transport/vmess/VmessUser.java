@@ -5,9 +5,14 @@ import java.util.UUID;
 public class VmessUser {
     private UUID uuid;
     private byte[] cmdKey;
-
-    public VmessUser(UUID uuid) {
+    private boolean primary;
+    public VmessUser(UUID uuid, boolean primary) {
         this.uuid = uuid;
+        this.primary = primary;
+    }
+
+    public boolean isPrimary() {
+        return primary;
     }
 
     public UUID getUuid() {

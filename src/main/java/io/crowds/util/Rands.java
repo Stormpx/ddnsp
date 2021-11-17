@@ -21,4 +21,12 @@ public class Rands {
     public static byte nextByte(){
         return (byte) ThreadLocalRandom.current().nextInt(0,256);
     }
+
+    public static int nextInt(){
+        return ThreadLocalRandom.current().nextInt();
+    }
+
+    public static long nextLong(){
+        return ThreadLocalRandom.current().nextLong();
+    }
 }

@@ -43,6 +43,9 @@ public class VmessSession {
 
     }
 
+    public boolean isAEAD(){
+        return user.isPrimary();
+    }
 
     public boolean isOptionExists(Option option){
         if (opts==null){
@@ -53,14 +56,26 @@ public class VmessSession {
 
     public byte[] getResponseKey() {
         if (this.responseKey==null){
-            this.responseKey= Hash.md5(requestKey);
+            if (!isAEAD()) {
+                this.responseKey = Hash.md5(requestKey);
+            }else{
+                this.responseKey=new byte[16];
+                byte[] sha256 = Hash.sha256(requestKey);
+                System.arraycopy(sha256,0,this.responseKey,0,this.responseKey.length);
+            }
         }
         return responseKey;
     }
 
     public byte[] getResponseIv() {
         if (this.responseIv==null){
-            this.responseIv = Hash.md5(requestIv);
+            if (!isAEAD()){
+                this.responseIv = Hash.md5(requestIv);
+            }else{
+                this.responseIv=new byte[16];
+                byte[] sha256 = Hash.sha256(requestIv);
+                System.arraycopy(sha256,0,this.responseIv,0,this.responseIv.length);
+            }
         }
         return responseIv;
     }

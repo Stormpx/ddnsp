@@ -5,6 +5,7 @@ import org.bouncycastle.crypto.digests.SHA1Digest;
 import org.bouncycastle.crypto.digests.SHAKEDigest;
 import org.bouncycastle.crypto.generators.HKDFBytesGenerator;
 import org.bouncycastle.crypto.params.HKDFParameters;
+import org.bouncycastle.crypto.params.KDFParameters;
 import org.bouncycastle.jcajce.provider.asymmetric.rsa.PSSSignatureSpi;
 import org.bouncycastle.jcajce.provider.digest.Keccak;
 import org.bouncycastle.jcajce.provider.digest.SHA3;
@@ -14,9 +15,11 @@ import javax.crypto.spec.SecretKeySpec;
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
+import java.security.DigestException;
 import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.zip.CRC32;
 
 public class Hash {
 
@@ -58,7 +61,7 @@ public class Hash {
         return null;
     }
 
-    public static String sha256(byte[] bytes){
+    public static String sha256AsHex(byte[] bytes){
         try {
             MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
             byte[] digest = sha256.digest(bytes);
@@ -73,6 +76,25 @@ public class Hash {
         }
         return null;
     }
+    public static byte[] sha256(byte[] bytes){
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return  digest.digest(bytes);
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+    public static void sha256(byte[] bytes,byte[] out){
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            digest.update(bytes);
+            digest.digest(out,0,out.length);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     public static byte[] hmac(byte[] msg, byte[] k, String algo) {
         try {
             SecretKeySpec key = new SecretKeySpec(k, algo);
@@ -124,4 +146,10 @@ public class Hash {
         return bytes;
     }
 
+
+    public static long crc32(ByteBuffer buffer){
+        CRC32 crc32 = new CRC32();
+        crc32.update(buffer);
+        return crc32.getValue();
+    }
 }

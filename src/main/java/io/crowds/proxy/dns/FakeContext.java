@@ -24,12 +24,12 @@ public class FakeContext {
         this.domain = domain;
         this.realAddr = realAddr;
         this.tag = tag;
-        this.timestamp=System.currentTimeMillis()+(realAddr.getTtl()*1000);
+        this.timestamp=System.currentTimeMillis()+(realAddr.ttl()*1000);
     }
 
     public NetAddr getNetAddr(int port){
         if (Objects.equals("ip", destStrategy)) {
-            return new NetAddr(new InetSocketAddress(getRealAddr().getAddr(),port));
+            return new NetAddr(new InetSocketAddress(getRealAddr().addr(),port));
         } else {
             return new DomainNetAddr(domain, port);
         }

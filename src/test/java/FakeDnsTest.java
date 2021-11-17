@@ -4,6 +4,7 @@ import io.crowds.dns.DnsOption;
 import io.crowds.dns.DnsServer;
 import io.crowds.proxy.dns.FakeContext;
 import io.crowds.proxy.dns.FakeDns;
+import io.crowds.proxy.dns.RealAddr;
 import io.crowds.proxy.routing.Router;
 import io.crowds.util.IPCIDR;
 import io.netty.buffer.Unpooled;
@@ -23,15 +24,16 @@ import java.util.Arrays;
 
 public class FakeDnsTest {
 
-    public static void main(String[] args) {
-        NioEventLoopGroup eventLoopGroup = new NioEventLoopGroup();
-        InetSocketAddress dnsServer1 = new InetSocketAddress("114.114.114.114", 53);
-        DnsServer dnsServer = new DnsServer(eventLoopGroup, new DnsClient(eventLoopGroup, new DnsOption().setEnable(true).setDnsServers(Arrays.asList(dnsServer1))));
-
-        FakeDns fakeDns = new FakeDns(eventLoopGroup.next(), new Router(Arrays.asList("kw;google;test","kw;youtube;test")), new IPCIDR("224.0.0.0/8"), new IPCIDR("fd12:3456:789a:bcde::/64"), "domain");
-
-        dnsServer.contextHandler(fakeDns);
-        dnsServer.start(new InetSocketAddress("127.0.0.1",53));
+    public static void main(String[] args) throws UnknownHostException {
+        System.out.println(new RealAddr(10,InetAddress.getByName("1.1.1.1")));
+//        NioEventLoopGroup eventLoopGroup = new NioEventLoopGroup();
+//        InetSocketAddress dnsServer1 = new InetSocketAddress("114.114.114.114", 53);
+//        DnsServer dnsServer = new DnsServer(eventLoopGroup, new DnsClient(eventLoopGroup, new DnsOption().setEnable(true).setDnsServers(Arrays.asList(dnsServer1))));
+//
+//        FakeDns fakeDns = new FakeDns(eventLoopGroup.next(), new Router(Arrays.asList("kw;google;test","kw;youtube;test")), new IPCIDR("224.0.0.0/8"), new IPCIDR("fd12:3456:789a:bcde::/64"), "domain");
+//
+//        dnsServer.contextHandler(fakeDns);
+//        dnsServer.start(new InetSocketAddress("127.0.0.1",53));
     }
 
     private Object read(EmbeddedChannel channel) throws InterruptedException {
@@ -87,7 +89,7 @@ public class FakeDnsTest {
 
         Assert.assertEquals("test",fakeContext.getTag());
 
-        Assert.assertEquals(realAddr,fakeContext.getRealAddr().getAddr());
+        Assert.assertEquals(realAddr,fakeContext.getRealAddr().addr());
 
         fakeDns.handle(new DnsContext(0, new InetSocketAddress(0), null,
                 new DefaultDnsQuestion("www.pixiv.net", DnsRecordType.A), channel, question -> Future.succeededFuture(r)));

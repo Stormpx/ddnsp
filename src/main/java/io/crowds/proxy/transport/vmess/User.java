@@ -22,7 +22,7 @@ public class User {
     }
 
     private VmessUser newId(UUID uuid){
-        VmessUser user = new VmessUser(uuid);
+        VmessUser user = new VmessUser(uuid, false);
         byte[] uuidByte= ByteBufUtil.getBytes(Unpooled.buffer(16).writeLong(uuid.getMostSignificantBits()).writeLong(uuid.getLeastSignificantBits())
                 .writeBytes("c48619fe-8f02-49e0-b9e9-edf763e17e21".getBytes(StandardCharsets.UTF_8)));
         byte[] idHasH= Hash.md5(uuidByte);
@@ -62,7 +62,7 @@ public class User {
         for (int i = 0; i < alterId; i++) {
             UUID uuid = nextId(prevId);
 //            this.alterUser[i]=newId(uuid);
-            this.alterUser[i]=new VmessUser(uuid).setCmdKey(primaryUser.getCmdKey());
+            this.alterUser[i]=new VmessUser(uuid, false).setCmdKey(primaryUser.getCmdKey());
             prevId=uuid;
         }
 

@@ -111,12 +111,12 @@ public class FakeDns implements Handler<DnsContext> {
                 }
                 if (del)
                     ipPool.release(fakeAddr);
-            }, (long) (realAddr.getTtl()*1.5), TimeUnit.SECONDS);
+            }, (long) (realAddr.ttl()*1.5), TimeUnit.SECONDS);
 
 //            logger.warn("domain:{} fakeAddr:{}  realAddr: {}",domain,fakeAddr,realAddr);
 
             ctx.resp(DnsOpCode.QUERY,DnsResponseCode.NOERROR,
-                    Collections.singletonList(new DefaultDnsRawRecord(domain.getName(), ctx.getQuestion().type(), realAddr.getTtl(), Unpooled.wrappedBuffer(fakeAddr.getAddress()))));
+                    Collections.singletonList(new DefaultDnsRawRecord(domain.getName(), ctx.getQuestion().type(), realAddr.ttl(), Unpooled.wrappedBuffer(fakeAddr.getAddress()))));
         }else{
             executors.execute(()->mappingAndResp(ctx, domain, realAddr, tag));
         }
@@ -152,7 +152,7 @@ public class FakeDns implements Handler<DnsContext> {
                         RealAddr address = getAddress(record, question.type());
                         if (address!=null){
                             if (tag==null) {
-                                String routingTag = router.routing(address.getAddr(), true);
+                                String routingTag = router.routing(address.addr(), true);
                                 if (routingTag != null) {
                                     //mapping
                                     mappingAndResp(ctx, domain, address, routingTag);
@@ -192,6 +192,10 @@ public class FakeDns implements Handler<DnsContext> {
     public FakeContext getFake(InetAddress address){
         FakeContext context = addrFakeMap.get(address);
         return context;
+    }
+
+    record Domain1(String name,DnsRecordType type){
+
     }
 
     class Domain{

@@ -3,10 +3,7 @@ package io.crowds.proxy.transport.vmess;
 import io.crowds.proxy.NetAddr;
 import io.crowds.proxy.TP;
 import io.crowds.proxy.transport.vmess.crypto.*;
-import io.crowds.util.Bufs;
-import io.crowds.util.ByteBufCipher;
-import io.crowds.util.Crypto;
-import io.crowds.util.Hash;
+import io.crowds.util.*;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
@@ -15,10 +12,6 @@ import io.netty.handler.codec.ByteToMessageCodec;
 import org.bouncycastle.crypto.digests.SHAKEDigest;
 
 import javax.crypto.*;
-import java.nio.ByteBuffer;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
@@ -31,11 +24,12 @@ public class VmessMessageCodec extends ByteToMessageCodec<Object> {
 
     private VmessSession session;
 
+    private AEADCodec aeadCodec;
     private VmessCrypto requestCrypto;
     private VmessCrypto responseCrypto;
 
     private int state;
-    private Integer expectCmdLength;
+    private Integer expectHeaderLength;
     private Integer expectContentLength;
 
     private Mask requestMask;
@@ -47,6 +41,7 @@ public class VmessMessageCodec extends ByteToMessageCodec<Object> {
         return msg instanceof ByteBuf||msg instanceof VmessRequest;
     }
 
+
     private void createCrypto(Security security){
         if (security==null)
             security=Security.NONE;
@@ -55,7 +50,9 @@ public class VmessMessageCodec extends ByteToMessageCodec<Object> {
         byte[] responseKey = session.getResponseKey();
         byte[] requestIv = session.getRequestIv();
         byte[] responseIv = session.getResponseIv();
-
+        if (this.session.isAEAD()){
+            this.aeadCodec=new AEADCodec();
+        }
         switch (security) {
             case NONE -> {
                 this.requestCrypto = new VmessNoneCrypto();
@@ -93,21 +90,13 @@ public class VmessMessageCodec extends ByteToMessageCodec<Object> {
         this.session.setOpts(request.getOpts());
         createCrypto(request.getSecurity());
 
-        byte[] auth= Hash.hmac(
-                ByteBufUtil.getBytes(Unpooled.buffer(8).writeLong(timestmap),0,8,false),
-                ByteBufUtil.getBytes(Unpooled.buffer(16).writeLong(uuid.getMostSignificantBits()).writeLong(uuid.getLeastSignificantBits()), 0,16,false),
-                "HmacMD5"
-        );
-        out.writeBytes(auth);
-
-
-        byte[] cmdKey = user.getCmdKey();
-        byte[] beforeIv = new byte[4*8];
-        Unpooled.wrappedBuffer(beforeIv).writerIndex(0).writeLong(timestmap).writeLong(timestmap).writeLong(timestmap).writeLong(timestmap);
-        byte[] cmdIv=Hash.md5(beforeIv);
-
-
-
+        if (!this.session.isAEAD()) {
+            byte[] auth = Hash.hmac(
+                    ByteBufUtil.getBytes(Unpooled.buffer(8).writeLong(timestmap), 0, 8, false),
+                    ByteBufUtil.getBytes(Unpooled.buffer(16).writeLong(uuid.getMostSignificantBits()).writeLong(uuid.getLeastSignificantBits()), 0, 16, false),
+                    "HmacMD5");
+            out.writeBytes(auth);
+        }
 
         ByteBuf plain=out.alloc().buffer();
         //start
@@ -141,8 +130,15 @@ public class VmessMessageCodec extends ByteToMessageCodec<Object> {
         int f=Hash.fnv1a32(plain.nioBuffer(),plain.readableBytes());
         plain.writeInt(f);
 
-        ByteBufCipher.doFinal(Crypto.getCFBCipher(cmdKey,cmdIv,true),plain,out);
-
+        byte[] cmdKey = user.getCmdKey();
+        if (!this.session.isAEAD()) {
+            byte[] beforeIv = new byte[4*8];
+            Unpooled.wrappedBuffer(beforeIv).writerIndex(0).writeLong(timestmap).writeLong(timestmap).writeLong(timestmap).writeLong(timestmap);
+            byte[] cmdIv=Hash.md5(beforeIv);
+            ByteBufCipher.doFinal(Crypto.getCFBCipher(cmdKey, cmdIv, true), plain, out);
+        }else{
+            this.aeadCodec.encryptAEADReqHeader(cmdKey,plain,out);
+        }
         plain.release();
 
 
@@ -203,37 +199,42 @@ public class VmessMessageCodec extends ByteToMessageCodec<Object> {
     protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
         if (state==0){
             //decode header
-            if (this.expectCmdLength==null) {
-                if (in.readableBytes()<4){
+            if (!this.session.isAEAD()) {
+                int expectReadableBytes= this.expectHeaderLength != null ? this.expectHeaderLength : 4;
+                if (in.readableBytes()<expectReadableBytes){
                     return;
                 }
-                in.markReaderIndex();
-                ByteBuf cipherText  = in.readSlice(4);
-                Cipher cipher = Crypto.getCFBCipher(Hash.md5(session.getRequestKey()), Hash.md5(session.getRequestIv()), false);
+                int readerIndex = in.readerIndex();
+                ByteBuf cipherText = in.readSlice(expectReadableBytes);
+                Cipher cipher = Crypto.getCFBCipher(session.getResponseKey(), session.getResponseIv(), false);
                 ByteBuf plain = ByteBufCipher.doFinal(cipher, cipherText, ctx.alloc());
                 try {
-                    var header = plain.readByte();
-                    if (header!=session.getResponseHeader()){
-                        throw new RuntimeException("response header not match");
-                    }
-                    plain.skipBytes(1);
-                    var cmd = plain.readByte();
-                    var cmdLength = plain.readByte();
-                    if (cmd != 0&&cmdLength!=0) {
-                        this.expectCmdLength = cmdLength+4;
-                        in.resetReaderIndex();
-                    } else {
+                    if (decodeRespHeader(plain,out)){
                         state = 1;
+                    }else{
+                        in.readerIndex(readerIndex);
                     }
                 } finally {
                     plain.release();
                 }
-                decode(ctx, in, out);
             }else{
-                if (decodeCmd(ctx,in,out)) {
-                    state = 1;
-                    decode(ctx, in, out);
+                if (this.expectHeaderLength==null){
+                    if (in.readableBytes()<18){
+                        return;
+                    }
+                    this.expectHeaderLength=this.aeadCodec.decryptAEADRespHeaderLength(session.getResponseKey(), session.getResponseIv(),in.readSlice(18),ctx.alloc());
                 }
+                if (in.readableBytes()<this.expectHeaderLength){
+                    return;
+                }
+                ByteBuf plain = this.aeadCodec.decryptAEADRespHeader(session.getResponseKey(), session.getResponseIv(), in.readSlice(this.expectHeaderLength), ctx.alloc());
+                try {
+                    decodeRespHeader(plain,out);
+                    state = 1;
+                } finally {
+                    plain.release();
+                }
+
             }
         }else{
             //decode content
@@ -272,28 +273,33 @@ public class VmessMessageCodec extends ByteToMessageCodec<Object> {
 
     }
 
-    public boolean decodeCmd(ChannelHandlerContext ctx,ByteBuf in, List<Object> out) throws Exception {
-        if (in.readableBytes()<this.expectCmdLength){
-            return false;
+    private boolean decodeRespHeader(ByteBuf plain,List<Object> out){
+        var header = plain.readByte();
+        if (header != session.getResponseHeader()) {
+            throw new RuntimeException("response header not match");
         }
-//        byte[] bytes = new byte[this.expectCmdLength];
-//        in.readBytes(bytes);
-//        byte[] decryptBytes = Crypto.aes128CFBDecrypt(session.getRequestKey(), session.getRequestIv(), bytes);
-        ByteBuf cipherText = in.readSlice(this.expectCmdLength);
-        ByteBuf cmdBuffer = ByteBufCipher.doFinal(Crypto.getCFBCipher(session.getRequestKey(), session.getRequestIv(), false), cipherText, ctx.alloc());
-        try {
-            cmdBuffer.skipBytes(4);
-            cmdBuffer.skipBytes(1);
-            int port=cmdBuffer.readUnsignedShort();
-            UUID uuid=new UUID(cmdBuffer.readLong(),cmdBuffer.readLong());
-            int alterId=cmdBuffer.readUnsignedShort();
-            byte level = cmdBuffer.readByte();
-            short min = cmdBuffer.readUnsignedByte();
-            out.add(new VmessDynamicPortCmd(port,uuid,alterId,level,min));
-            return true;
-        } finally {
-            cmdBuffer.release();
+        plain.skipBytes(1);
+        var cmd = plain.readByte();
+        var cmdLength = plain.readByte();
+        if (cmd != 0 && cmdLength != 0) {
+            this.expectHeaderLength = (int)cmdLength ;
+            if (plain.readableBytes()<this.expectHeaderLength){
+                this.expectHeaderLength +=4;
+                return false;
+            }
+            decodeCmd(plain,out);
         }
+        return true;
+    }
+
+    private boolean decodeCmd(ByteBuf cmdBuffer, List<Object> out) {
+        int port=cmdBuffer.readUnsignedShort();
+        UUID uuid=new UUID(cmdBuffer.readLong(),cmdBuffer.readLong());
+        int alterId=cmdBuffer.readUnsignedShort();
+        byte level = cmdBuffer.readByte();
+        short min = cmdBuffer.readUnsignedByte();
+        out.add(new VmessDynamicPortCmd(port,uuid,alterId,level,min));
+        return true;
     }
 
     public class Mask{
