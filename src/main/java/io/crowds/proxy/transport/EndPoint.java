@@ -13,12 +13,15 @@ import java.util.function.Consumer;
 
 public abstract class EndPoint {
 
-    private Consumer<ByteBuf> bufferHandler;
+    private Consumer<Boolean> writabilityHandler;
 
-    private Consumer<Void> closeHandler;
+    private Consumer<ByteBuf> bufferHandler;
 
     public abstract void write(ByteBuf buf);
 
+    public void setAutoRead(boolean autoRead){
+        channel().config().setAutoRead(autoRead);
+    }
 
     public abstract Channel channel();
 
@@ -34,8 +37,18 @@ public abstract class EndPoint {
         this.bufferHandler.accept(buf);
     }
 
+    protected void fireWriteable(boolean writeable){
+        if (this.writabilityHandler==null){
+            return;
+        }
+        this.writabilityHandler.accept(writeable);
+    }
+
     public void bufferHandler(Consumer<ByteBuf> bufferHandler){
         this.bufferHandler=bufferHandler;
     }
 
+    public void writabilityHandler(Consumer<Boolean> writabilityHandler) {
+        this.writabilityHandler = writabilityHandler;
+    }
 }

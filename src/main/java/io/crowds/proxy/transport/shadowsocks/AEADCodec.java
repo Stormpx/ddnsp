@@ -159,6 +159,7 @@ public class AEADCodec {
                 ByteBuf decryptLenBytes = readAndDecrypt(ctx,in,this.expectLength);
                 this.expectPayloadLength = decryptLenBytes.readUnsignedShort();
                 this.expectPayloadLength+=16;
+                decryptLenBytes.release();
             }
 
             if (in.readableBytes()<this.expectPayloadLength){

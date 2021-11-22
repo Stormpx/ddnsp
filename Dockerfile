@@ -32,4 +32,4 @@ ENV PATH="$PATH:$JAVA_MINIMAL/bin"
 COPY --from=packager "$JAVA_MINIMAL" "$JAVA_MINIMAL"
 COPY "build/libs/ddnsp.jar" "/app.jar"
 
-ENTRYPOINT [ "java" , "-jar", "-XX:+UseZGC", "/app.jar" ]
+ENTRYPOINT [ "java" , "-jar", "-Xmx450m" ,"/app.jar" ]

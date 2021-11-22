@@ -75,7 +75,11 @@ public class Router {
     }
 
     public String routing(NetLocation netLocation){
-        return routing(netLocation,RuleType.values());
+        if (netLocation.getDest() instanceof DomainNetAddr){
+            return routing(netLocation, RuleType.EQ,RuleType.EW,RuleType.KW,RuleType.DOMAIN,RuleType.PORT,RuleType.SRC_CIDR,RuleType.SRC_POST);
+        }else {
+            return routing(netLocation, RuleType.CIDR,RuleType.PORT,RuleType.SRC_CIDR,RuleType.SRC_POST);
+        }
     }
 
     public String routing(String domain){

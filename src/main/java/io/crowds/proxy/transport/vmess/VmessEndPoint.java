@@ -69,6 +69,12 @@ public class VmessEndPoint extends EndPoint {
         return promise;
     }
 
+    public Promise<EndPoint> getPromise() {
+        return promise;
+    }
+
+
+
     @Override
     public void write(ByteBuf buf) {
         channel.writeAndFlush(buf)
@@ -98,7 +104,8 @@ public class VmessEndPoint extends EndPoint {
     }
 
     void tryActive(){
-        this.channel.writeAndFlush(Unpooled.EMPTY_BUFFER);
+        if (this.promise.isSuccess())
+            this.channel.writeAndFlush(Unpooled.EMPTY_BUFFER);
     }
 
     private void fireClose() {
@@ -145,6 +152,10 @@ public class VmessEndPoint extends EndPoint {
 
     public class VmessChannelHandler extends ChannelInboundHandlerAdapter {
 
+        @Override
+        public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
+            fireWriteable(ctx.channel().isWritable());
+        }
 
         @Override
         public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {

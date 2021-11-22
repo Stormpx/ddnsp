@@ -47,9 +47,7 @@ public class Main {
 
         loader.load()
                 .compose(option->{
-                    if (!Strs.isBlank(option.getLogLevel())){
-                        setLoggerLevel(Level.toLevel(option.getLogLevel()));
-                    }
+
                     ProxyOption proxyOption = option.getProxy();
                     DnsOption dnsOption = option.getDns();
                     var dnsClient=new DnsClient(vertx.nettyEventLoopGroup(), dnsOption);
@@ -83,8 +81,14 @@ public class Main {
                         if (proxyFuture.succeeded())
                             proxyServer.setProxyOption(it.getProxy());
                     });
+
 //                    LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)
                     return CompositeFuture.any(dnsFuture,proxyFuture)
+                            .onSuccess(cf->{
+                                if (!Strs.isBlank(option.getLogLevel())){
+                                    setLoggerLevel(Level.toLevel(option.getLogLevel()));
+                                }
+                            })
                             .map((Void)null);
                 })
                 .onFailure(t->{

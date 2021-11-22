@@ -28,13 +28,19 @@ import org.slf4j.LoggerFactory;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 public class TransparentServer {
     private final static Logger logger= LoggerFactory.getLogger(TransparentServer.class);
 
     private TransparentOption option;
     private Axis axis;
+    private boolean logSuccess;
 
     public TransparentServer(TransparentOption option, Axis axis) {
         this.option = option;
@@ -47,7 +53,11 @@ public class TransparentServer {
             logger.error("unable start transparent server because :{}",Epoll.unavailabilityCause().getCause().getMessage());
             return Future.failedFuture("");
         }
-        return CompositeFuture.any(startTcp(socketAddress),startUdp(socketAddress))
+
+        List<Future> udpf=StreamSupport.stream(axis.getEventLoopGroup().spliterator(),false)
+                .map(v->this.startUdp(socketAddress))
+                .collect(Collectors.toList());
+        return CompositeFuture.any(startTcp(socketAddress),CompositeFuture.all(udpf).map((Void)null))
                 .map((Void)null);
 
     }
@@ -107,7 +117,10 @@ public class TransparentServer {
                 .addListener(future -> {
                     if (future.isSuccess()) {
                         promise.complete();
-                        logger.info("start transparent udp proxy server {}", socketAddress);
+                        if (!this.logSuccess) {
+                            logger.info("start transparent udp proxy server {}", socketAddress);
+                            this.logSuccess=true;
+                        }
                     }else {
                         promise.tryFail(future.cause());
                         logger.error("start transparent udp proxy server failed cause:{}", future.cause().getMessage());

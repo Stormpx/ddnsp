@@ -1,6 +1,7 @@
 package io.crowds.proxy;
 
 import java.net.*;
+import java.util.Objects;
 
 public class NetAddr {
 
@@ -39,5 +40,18 @@ public class NetAddr {
     @Override
     public String toString() {
         return address.toString();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        NetAddr netAddr = (NetAddr) o;
+        return Objects.equals(address, netAddr.address);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(address);
     }
 }

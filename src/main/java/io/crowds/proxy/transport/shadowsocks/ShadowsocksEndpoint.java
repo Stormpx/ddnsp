@@ -32,9 +32,8 @@ public class ShadowsocksEndpoint extends EndPoint {
 
     private void init(){
         encodeAddress();
-        base.bufferHandler(buf -> {
-            fireBuf(buf);
-        });
+        base.writabilityHandler(super::fireWriteable);
+        base.bufferHandler(this::fireBuf);
 
     }
 

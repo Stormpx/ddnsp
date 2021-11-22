@@ -21,8 +21,10 @@ public class ProxyContext {
     }
 
     public void bridging(EndPoint src,EndPoint dest){
-        dest.bufferHandler(src::write);
         src.bufferHandler(dest::write);
+        dest.bufferHandler(src::write);
+        src.writabilityHandler(dest::setAutoRead);
+        dest.writabilityHandler(src::setAutoRead);
         src.closeFuture().addListener(closeFuture->{
             dest.close();
         });

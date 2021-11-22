@@ -5,6 +5,7 @@ import io.netty.util.CharsetUtil;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 
 public class DomainNetAddr  extends NetAddr{
 
@@ -56,5 +57,18 @@ public class DomainNetAddr  extends NetAddr{
     @Override
     public String toString() {
         return host+":"+port;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        DomainNetAddr that = (DomainNetAddr) o;
+        return port == that.port && Objects.equals(host, that.host);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(host, port);
     }
 }

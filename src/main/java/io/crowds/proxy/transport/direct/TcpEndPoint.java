@@ -12,17 +12,22 @@ import java.util.function.Consumer;
 
 public class TcpEndPoint extends EndPoint {
 
-    private Channel channel;
+    private final Channel channel;
     private Consumer<Throwable> throwableHandler;
 
     public TcpEndPoint(Channel channel) {
         this.channel = channel;
-        this.channel.config().setAutoRead(false);
+        setAutoRead(false);
         init();
     }
 
     private void init(){
         this.channel.pipeline().addLast(new SimpleChannelInboundHandler<ByteBuf>(false) {
+            @Override
+            public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
+                fireWriteable(ctx.channel().isWritable());
+            }
+
             @Override
             protected void channelRead0(ChannelHandlerContext ctx, ByteBuf msg) throws Exception {
                 if (!channel.isActive()){
@@ -43,13 +48,14 @@ public class TcpEndPoint extends EndPoint {
     @Override
     public void bufferHandler(Consumer<ByteBuf> bufferHandler) {
         super.bufferHandler(bufferHandler);
-        this.channel.config().setAutoRead(true);
+        setAutoRead(true);
     }
 
     public TcpEndPoint exceptionHandler(Consumer<Throwable> throwableHandler) {
         this.throwableHandler = throwableHandler;
         return this;
     }
+
 
     @Override
     public void write(ByteBuf buf) {
