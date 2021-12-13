@@ -54,7 +54,7 @@ public class Main {
                     InetSocketAddress socketAddress = new InetSocketAddress(dnsOption.getHost(), dnsOption.getPort());
                     DnsServer dnsServer = new DnsServer(vertx.nettyEventLoopGroup(),dnsClient).setOption(dnsOption);
                     Ddns ddns = new Ddns(vertx, option.getDdns());
-                    ddns.startTimer();
+//                    ddns.startTimer();
 
                     Future<Void> dnsFuture = dnsServer.start(socketAddress);
 

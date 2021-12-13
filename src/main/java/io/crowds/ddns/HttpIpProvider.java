@@ -4,7 +4,6 @@ import io.vertx.core.Future;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientRequest;
-import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.RequestOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,14 +11,14 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 
-public class IpInfoIpHelper implements IpHelper{
-    private final static Logger logger= LoggerFactory.getLogger(IpInfoIpHelper.class);
+public class HttpIpProvider implements IpProvider {
+    private final static Logger logger= LoggerFactory.getLogger(HttpIpProvider.class);
 
-    private final static String url="http://ip.3322.net/";
 
     private final static Pattern pattern = Pattern.compile("\\d+.\\d+.\\d+.\\d+");
 
@@ -34,14 +33,27 @@ public class IpInfoIpHelper implements IpHelper{
 
     private HttpClient httpClient;
 
-    public IpInfoIpHelper(HttpClient httpClient) {
+    private List<String> urls;
+
+    public HttpIpProvider(HttpClient httpClient) {
+        this(httpClient,apis);
+    }
+
+    public HttpIpProvider(HttpClient httpClient, List<String> urls) {
+        Objects.requireNonNull(httpClient);
+        Objects.requireNonNull(urls);
+        if (urls.isEmpty()) {
+            logger.warn("url list is empty. use default urls instead");
+            urls = apis;
+        }
         this.httpClient = httpClient;
+        this.urls = urls;
     }
 
     @Override
     public Future<String> getCurIpv4() {
 
-        return nextApi(apis.iterator());
+        return nextApi(urls.iterator());
     }
 
     public Future<String> nextApi(Iterator<String> iterator){
