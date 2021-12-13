@@ -78,6 +78,9 @@ public class DnsServer {
     }
 
     public Future<Void> start(SocketAddress socketAddress){
+        if (!this.option.isEnable()){
+            return Future.succeededFuture();
+        }
         Promise<Void> promise = Promise.promise();
         this.eventLoopGroup.register(channel);
         this.channel.bind(socketAddress).addListener(future -> {

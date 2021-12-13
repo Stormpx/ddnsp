@@ -1,59 +1,20 @@
 package io.crowds.ddns;
 
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+
+import java.util.Objects;
 
 public class DDnsOption {
     private boolean enable;
 
-    private int refreshInterval;
+    private JsonArray ipProviders;
 
-    private Integer ttl;
+    private JsonArray domains;
 
-    private String domain;
-
-    private String resolver;
-
-    private JsonObject ali;
-
-    private JsonObject cf;
+    private JsonArray resolvers;
 
 
-
-    public int getRefreshInterval() {
-        return refreshInterval;
-    }
-
-    public DDnsOption setRefreshInterval(int refreshInterval) {
-        this.refreshInterval = refreshInterval;
-        return this;
-    }
-
-    public String getResolver() {
-        return resolver;
-    }
-
-    public DDnsOption setResolver(String resolver) {
-        this.resolver = resolver;
-        return this;
-    }
-
-    public JsonObject getAli() {
-        return ali;
-    }
-
-    public DDnsOption setAli(JsonObject ali) {
-        this.ali = ali;
-        return this;
-    }
-
-    public JsonObject getCf() {
-        return cf;
-    }
-
-    public DDnsOption setCf(JsonObject cf) {
-        this.cf = cf;
-        return this;
-    }
 
     public boolean isEnable() {
         return enable;
@@ -64,21 +25,44 @@ public class DDnsOption {
         return this;
     }
 
-    public String getDomain() {
-        return domain;
+
+    public JsonArray getIpProviders() {
+        return ipProviders;
     }
 
-    public DDnsOption setDomain(String domain) {
-        this.domain = domain;
+    public DDnsOption setIpProviders(JsonArray ipProviders) {
+        this.ipProviders = ipProviders;
         return this;
     }
 
-    public Integer getTtl() {
-        return ttl;
+    public JsonArray getDomains() {
+        return domains;
     }
 
-    public DDnsOption setTtl(Integer ttl) {
-        this.ttl = ttl;
+    public DDnsOption setDomains(JsonArray domains) {
+        this.domains = domains;
         return this;
+    }
+
+    public JsonArray getResolvers() {
+        return resolvers;
+    }
+
+    public DDnsOption setResolvers(JsonArray resolvers) {
+        this.resolvers = resolvers;
+        return this;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        DDnsOption that = (DDnsOption) o;
+        return enable == that.enable && Objects.equals(ipProviders, that.ipProviders) && Objects.equals(domains, that.domains) && Objects.equals(resolvers, that.resolvers);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(enable, ipProviders, domains, resolvers);
     }
 }

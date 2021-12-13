@@ -11,7 +11,7 @@ public interface DnsResolver {
 
     Future<List<DomainRecord>> getRecord(String domainName);
 
-    Future<Void> updateDnsResolve(String targetId,DomainRecord updateRecord);
+    Future<Void> updateDnsResolve(DomainRecord updateRecord);
 
 
 }

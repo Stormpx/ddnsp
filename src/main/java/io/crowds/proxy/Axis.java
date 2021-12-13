@@ -176,7 +176,7 @@ public class Axis {
                 netLocation=proxyContext.getNetLocation();
             }
             TransportProvider provider = getTransport(proxyContext);
-            logger.info("tcp {} to {} via {}",proxyContext.getNetLocation().getSrc(),proxyContext.getNetLocation().getDest(),provider.getTag());
+            logger.info("tcp {} to {} via [{}]",proxyContext.getNetLocation().getSrc(),proxyContext.getNetLocation().getDest(),provider.getTag());
             ProxyTransport transport = provider.getTransport();
             transport.createEndPoint(proxyContext)
                     .addListener(future -> {
@@ -184,7 +184,7 @@ public class Axis {
                             if (logger.isDebugEnabled())
                                 logger.error("",future.cause());
                             logger.error("failed to connect remote: {} > {}",proxyContext.getNetLocation().getDest().getAddress(),future.cause().getMessage());
-                            channel.close();
+                            src.close();
                             return;
                         }
                         EndPoint dest= (EndPoint) future.get();
@@ -193,6 +193,7 @@ public class Axis {
                     });
         } catch (Exception e) {
             e.printStackTrace();
+            channel.close();
         }
     }
 

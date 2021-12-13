@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
 public class CloudFlareDnsResolver  implements DnsResolver{
     private final static String DNS_RECORDS_LIST_URL="https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records";//?name=cloud.stormlink.xyz
     private final static String DNS_RECORDS_UPDATE_URL="https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records/${id}";
+    private final static String DNS_RECORDS_CREATE_URL="https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records";
 
     private HttpClient httpClient;
     private JsonObject config;
@@ -69,7 +70,7 @@ public class CloudFlareDnsResolver  implements DnsResolver{
                     return ((JsonArray)jsonArr).stream()
                             .map(it->(JsonObject)it)
                             .map(json-> new DomainRecord()
-                                    .setrId(json.getString("id"))
+                                    .setId(json.getString("id"))
                                     .setName(json.getString("name"))
                                     .setContent(json.getString("content"))
                                     .setType(json.getString("type"))
@@ -80,29 +81,33 @@ public class CloudFlareDnsResolver  implements DnsResolver{
     }
 
     @Override
-    public Future<Void> updateDnsResolve(String targetId, DomainRecord updateRecord) {
+    public Future<Void> updateDnsResolve( DomainRecord updateRecord) {
+        if (updateRecord==null||updateRecord.getContent()==null){
+            return Future.failedFuture(new NullPointerException("updateRecord"));
+        }
         String zoneId = config.getString("zoneId");
         String apiToken = config.getString("apiToken");
+        String targetId = updateRecord.getId();
         if (zoneId==null)
             return Future.failedFuture(new NullPointerException("zoneId"));
         if (apiToken==null){
             return Future.failedFuture(new NullPointerException("apiToken"));
         }
-        if (targetId==null){
-            return Future.failedFuture(new NullPointerException("targetId"));
-        }
-        if (updateRecord==null||updateRecord.getContent()==null){
-            return Future.failedFuture(new NullPointerException("updateRecord"));
-        }
+
+        String uri=targetId==null?
+                Strs.template(DNS_RECORDS_CREATE_URL,Map.of("zoneId", zoneId)) :
+                Strs.template(DNS_RECORDS_UPDATE_URL,Map.of("zoneId", zoneId,"id",targetId));
+        HttpMethod method=targetId==null?HttpMethod.POST:HttpMethod.PUT;
 
         return httpClient
                 .request(new RequestOptions()
-                        .setMethod(HttpMethod.PUT)
-                        .setTimeout(1000*60)
-                        .setFollowRedirects(true)
-                        .putHeader("content-type", HttpHeaderValues.APPLICATION_JSON)
-                        .putHeader("Authorization","Bearer "+apiToken)
-                        .setAbsoluteURI(Strs.template(DNS_RECORDS_UPDATE_URL,Map.of("zoneId", zoneId,"id",targetId))))
+                            .setAbsoluteURI(uri)
+                            .setMethod(method)
+                            .setTimeout(1000*60)
+                            .setFollowRedirects(true)
+                            .putHeader("content-type", HttpHeaderValues.APPLICATION_JSON)
+                            .putHeader("Authorization","Bearer "+apiToken)
+                        )
                 .compose(req-> req.send(toJson(updateRecord).toBuffer()))
                 .compose(Https::assertSuccess)
                 .map(Buffer::toJsonObject)

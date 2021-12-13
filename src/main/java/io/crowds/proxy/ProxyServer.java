@@ -42,7 +42,7 @@ public class ProxyServer {
             this.socksServer = new SocksServer(proxyOption.getSocks(),this.axis);
             futures.add(socksServer.start());
         }
-        if (proxyOption.getTransparent()!=null){
+        if (proxyOption.getTransparent()!=null&&proxyOption.getTransparent().isEnable()){
             this.transparentServer=new TransparentServer(proxyOption.getTransparent(),axis);
             futures.add(transparentServer.start());
         }

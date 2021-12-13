@@ -1,7 +1,7 @@
 package io.crowds.ddns.resolve;
 
 public class DomainRecord {
-    private String rId;
+    private String id;
     private String name;
     private int ttl;
     private String type;
@@ -9,12 +9,12 @@ public class DomainRecord {
 
 
 
-    public String getrId() {
-        return rId;
+    public String getId() {
+        return id;
     }
 
-    public DomainRecord setrId(String rId) {
-        this.rId = rId;
+    public DomainRecord setId(String id) {
+        this.id = id;
         return this;
     }
 
@@ -56,6 +56,6 @@ public class DomainRecord {
 
     @Override
     public String toString() {
-        return "DomainRecord{" + "rId='" + rId + '\'' + ", name='" + name + '\'' + ", ttl=" + ttl + ", type='" + type + '\'' + ", content='" + content + '\'' + '}';
+        return "DomainRecord{" + "rId='" + id + '\'' + ", name='" + name + '\'' + ", ttl=" + ttl + ", type='" + type + '\'' + ", content='" + content + '\'' + '}';
     }
 }

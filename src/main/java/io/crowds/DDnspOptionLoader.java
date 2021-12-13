@@ -58,7 +58,7 @@ public class DDnspOptionLoader {
         if (configRetriever!=null){
             configRetriever.close();
         }
-        logger.info("config path:{}",configFile);
+        logger.info("config path: {}",configFile);
         var configOption=new ConfigRetrieverOptions()
                 .addStore(new ConfigStoreOptions()
                         .setType("file")
@@ -138,7 +138,8 @@ public class DDnspOptionLoader {
     private DnsOption toOption(JsonObject config){
         JsonObject json=config.getJsonObject("dns",new JsonObject());
         DnsOption dnsOption = new DnsOption();
-        dnsOption.setTtl(Optional.ofNullable(json.getInteger("ttl")).orElse(120))
+        dnsOption.setEnable(json.getBoolean("enable"))
+                .setTtl(Optional.ofNullable(json.getInteger("ttl")).orElse(120))
                 .setHost(Optional.ofNullable(json.getString("host")).orElse("0.0.0.0"))
                 .setPort(Optional.ofNullable(json.getInteger("port")).filter(p->p>0&&p<=65535).orElse(53))
                 .setDnsServers(convert((List<String>) json.getJsonArray("dnsServers").getList()))
@@ -151,12 +152,10 @@ public class DDnspOptionLoader {
         JsonObject json = config.getJsonObject("ddns", new JsonObject());
         return new DDnsOption()
                 .setEnable(json.getBoolean("enable"))
-                .setResolver(json.getString("resolver"))
-                .setRefreshInterval(json.getInteger("refresh_interval"))
-                .setDomain(json.getString("name"))
-                .setTtl(json.getInteger("ttl",300))
-                .setCf(json.getJsonObject("cf"))
-                .setAli(json.getJsonObject("ali"));
+                .setIpProviders(json.getJsonArray("ipProviders"))
+                .setResolvers(json.getJsonArray("resolvers"))
+                .setDomains(json.getJsonArray("domains"))
+                ;
 
     }
 
@@ -177,7 +176,7 @@ public class DDnspOptionLoader {
         JsonObject transparentJson = json.getJsonObject("transparent");
         if (transparentJson!=null){
             TransparentOption transparentOption = new TransparentOption();
-            transparentOption.setEnable(true);
+            transparentOption.setEnable(transparentJson.getBoolean("enable",true));
             transparentOption.setHost(transparentJson.getString("host","127.0.0.1"))
                     .setPort(transparentJson.getInteger("port",13452));
             proxy.setTransparent(transparentOption);

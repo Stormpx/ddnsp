@@ -46,7 +46,6 @@ public class ChannelCreator {
     public ChannelFuture createTcpChannel(SocketAddress address, ChannelInitializer<Channel> initializer) {
         Bootstrap bootstrap = new Bootstrap();
         var cf=bootstrap.group(eventLoopGroup)
-                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS,0)
                 .channel(Platform.getSocketChannelClass())
                 .handler(initializer)
                 .connect(address);
@@ -56,7 +55,7 @@ public class ChannelCreator {
     public ChannelFuture createTcpChannel(EventLoop eventLoop,SocketAddress address, ChannelInitializer<Channel> initializer) {
         Bootstrap bootstrap = new Bootstrap();
         var cf=bootstrap.group(eventLoop)
-                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS,0)
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
                 .channel(Platform.getSocketChannelClass())
                 .handler(initializer)
                 .connect(address);
