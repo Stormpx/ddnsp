@@ -120,7 +120,9 @@ public class AEADCodec {
         byte[] headerLengthIv = kdf12(responseIv, KDFSaltConstAEADRespHeaderLenIV.getBytes());
         Cipher gcmCipher = Crypto.getGcmCipher(headerLengthKey,headerLengthIv, false);
         ByteBuf lengthBuf = ByteBufCipher.doFinal(gcmCipher, cipherLength, allocator);
-        return lengthBuf.readUnsignedShort()+16;
+        int r = lengthBuf.readUnsignedShort() + 16;
+        lengthBuf.release();
+        return r;
     }
 
     public ByteBuf decryptAEADRespHeader(byte[] responseKey, byte[] responseIv, ByteBuf cipher, ByteBufAllocator allocator) throws Exception {
