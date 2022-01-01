@@ -22,7 +22,7 @@ public class User {
     }
 
     private VmessUser newId(UUID uuid){
-        VmessUser user = new VmessUser(uuid, false);
+        VmessUser user = new VmessUser(uuid, true);
         byte[] uuidByte= ByteBufUtil.getBytes(Unpooled.buffer(16).writeLong(uuid.getMostSignificantBits()).writeLong(uuid.getLeastSignificantBits())
                 .writeBytes("c48619fe-8f02-49e0-b9e9-edf763e17e21".getBytes(StandardCharsets.UTF_8)));
         byte[] idHasH= Hash.md5(uuidByte);

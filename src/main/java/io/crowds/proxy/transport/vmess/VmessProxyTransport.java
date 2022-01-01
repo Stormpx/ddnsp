@@ -9,6 +9,7 @@ import io.netty.util.concurrent.Future;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class VmessProxyTransport extends AbstractProxyTransport implements TransportProvider {
 
@@ -20,7 +21,7 @@ public class VmessProxyTransport extends AbstractProxyTransport implements Trans
     public VmessProxyTransport(VmessOption  vmessOption, EventLoopGroup eventLoopGroup, ChannelCreator channelCreator) {
         super(eventLoopGroup, channelCreator);
         this.vmessOption=vmessOption;
-        this.udpEpMap=new HashMap<>();
+        this.udpEpMap=new ConcurrentHashMap<>();
     }
 
     @Override
