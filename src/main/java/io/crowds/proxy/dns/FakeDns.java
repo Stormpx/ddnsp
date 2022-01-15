@@ -136,10 +136,12 @@ public class FakeDns implements Handler<DnsContext> {
             if (tryHitCache(ctx,domain)) {
                 return;
             }
-            String tag = router.routing(name);
-//            if (tag!=null){
-//                logger.warn("domain: {} forward to tag: {}",domain,tag);
-//            }
+
+            String tag = router.routing(ctx.getSender(),name);
+            if (tag!=null&&!Objects.equals("ip",destStrategy)){
+                mappingAndResp(ctx,domain,new RealAddr(1200,null),tag);
+                return;
+            }
             ctx.recursionQuery(resp->{
                 try {
                     if (resp.code()!= DnsResponseCode.NOERROR){

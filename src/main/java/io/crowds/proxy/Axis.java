@@ -16,6 +16,7 @@ import io.crowds.proxy.transport.vmess.VmessOption;
 import io.crowds.proxy.transport.vmess.VmessProxyTransport;
 import io.crowds.util.IPCIDR;
 import io.netty.channel.Channel;
+import io.netty.channel.ConnectTimeoutException;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.DatagramPacket;
@@ -114,7 +115,7 @@ public class Axis {
         return fakeDns;
     }
 
-    private TransportProvider getTransport(ProxyContext proxyContext){
+    private TransportProvider getProvider(ProxyContext proxyContext){
         if (this.router==null){
             return providerMap.get(DEFAULT_TRANSPORT);
         }
@@ -175,9 +176,9 @@ public class Axis {
                 proxyContext.withFakeContext(getFakeContext(netLocation.getDest()));
                 netLocation=proxyContext.getNetLocation();
             }
-            TransportProvider provider = getTransport(proxyContext);
+            TransportProvider provider = getProvider(proxyContext);
             logger.info("tcp {} to {} via [{}]",proxyContext.getNetLocation().getSrc(),proxyContext.getNetLocation().getDest(),provider.getTag());
-            ProxyTransport transport = provider.getTransport();
+            ProxyTransport transport = provider.getTransport(proxyContext);
             transport.createEndPoint(proxyContext)
                     .addListener(future -> {
                         if (!future.isSuccess()){
@@ -208,9 +209,9 @@ public class Axis {
                 proxyContext.withFakeContext(getFakeContext(netLocation.getDest()));
                 netLocation=proxyContext.getNetLocation();
             }
-            TransportProvider provider = getTransport(proxyContext);
+            TransportProvider provider = getProvider(proxyContext);
             logger.info("udp {} to {} via [{}]",proxyContext.getNetLocation().getSrc(),proxyContext.getNetLocation().getDest(),provider.getTag());
-            ProxyTransport transport = provider.getTransport();
+            ProxyTransport transport = provider.getTransport(proxyContext);
             transport.createEndPoint(proxyContext)
                     .addListener(future -> {
                         if (!future.isSuccess()){

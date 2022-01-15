@@ -111,7 +111,7 @@ public class AEADCodec {
 
     public Integer decryptAEADRespHeaderLength(byte[] responseKey, byte[] responseIv, ByteBuf cipherLength, ByteBufAllocator allocator) throws Exception {
         if (cipherLength.readableBytes()<18){
-            throw new IllegalArgumentException("unable to read header len. readableBytes<18 ");
+            throw new IllegalStateException("unable to read header len. readableBytes<18 ");
         }
         if (cipherLength.readableBytes()>18){
             cipherLength=cipherLength.readSlice(18);

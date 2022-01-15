@@ -14,7 +14,7 @@ public abstract class AbstractProxyTransport implements ProxyTransport,Transport
 
 
     @Override
-    public ProxyTransport getTransport() {
+    public ProxyTransport getTransport(ProxyContext proxyContext) {
         return this;
     }
 }

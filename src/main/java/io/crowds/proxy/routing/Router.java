@@ -82,9 +82,9 @@ public class Router {
         }
     }
 
-    public String routing(String domain){
-        var net=new NetLocation(null,new DomainNetAddr(domain,0), null);
-        return routing(net,RuleType.EQ,RuleType.EW,RuleType.KW,RuleType.DOMAIN);
+    public String routing(InetSocketAddress src, String domain){
+        var net=new NetLocation(new NetAddr(src),new DomainNetAddr(domain,0), null);
+        return routing(net,RuleType.SRC_CIDR,RuleType.SRC_POST,RuleType.EQ,RuleType.EW,RuleType.KW,RuleType.DOMAIN);
     }
 
     public String routing(InetAddress address,boolean dest){

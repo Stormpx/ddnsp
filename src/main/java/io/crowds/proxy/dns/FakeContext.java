@@ -28,7 +28,7 @@ public class FakeContext {
     }
 
     public NetAddr getNetAddr(int port){
-        if (Objects.equals("ip", destStrategy)) {
+        if (Objects.equals("ip", destStrategy)&&getRealAddr().addr()!=null) {
             return new NetAddr(new InetSocketAddress(getRealAddr().addr(),port));
         } else {
             return new DomainNetAddr(domain, port);

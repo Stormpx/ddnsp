@@ -6,5 +6,5 @@ public interface TransportProvider {
     String getTag();
 
 
-    ProxyTransport getTransport();
+    ProxyTransport getTransport(ProxyContext proxyContext);
 }
