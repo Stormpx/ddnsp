@@ -4,6 +4,7 @@ import io.crowds.proxy.dns.FakeOption;
 import io.crowds.proxy.services.socks.SocksOption;
 import io.crowds.proxy.services.transparent.TransparentOption;
 import io.crowds.proxy.transport.ProtocolOption;
+import io.vertx.core.json.JsonArray;
 
 import java.util.List;
 
@@ -14,6 +15,8 @@ public class ProxyOption {
     private TransparentOption transparent;
 
     private List<ProtocolOption> proxies;
+
+    private JsonArray selector;
 
     private List<String> rules;
 
@@ -61,6 +64,15 @@ public class ProxyOption {
 
     public ProxyOption setFakeDns(FakeOption fakeDns) {
         this.fakeDns = fakeDns;
+        return this;
+    }
+
+    public JsonArray getSelector() {
+        return selector;
+    }
+
+    public ProxyOption setSelector(JsonArray selector) {
+        this.selector = selector;
         return this;
     }
 }

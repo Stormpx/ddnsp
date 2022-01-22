@@ -19,13 +19,13 @@ import io.netty.util.concurrent.SucceededFuture;
 public class BlockProxyTransport extends AbstractProxyTransport {
     private final static Channel BLOCK_CHANNEL =new EmbeddedChannel();
 
-    public BlockProxyTransport(EventLoopGroup eventLoopGroup, ChannelCreator channelCreator) {
-        super(eventLoopGroup, channelCreator);
+    public BlockProxyTransport( ChannelCreator channelCreator) {
+        super( channelCreator);
     }
 
     @Override
     public Future<EndPoint> createEndPoint(ProxyContext proxyContext) throws Exception {
-        EventLoop eventLoop = eventLoopGroup.next();
+        EventLoop eventLoop = proxyContext.getEventLoop();
         return new SucceededFuture<>(eventLoop,new Block(new DefaultPromise<>(eventLoop)));
     }
 

@@ -11,15 +11,15 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class VmessProxyTransport extends AbstractProxyTransport implements TransportProvider {
+public class VmessProxyTransport extends AbstractProxyTransport  {
 
 
     private VmessOption vmessOption;
 
     private Map<Tuple4,VmessEndPoint> udpEpMap;
 
-    public VmessProxyTransport(VmessOption  vmessOption, EventLoopGroup eventLoopGroup, ChannelCreator channelCreator) {
-        super(eventLoopGroup, channelCreator);
+    public VmessProxyTransport(  ChannelCreator channelCreator,VmessOption  vmessOption) {
+        super( channelCreator);
         this.vmessOption=vmessOption;
         this.udpEpMap=new ConcurrentHashMap<>();
     }

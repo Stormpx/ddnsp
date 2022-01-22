@@ -17,8 +17,8 @@ public class ShadowsocksTransport extends DirectProxyTransport {
 
     private ShadowsocksOption shadowsocksOption;
 
-    public ShadowsocksTransport(EventLoopGroup eventLoopGroup, ChannelCreator channelCreator, ShadowsocksOption shadowsocksOption) {
-        super(eventLoopGroup, channelCreator);
+    public ShadowsocksTransport(  ChannelCreator channelCreator, ShadowsocksOption shadowsocksOption) {
+        super( channelCreator);
         this.shadowsocksOption = shadowsocksOption;
     }
 

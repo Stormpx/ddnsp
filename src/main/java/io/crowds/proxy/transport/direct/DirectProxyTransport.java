@@ -15,11 +15,11 @@ import io.netty.util.concurrent.Promise;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 
-public class DirectProxyTransport extends AbstractProxyTransport implements TransportProvider{
+public class DirectProxyTransport extends AbstractProxyTransport {
 
 
-    public DirectProxyTransport( EventLoopGroup eventLoopGroup, ChannelCreator channelCreator) {
-        super( eventLoopGroup, channelCreator);
+    public DirectProxyTransport(   ChannelCreator channelCreator) {
+        super(  channelCreator);
     }
 
 

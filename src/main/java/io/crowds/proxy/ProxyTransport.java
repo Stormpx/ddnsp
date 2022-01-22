@@ -6,6 +6,8 @@ import io.netty.util.concurrent.Future;
 
 public interface ProxyTransport {
 
+    String getTag();
+
     Future<EndPoint> createEndPoint(ProxyContext proxyContext) throws Exception;
 
 

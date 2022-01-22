@@ -4,19 +4,13 @@ import io.crowds.proxy.dns.FakeContext;
 import io.crowds.proxy.dns.FakeDns;
 import io.crowds.proxy.dns.FakeOption;
 import io.crowds.proxy.routing.Router;
+import io.crowds.proxy.select.TransportProvider;
+import io.crowds.proxy.select.Transport;
 import io.crowds.proxy.transport.EndPoint;
-import io.crowds.proxy.transport.ProtocolOption;
-import io.crowds.proxy.transport.block.BlockProxyTransport;
-import io.crowds.proxy.transport.direct.DirectProxyTransport;
 import io.crowds.proxy.transport.direct.TcpEndPoint;
 import io.crowds.proxy.transport.direct.UdpEndPoint;
-import io.crowds.proxy.transport.shadowsocks.ShadowsocksOption;
-import io.crowds.proxy.transport.shadowsocks.ShadowsocksTransport;
-import io.crowds.proxy.transport.vmess.VmessOption;
-import io.crowds.proxy.transport.vmess.VmessProxyTransport;
 import io.crowds.util.IPCIDR;
 import io.netty.channel.Channel;
-import io.netty.channel.ConnectTimeoutException;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.DatagramPacket;
@@ -25,8 +19,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.*;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class Axis {
     private final static Logger logger= LoggerFactory.getLogger(Axis.class);
@@ -39,7 +31,9 @@ public class Axis {
     private FakeDns fakeDns;
 
     private Router router;
-    private Map<String,TransportProvider> providerMap;
+
+    private TransportProvider transportProvider;
+//    private Map<String,TransportProvider> providerMap;
 
     public Axis(EventLoopGroup eventLoopGroup) {
         this.eventLoopGroup = eventLoopGroup;
@@ -55,7 +49,7 @@ public class Axis {
                 logger.info("router rules setup.");
             }
         }
-        if (this.providerMap==null){
+        if (this.transportProvider==null){
             initProvider(proxyOption);
         }
         if (this.router!=null&&this.fakeDns==null&&proxyOption.getFakeDns()!=null){
@@ -92,22 +86,24 @@ public class Axis {
     }
 
     private void initProvider(ProxyOption proxyOption){
-        var map=new ConcurrentHashMap<String,TransportProvider>();
+//        var map=new ConcurrentHashMap<String,TransportProvider>();
+//
+//        map.put(DEFAULT_TRANSPORT,new DirectProxyTransport(eventLoopGroup,channelCreator));
+//        map.put(BLOCK_TRANSPORT,new BlockProxyTransport(eventLoopGroup,channelCreator));
+//
+//        if (proxyOption.getProxies()==null)
+//            return;
+//        for (ProtocolOption protocolOption : proxyOption.getProxies()) {
+//            if ("vmess".equalsIgnoreCase(protocolOption.getProtocol())){
+//                map.put(protocolOption.getName(),new VmessProxyTransport(eventLoopGroup,channelCreator,(VmessOption) protocolOption));
+//            }else if ("ss".equalsIgnoreCase(protocolOption.getProtocol())){
+//                map.put(protocolOption.getName(),new ShadowsocksTransport(eventLoopGroup,channelCreator, (ShadowsocksOption) protocolOption));
+//            }
+//        }
+//
+//        this.providerMap=map;
 
-        map.put(DEFAULT_TRANSPORT,new DirectProxyTransport(eventLoopGroup,channelCreator));
-        map.put(BLOCK_TRANSPORT,new BlockProxyTransport(eventLoopGroup,channelCreator));
-
-        if (proxyOption.getProxies()==null)
-            return;
-        for (ProtocolOption protocolOption : proxyOption.getProxies()) {
-            if ("vmess".equalsIgnoreCase(protocolOption.getProtocol())){
-                map.put(protocolOption.getName(),new VmessProxyTransport((VmessOption) protocolOption,eventLoopGroup,channelCreator));
-            }else if ("ss".equalsIgnoreCase(protocolOption.getProtocol())){
-                map.put(protocolOption.getName(),new ShadowsocksTransport(eventLoopGroup,channelCreator, (ShadowsocksOption) protocolOption));
-            }
-        }
-
-        this.providerMap=map;
+        this.transportProvider =null;
 
     }
 
@@ -115,33 +111,26 @@ public class Axis {
         return fakeDns;
     }
 
-    private TransportProvider getProvider(ProxyContext proxyContext){
+
+    private Transport getTransport(ProxyContext proxyContext){
         if (this.router==null){
-            return providerMap.get(DEFAULT_TRANSPORT);
+            return transportProvider.direct();
         }
         if (proxyContext.getFakeContext()!=null){
-            TransportProvider provider = providerMap.get(proxyContext.getFakeContext().getTag());
-            if (provider!=null)
-                return provider;
+            return transportProvider.getTransport(proxyContext);
         }
 
         NetLocation netLocation = proxyContext.getNetLocation();
         String tag = this.router.routing(netLocation);
-        if (tag==null){
-            return providerMap.get(DEFAULT_TRANSPORT);
-        }
-        TransportProvider provider = providerMap.get(tag);
-        if (provider==null){
-            return providerMap.get(DEFAULT_TRANSPORT);
-        }
-        return provider;
+        proxyContext.withTag(tag);
+
+        return transportProvider.getTransport(proxyContext);
 
     }
 
 
     private NetAddr getNetAddr(SocketAddress address){
-        if (address instanceof InetSocketAddress){
-            InetSocketAddress inetAddr= (InetSocketAddress) address;
+        if (address instanceof InetSocketAddress inetAddr){
             if (inetAddr.isUnresolved()){
                 return new DomainNetAddr(inetAddr);
             }
@@ -176,10 +165,10 @@ public class Axis {
                 proxyContext.withFakeContext(getFakeContext(netLocation.getDest()));
                 netLocation=proxyContext.getNetLocation();
             }
-            TransportProvider provider = getProvider(proxyContext);
-            logger.info("tcp {} to {} via [{}]",proxyContext.getNetLocation().getSrc(),proxyContext.getNetLocation().getDest(),provider.getTag());
-            ProxyTransport transport = provider.getTransport(proxyContext);
-            transport.createEndPoint(proxyContext)
+            Transport transport=getTransport(proxyContext);
+            logger.info("tcp {} to {} via [{}]",proxyContext.getNetLocation().getSrc(),proxyContext.getNetLocation().getDest(), transport.chain());
+            ProxyTransport proxy = transport.proxy();
+            proxy.createEndPoint(proxyContext)
                     .addListener(future -> {
                         if (!future.isSuccess()){
                             if (logger.isDebugEnabled())
@@ -209,10 +198,10 @@ public class Axis {
                 proxyContext.withFakeContext(getFakeContext(netLocation.getDest()));
                 netLocation=proxyContext.getNetLocation();
             }
-            TransportProvider provider = getProvider(proxyContext);
-            logger.info("udp {} to {} via [{}]",proxyContext.getNetLocation().getSrc(),proxyContext.getNetLocation().getDest(),provider.getTag());
-            ProxyTransport transport = provider.getTransport(proxyContext);
-            transport.createEndPoint(proxyContext)
+            Transport transport=getTransport(proxyContext);
+            logger.info("udp {} to {} via [{}]",proxyContext.getNetLocation().getSrc(),proxyContext.getNetLocation().getDest(),transport.chain());
+            ProxyTransport proxy = transport.proxy();
+            proxy.createEndPoint(proxyContext)
                     .addListener(future -> {
                         if (!future.isSuccess()){
                             if (logger.isDebugEnabled())

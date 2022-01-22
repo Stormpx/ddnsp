@@ -9,6 +9,8 @@ public class ProxyContext {
     private EndPoint src;
     private EndPoint dest;
     private NetLocation netLocation;
+
+    private String tag;
     private FakeContext fakeContext;
 
     public ProxyContext(EventLoop eventLoop, NetLocation netLocation) {
@@ -43,6 +45,11 @@ public class ProxyContext {
         return this;
     }
 
+    public ProxyContext withTag(String tag) {
+        this.tag = tag;
+        return this;
+    }
+
     public FakeContext getFakeContext() {
         return fakeContext;
     }
@@ -62,4 +69,10 @@ public class ProxyContext {
     public EventLoop getEventLoop() {
         return eventLoop;
     }
+
+    public String getTag() {
+        return tag;
+    }
+
+
 }

@@ -134,7 +134,6 @@ public class AEADCodec {
 
 
 
-    //未曾设想的道路...
     public class HmacDigest implements ExtendedDigest {
         private final HMac hMac;
 

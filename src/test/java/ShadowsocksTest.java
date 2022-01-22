@@ -27,7 +27,7 @@ public class ShadowsocksTest {
                 .setPassword("passpasspass");
         option.setConnIdle(5);
         option.setName("ss");
-        ShadowsocksTransport transport = new ShadowsocksTransport(executors, creator, option);
+        ShadowsocksTransport transport = new ShadowsocksTransport(creator, option);
         var context=new ProxyContext(executors.next(),location);
         Future<EndPoint> future = transport.createEndPoint(context);
         future.sync();
