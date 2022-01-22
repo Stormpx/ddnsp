@@ -50,7 +50,7 @@ public class Axis {
             }
         }
         if (this.transportProvider==null){
-            initProvider(proxyOption);
+            this.transportProvider =new TransportProvider(channelCreator,proxyOption.getProxies());
         }
         if (this.router!=null&&this.fakeDns==null&&proxyOption.getFakeDns()!=null){
             createFakeDns(proxyOption.getFakeDns());
@@ -86,24 +86,6 @@ public class Axis {
     }
 
     private void initProvider(ProxyOption proxyOption){
-//        var map=new ConcurrentHashMap<String,TransportProvider>();
-//
-//        map.put(DEFAULT_TRANSPORT,new DirectProxyTransport(eventLoopGroup,channelCreator));
-//        map.put(BLOCK_TRANSPORT,new BlockProxyTransport(eventLoopGroup,channelCreator));
-//
-//        if (proxyOption.getProxies()==null)
-//            return;
-//        for (ProtocolOption protocolOption : proxyOption.getProxies()) {
-//            if ("vmess".equalsIgnoreCase(protocolOption.getProtocol())){
-//                map.put(protocolOption.getName(),new VmessProxyTransport(eventLoopGroup,channelCreator,(VmessOption) protocolOption));
-//            }else if ("ss".equalsIgnoreCase(protocolOption.getProtocol())){
-//                map.put(protocolOption.getName(),new ShadowsocksTransport(eventLoopGroup,channelCreator, (ShadowsocksOption) protocolOption));
-//            }
-//        }
-//
-//        this.providerMap=map;
-
-        this.transportProvider =null;
 
     }
 
