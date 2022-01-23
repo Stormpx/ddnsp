@@ -148,7 +148,7 @@ public class Axis {
                 netLocation=proxyContext.getNetLocation();
             }
             Transport transport=getTransport(proxyContext);
-            logger.info("tcp {} to {} via [{}]",proxyContext.getNetLocation().getSrc(),proxyContext.getNetLocation().getDest(), transport.chain());
+            logger.info("tcp {} to {} via [{}]",proxyContext.getNetLocation().getSrc(),proxyContext.getNetLocation().getDest(), transport.getChain());
             ProxyTransport proxy = transport.proxy();
             proxy.createEndPoint(proxyContext)
                     .addListener(future -> {
@@ -181,7 +181,7 @@ public class Axis {
                 netLocation=proxyContext.getNetLocation();
             }
             Transport transport=getTransport(proxyContext);
-            logger.info("udp {} to {} via [{}]",proxyContext.getNetLocation().getSrc(),proxyContext.getNetLocation().getDest(),transport.chain());
+            logger.info("udp {} to {} via [{}]",proxyContext.getNetLocation().getSrc(),proxyContext.getNetLocation().getDest(),transport.getChain());
             ProxyTransport proxy = transport.proxy();
             proxy.createEndPoint(proxyContext)
                     .addListener(future -> {

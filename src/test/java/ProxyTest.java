@@ -22,28 +22,28 @@ public class ProxyTest {
 
     public static void main(String[] args) throws InterruptedException {
 
-//        Vertx vertx = Vertx.vertx();
-//        ProxyServer server = new ProxyServer(vertx.nettyEventLoopGroup());
-//
-//
-//
-//
-//        server.setProxyOption(new ProxyOption()
-//                    .setSocks(new SocksOption().setEnable(true).setHost("0.0.0.0").setPort(23452))
-//                .setRules(Arrays.asList(
-//                            "kw;youtube;vmess",
-//                            "ew;www.google.com;vmess",
-//                            "kw;google;vmess",
-//                            "domain;pixiv.net;vmess",
-//                            "domain;pixiv.org;vmess",
-//                            "kw;pximg;vmess"
-//                        )
-//                ));
-//
-//        server.start();
-        InetSocketAddress address = new InetSocketAddress("116.29.89.106", 0);
-        InetSocketAddress address1 = new InetSocketAddress("116.29.89.106", 38270);
-        System.out.println(address.equals(address1));
+        Vertx vertx = Vertx.vertx();
+        ProxyServer server = new ProxyServer(vertx.nettyEventLoopGroup());
+
+
+
+
+        server.setProxyOption(new ProxyOption()
+                    .setSocks(new SocksOption().setEnable(true).setHost("0.0.0.0").setPort(23452))
+                .setRules(Arrays.asList(
+                            "kw;youtube;block",
+                            "ew;www.google.com;block",
+                            "kw;google;block",
+                            "domain;pixiv.net;block",
+                            "domain;pixiv.org;block",
+                            "kw;pximg;block"
+                        )
+                ));
+
+        server.start();
+//        InetSocketAddress address = new InetSocketAddress("116.29.89.106", 0);
+//        InetSocketAddress address1 = new InetSocketAddress("116.29.89.106", 38270);
+//        System.out.println(address.equals(address1));
         //        NioEventLoopGroup eventLoopGroup = new NioEventLoopGroup();
 //        NioDatagramChannel channel = new NioDatagramChannel();
 //        eventLoopGroup.register(channel);

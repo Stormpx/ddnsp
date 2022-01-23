@@ -27,7 +27,6 @@ public class TransportProvider {
 
     public TransportProvider(ChannelCreator channelCreator,List<ProtocolOption> protocolOptions) {
         this.channelCreator = channelCreator;
-
         initProvider(protocolOptions);
 
 
@@ -40,16 +39,15 @@ public class TransportProvider {
         map.put(DEFAULT_TRANSPORT,new DirectProxyTransport(channelCreator));
         map.put(BLOCK_TRANSPORT,new BlockProxyTransport(channelCreator));
 
-        if (protocolOptions==null)
-            return;
-        for (ProtocolOption protocolOption : protocolOptions) {
-            if ("vmess".equalsIgnoreCase(protocolOption.getProtocol())){
-                map.put(protocolOption.getName(),new VmessProxyTransport(channelCreator,(VmessOption) protocolOption));
-            }else if ("ss".equalsIgnoreCase(protocolOption.getProtocol())){
-                map.put(protocolOption.getName(),new ShadowsocksTransport(channelCreator, (ShadowsocksOption) protocolOption));
+        if (protocolOptions!=null) {
+            for (ProtocolOption protocolOption : protocolOptions) {
+                if ("vmess".equalsIgnoreCase(protocolOption.getProtocol())) {
+                    map.put(protocolOption.getName(), new VmessProxyTransport(channelCreator, (VmessOption) protocolOption));
+                } else if ("ss".equalsIgnoreCase(protocolOption.getProtocol())) {
+                    map.put(protocolOption.getName(), new ShadowsocksTransport(channelCreator, (ShadowsocksOption) protocolOption));
+                }
             }
         }
-
         this.transportMap=map;
     }
 
