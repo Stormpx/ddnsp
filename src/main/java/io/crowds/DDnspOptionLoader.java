@@ -14,7 +14,6 @@ import io.crowds.proxy.transport.shadowsocks.ShadowsocksOption;
 import io.crowds.proxy.transport.vmess.Security;
 import io.crowds.proxy.transport.vmess.User;
 import io.crowds.proxy.transport.vmess.VmessOption;
-import io.crowds.util.Ints;
 import io.crowds.util.Strs;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.dns.DefaultDnsPtrRecord;
@@ -211,6 +210,9 @@ public class DDnspOptionLoader {
             }
             proxy.setProxies(protocolOptions);
         }
+        JsonArray selectors = json.getJsonArray("selectors");
+        proxy.setSelectors(selectors);
+
         JsonArray rulesJsonArr = json.getJsonArray("rules");
         if (rulesJsonArr!=null){
             List<String> rules=new ArrayList<>();

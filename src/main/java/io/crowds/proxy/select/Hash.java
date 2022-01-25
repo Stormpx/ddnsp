@@ -7,19 +7,21 @@ import java.util.*;
 
 public class Hash extends TransportSelector{
 //    private Map<String,String> tagMap;
+    private Map<String,String> virtualMap;
     private final TreeMap<Integer,String> hashRing;
 
-    public Hash(String name,List<String> tags) {
+    public Hash(String name,Map<String,String> virtualMap,List<String> tags) {
         super(name);
         Objects.requireNonNull(tags);
         assert !tags.isEmpty();
 //        this.tagMap= Collections.emptyMap();
+        this.virtualMap=virtualMap==null?new HashMap<>():virtualMap;
         this.hashRing =new TreeMap<>();
         tags.forEach(str->this.hashRing.put(hash(str),str));
     }
 
     private int hash(Object obj){
-        return Objects.hashCode(obj);
+        return Math.abs(Objects.hashCode(obj));
     }
 
 
@@ -38,7 +40,8 @@ public class Hash extends TransportSelector{
             entry=this.hashRing.firstEntry();
         }
 
-        return entry.getValue();
+        String tag = virtualMap.get(entry.getValue());
 
+        return tag!=null?tag:entry.getValue();
     }
 }

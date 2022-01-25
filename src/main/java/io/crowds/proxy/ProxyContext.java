@@ -4,6 +4,8 @@ import io.crowds.proxy.dns.FakeContext;
 import io.crowds.proxy.transport.EndPoint;
 import io.netty.channel.EventLoop;
 
+import java.util.function.Consumer;
+
 public class ProxyContext {
     private EventLoop eventLoop;
     private EndPoint src;
@@ -12,6 +14,9 @@ public class ProxyContext {
 
     private String tag;
     private FakeContext fakeContext;
+
+    private boolean close;
+    private Consumer<Void> closeHandler;
 
     public ProxyContext(EventLoop eventLoop, NetLocation netLocation) {
         this.eventLoop = eventLoop;
@@ -28,20 +33,28 @@ public class ProxyContext {
         src.writabilityHandler(dest::setAutoRead);
         dest.writabilityHandler(src::setAutoRead);
         src.closeFuture().addListener(closeFuture->{
+            fireClose();
             dest.close();
         });
         dest.closeFuture().addListener(closeFuture->{
+            fireClose();
             src.close();
         });
         this.src=src;
         this.dest=dest;
     }
 
+    private void fireClose(){
+        if (this.close)
+            return;
+
+        this.close=true;
+        if (this.closeHandler!=null)
+            this.closeHandler.accept(null);
+    }
+
     public ProxyContext withFakeContext(FakeContext fakeContext) {
-        if (fakeContext!=null) {
-            this.fakeContext = fakeContext;
-            this.netLocation = new NetLocation(netLocation.getSrc(), fakeContext.getNetAddr(netLocation.getDest().getPort()), netLocation.getTp());
-        }
+        this.fakeContext = fakeContext;
         return this;
     }
 
@@ -75,4 +88,8 @@ public class ProxyContext {
     }
 
 
+    public ProxyContext closeHandler(Consumer<Void> closeHandler) {
+        this.closeHandler = closeHandler;
+        return this;
+    }
 }

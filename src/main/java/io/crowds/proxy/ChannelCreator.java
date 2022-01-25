@@ -68,16 +68,16 @@ public class ChannelCreator {
         var tupleMap=spaceTupleMap.computeIfAbsent(group,k->new ConcurrentHashMap<>());
         Future<UdpChannel> udpFuture = tupleMap.get(tuple);
         if (udpFuture !=null) {
-            if (udpFuture.isSuccess())
-                logger.info("udp tuple {} fullcone {}",tuple,udpFuture.get().getDatagramChannel().localAddress());
+//            if (udpFuture.isSuccess())
+//                logger.info("udp tuple {} fullcone {}",tuple,udpFuture.get().getDatagramChannel().localAddress());
             return udpFuture;
         }
         var lock=spaceTupleLockTable.computeIfAbsent(group,k->new ConcurrentHashMap<>()).computeIfAbsent(tuple,k->new Object());
         synchronized(lock){
             udpFuture=tupleMap.get(tuple);
             if (udpFuture!=null){
-                if (udpFuture.isSuccess())
-                    logger.info("udp tuple {} fullcone {}",tuple,udpFuture.get().getDatagramChannel().localAddress());
+//                if (udpFuture.isSuccess())
+//                    logger.info("udp tuple {} fullcone {}",tuple,udpFuture.get().getDatagramChannel().localAddress());
                 return udpFuture;
             }
 

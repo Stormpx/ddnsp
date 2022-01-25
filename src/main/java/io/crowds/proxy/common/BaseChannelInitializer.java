@@ -62,7 +62,7 @@ public class BaseChannelInitializer extends ChannelInitializer<Channel> {
         if (this.configurer!=null){
             ch.pipeline().addLast(this.configurer);
         }
-        if (connIdle!=null&&connIdle!=0){
+        if (connIdle!=null&&connIdle>0){
             ch.pipeline().addLast(new IdleStateHandler(0,0, connIdle));
         }
     }

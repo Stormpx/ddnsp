@@ -3,6 +3,7 @@ package io.crowds.proxy.transport.direct;
 import io.crowds.proxy.*;
 import io.crowds.proxy.common.BaseChannelInitializer;
 import io.crowds.proxy.transport.EndPoint;
+import io.crowds.proxy.transport.ProtocolOption;
 import io.crowds.proxy.transport.UdpChannel;
 import io.netty.channel.*;
 import io.netty.channel.socket.DatagramChannel;
@@ -17,15 +18,20 @@ import java.net.SocketAddress;
 
 public class DirectProxyTransport extends AbstractProxyTransport {
 
+    private ProtocolOption protocolOption;
 
-    public DirectProxyTransport(   ChannelCreator channelCreator) {
-        super(  channelCreator);
+    public DirectProxyTransport(ChannelCreator channelCreator) {
+        super(channelCreator);
     }
 
+    public DirectProxyTransport(ChannelCreator channelCreator, ProtocolOption protocolOption) {
+        super(channelCreator);
+        this.protocolOption = protocolOption;
+    }
 
     @Override
     public String getTag() {
-        return "direct";
+        return protocolOption==null?"direct":protocolOption.getName();
     }
 
     protected Future<EndPoint> createEndPoint0(String namespace,EventLoop eventLoop,NetLocation netLocation, ChannelInitializer<Channel> initializer) {
@@ -73,7 +79,7 @@ public class DirectProxyTransport extends AbstractProxyTransport {
         NetLocation netLocation = proxyContext.getNetLocation();
         BaseChannelInitializer initializer = new BaseChannelInitializer();
         if (netLocation.getTp()==TP.UDP)
-            initializer.connIdle(60);
+            initializer.connIdle(120);
         return createEndPoint0("direct", proxyContext.getEventLoop(),netLocation, initializer);
     }
 

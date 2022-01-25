@@ -215,7 +215,7 @@ public class SocksServer {
                                         ReferenceCountUtil.safeRelease(msg);
                                         return;
                                     }
-                                    axis.handleUdp((DatagramChannel) ctx.channel(), new DatagramPacket(msg.content(), dest, msg.sender()));
+                                    axis.handleUdp0((DatagramChannel) ctx.channel(), new DatagramPacket(msg.content(), dest, msg.sender()));
                                 }
                             });
                 }

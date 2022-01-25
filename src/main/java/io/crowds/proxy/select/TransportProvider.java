@@ -8,11 +8,15 @@ import io.crowds.proxy.transport.shadowsocks.ShadowsocksOption;
 import io.crowds.proxy.transport.shadowsocks.ShadowsocksTransport;
 import io.crowds.proxy.transport.vmess.VmessOption;
 import io.crowds.proxy.transport.vmess.VmessProxyTransport;
+import io.vertx.core.json.JsonArray;
+import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 public class TransportProvider {
     private final static Logger logger= LoggerFactory.getLogger(TransportProvider.class);
@@ -25,15 +29,14 @@ public class TransportProvider {
 
     private Map<String,TransportSelector> selectorMap;
 
-    public TransportProvider(ChannelCreator channelCreator,List<ProtocolOption> protocolOptions) {
+    public TransportProvider(ChannelCreator channelCreator,List<ProtocolOption> protocolOptions,JsonArray selectors) {
         this.channelCreator = channelCreator;
-        initProvider(protocolOptions);
-
-
+        initTransport(protocolOptions);
+        initSelector(selectors);
     }
 
 
-    private void initProvider(List<ProtocolOption> protocolOptions){
+    private void initTransport(List<ProtocolOption> protocolOptions){
         var map=new ConcurrentHashMap<String,ProxyTransport>();
 
         map.put(DEFAULT_TRANSPORT,new DirectProxyTransport(channelCreator));
@@ -45,13 +48,111 @@ public class TransportProvider {
                     map.put(protocolOption.getName(), new VmessProxyTransport(channelCreator, (VmessOption) protocolOption));
                 } else if ("ss".equalsIgnoreCase(protocolOption.getProtocol())) {
                     map.put(protocolOption.getName(), new ShadowsocksTransport(channelCreator, (ShadowsocksOption) protocolOption));
+                }else if ("direct".equalsIgnoreCase(protocolOption.getProtocol())){
+                    map.put(protocolOption.getName(),new DirectProxyTransport(channelCreator,protocolOption));
                 }
             }
         }
         this.transportMap=map;
     }
 
+    private void initSelector(JsonArray array){
+        this.selectorMap=new ConcurrentHashMap<>();
+        if (array==null||array.isEmpty()){
+            return;
+        }
+        for (int i = 0; i < array.size(); i++) {
+            JsonObject entries = array.getJsonObject(i);
+            String name = entries.getString("name");
+            String methodStr = entries.getString("method");
+            Method method = Method.of(methodStr);
+            if (name==null||name.isEmpty()){
+                throw new IllegalArgumentException(String.format("selector[%d].name must == null",i));
+            }
+            if (methodStr==null||methodStr.isEmpty()){
+                throw new IllegalArgumentException(String.format("selector[%d].method == null",i));
+            }
+            if (method==null){
+                throw new IllegalArgumentException("unknown method: "+methodStr);
+            }
+            switch (method){
+                case RR -> createRR(name,entries);
+                case WRR -> createWRR(name,entries);
+                case HASH -> createHash(name,entries);
+                case RAND -> createRand(name,entries);
+            }
+        }
+        List<String> refs = new RingDetector(this.selectorMap).searchCircularRef();
+        if (!refs.isEmpty()){
+            String refsStr = String.join("-", refs);
+            logger.error("circular reference is not allowed. |-->{}-->|",refsStr);
+            logger.error("                                   |---{}---|","-".repeat(refsStr.length()));
+            throw new IllegalStateException("circular reference detected. ");
+        }
+    }
 
+    private void readTag(JsonArray array, Consumer<String> consumer){
+        if (array==null||array.isEmpty()){
+            return;
+        }
+        for (int i = 0; i < array.size(); i++) {
+            consumer.accept(array.getString(i));
+        }
+    }
+
+    private void createRR(String name,JsonObject json){
+        JsonArray tagArr = json.getJsonArray("tags");
+
+        List<WRR.WNode> nodes=new ArrayList<>();
+        readTag(tagArr,str->nodes.add(new WRR.WNode(1,str)));
+        if (!nodes.isEmpty()) {
+            selectorMap.put(name, new WRR(name, nodes));
+        }
+    }
+
+    private void createWRR(String name,JsonObject json){
+        JsonArray tagArr = json.getJsonArray("tags");
+        List<WRR.WNode> nodes=new ArrayList<>();
+       readTag(tagArr,str->{
+           if (!str.contains(":")){
+               nodes.add(new WRR.WNode(1,str));
+           }else{
+               try {
+                   String[] strings = str.split(":",2);
+                   int weight = Integer.parseInt(strings[0]);
+                   nodes.add(new WRR.WNode(Math.max(weight, 0),strings[1]));
+               } catch (NumberFormatException e) {
+
+                   nodes.add(new WRR.WNode(1,str));
+               }
+           }
+       });
+        if (!nodes.isEmpty()) {
+            selectorMap.put(name, new WRR(name, nodes));
+        }
+    }
+
+    private void createRand(String name,JsonObject json){
+        JsonArray tagArr = json.getJsonArray("tags");
+        List<String> tags=new ArrayList<>();
+        readTag(tagArr, tags::add);
+        if (!tags.isEmpty()) {
+            selectorMap.put(name, new Random(name, tags));
+        }
+    }
+
+    private void createHash(String name,JsonObject json){
+        JsonArray tagArr = json.getJsonArray("tags");
+        List<String> tags=new ArrayList<>();
+        readTag(tagArr, tags::add);
+
+        if (!tags.isEmpty()) {
+            JsonObject virtual = json.getJsonObject("virtual");
+            Map<String,String> map=virtual==null?Map.of():
+                    virtual.stream().filter(e->e.getValue() instanceof String).collect(Collectors.toMap(Map.Entry::getKey, e->e.getValue().toString()));
+            selectorMap.put(name, new Hash(name,map, tags));
+        }
+    }
 
 
 

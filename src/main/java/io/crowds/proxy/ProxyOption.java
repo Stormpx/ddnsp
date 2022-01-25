@@ -16,7 +16,7 @@ public class ProxyOption {
 
     private List<ProtocolOption> proxies;
 
-    private JsonArray selector;
+    private JsonArray selectors;
 
     private List<String> rules;
 
@@ -67,12 +67,12 @@ public class ProxyOption {
         return this;
     }
 
-    public JsonArray getSelector() {
-        return selector;
+    public JsonArray getSelectors() {
+        return selectors;
     }
 
-    public ProxyOption setSelector(JsonArray selector) {
-        this.selector = selector;
+    public ProxyOption setSelectors(JsonArray selectors) {
+        this.selectors = selectors;
         return this;
     }
 }

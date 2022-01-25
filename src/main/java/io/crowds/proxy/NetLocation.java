@@ -2,6 +2,7 @@ package io.crowds.proxy;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.Objects;
 
 public class NetLocation {
     private NetAddr src;
@@ -33,5 +34,18 @@ public class NetLocation {
 
     public TP getTp() {
         return tp;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        NetLocation that = (NetLocation) o;
+        return Objects.equals(src, that.src) && Objects.equals(dest, that.dest) && tp == that.tp;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(src, dest, tp);
     }
 }
