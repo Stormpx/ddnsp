@@ -1,5 +1,6 @@
 import io.crowds.proxy.ProxyOption;
 import io.crowds.proxy.ProxyServer;
+import io.crowds.proxy.services.http.HttpOption;
 import io.crowds.proxy.services.socks.SocksOption;
 import io.crowds.proxy.transport.ProtocolOption;
 import io.crowds.proxy.transport.shadowsocks.ShadowsocksOption;
@@ -7,20 +8,25 @@ import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 
+import java.net.*;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Objects;
 
 public class ProxySver {
 
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) throws InterruptedException, UnknownHostException {
+
+        System.out.println(HexFormat.fromHexDigits("ffff"));
 
         Vertx vertx = Vertx.vertx();
         ProxyServer server = new ProxyServer(vertx.nettyEventLoopGroup());
 
         server.setProxyOption(new ProxyOption()
+                        .setHttp(new HttpOption().setEnable(true).setHost("0.0.0.0").setPort(19999))
                     .setSocks(new SocksOption().setEnable(true).setHost("0.0.0.0").setPort(23452))
                         .setProxies(List.of(
                                 new ProtocolOption().setName("direct_1").setProtocol("direct"),

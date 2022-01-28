@@ -150,7 +150,8 @@ public class Axis {
         return proxyContext;
     }
 
-    public void handleTcp(Channel channel,SocketAddress srcAddr,SocketAddress destAddr){
+    public Promise<Void> handleTcp(Channel channel,SocketAddress srcAddr,SocketAddress destAddr){
+        Promise<Void> promise = channel.eventLoop().newPromise();
         try {
 
             TcpEndPoint src = new TcpEndPoint(channel)
@@ -170,17 +171,21 @@ public class Axis {
                             if (logger.isDebugEnabled())
                                 logger.error("",future.cause());
                             logger.error("failed to connect remote: {} > {}",proxyContext.getNetLocation().getDest().getAddress(),future.cause().getMessage());
+                            promise.tryFailure(future.cause());
                             src.close();
                             return;
                         }
                         EndPoint dest= (EndPoint) future.get();
                         proxyContext.bridging(src,dest);
-
+                        promise.trySuccess(null);
                     });
+            return promise;
         } catch (Exception e) {
             e.printStackTrace();
+            promise.tryFailure(e);
             channel.close();
         }
+        return promise;
     }
 
     public void handleUdp(DatagramChannel datagramChannel,DatagramPacket packet){

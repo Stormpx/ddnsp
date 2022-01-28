@@ -69,7 +69,10 @@ public class Ddns {
                 ipProvider =new HttpIpProvider(httpClient,urls);
             }else if ("nic".equalsIgnoreCase(src)){
                 ipProvider =new InterfaceIpProvider(json);
-            } else{
+            } else if ("static".equalsIgnoreCase(src)){
+                String ip = json.getString("ip");
+                ipProvider=new StaticIpProvider(ip);
+            }else{
                 throw new IllegalArgumentException("src "+src+" not supported");
             }
             this.ipProviders.put(name, ipProvider);

@@ -28,8 +28,8 @@ public class ProxyContext {
     }
 
     public void bridging(EndPoint src,EndPoint dest){
-        src.bufferHandler(dest::write);
         dest.bufferHandler(src::write);
+        src.bufferHandler(dest::write);
         src.writabilityHandler(dest::setAutoRead);
         dest.writabilityHandler(src::setAutoRead);
         src.closeFuture().addListener(closeFuture->{
@@ -40,8 +40,11 @@ public class ProxyContext {
             fireClose();
             src.close();
         });
+
         this.src=src;
         this.dest=dest;
+        src.setAutoRead(true);
+        dest.setAutoRead(true);
     }
 
     private void fireClose(){

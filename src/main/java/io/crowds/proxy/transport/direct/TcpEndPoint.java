@@ -48,7 +48,7 @@ public class TcpEndPoint extends EndPoint {
     @Override
     public void bufferHandler(Consumer<ByteBuf> bufferHandler) {
         super.bufferHandler(bufferHandler);
-        setAutoRead(true);
+//        setAutoRead(true);
     }
 
     public TcpEndPoint exceptionHandler(Consumer<Throwable> throwableHandler) {

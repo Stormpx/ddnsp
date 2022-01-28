@@ -1,6 +1,7 @@
 package io.crowds.proxy;
 
 import io.crowds.proxy.dns.FakeOption;
+import io.crowds.proxy.services.http.HttpOption;
 import io.crowds.proxy.services.socks.SocksOption;
 import io.crowds.proxy.services.transparent.TransparentOption;
 import io.crowds.proxy.transport.ProtocolOption;
@@ -9,6 +10,8 @@ import io.vertx.core.json.JsonArray;
 import java.util.List;
 
 public class ProxyOption {
+
+    private HttpOption http;
 
     private SocksOption socks;
 
@@ -73,6 +76,15 @@ public class ProxyOption {
 
     public ProxyOption setSelectors(JsonArray selectors) {
         this.selectors = selectors;
+        return this;
+    }
+
+    public HttpOption getHttp() {
+        return http;
+    }
+
+    public ProxyOption setHttp(HttpOption http) {
+        this.http = http;
         return this;
     }
 }

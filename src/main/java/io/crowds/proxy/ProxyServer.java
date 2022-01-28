@@ -1,6 +1,7 @@
 package io.crowds.proxy;
 
 import io.crowds.dns.DnsContext;
+import io.crowds.proxy.services.http.HttpServer;
 import io.crowds.proxy.services.socks.SocksServer;
 import io.crowds.proxy.services.transparent.TransparentServer;
 import io.netty.channel.*;
@@ -21,6 +22,8 @@ public class ProxyServer {
 
     private Axis axis;
 
+
+    private HttpServer httpServer;
     private SocksServer socksServer;
     private TransparentServer transparentServer;
 
@@ -38,6 +41,10 @@ public class ProxyServer {
 
     public Future<Void> start(){
         List<Future> futures=new ArrayList<>();
+        if (proxyOption.getHttp()!=null&&proxyOption.getHttp().isEnable()){
+            this.httpServer=new HttpServer(proxyOption.getHttp(),this.axis);
+            futures.add(httpServer.start());
+        }
         if (proxyOption.getSocks()!=null&&proxyOption.getSocks().isEnable()){
             this.socksServer = new SocksServer(proxyOption.getSocks(),this.axis);
             futures.add(socksServer.start());

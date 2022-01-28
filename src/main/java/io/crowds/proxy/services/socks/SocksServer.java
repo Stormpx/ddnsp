@@ -123,7 +123,7 @@ public class SocksServer {
             return dest;
         }
 
-        public void releaseChannel(ChannelHandlerContext ctx){
+        private void releaseChannel(ChannelHandlerContext ctx){
             ChannelPipeline pipeline = ctx.channel().pipeline();
             while (pipeline.removeFirst()!=this){
 

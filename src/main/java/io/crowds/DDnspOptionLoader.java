@@ -6,6 +6,7 @@ import io.crowds.dns.RR;
 import io.crowds.dns.RecordData;
 import io.crowds.proxy.ProxyOption;
 import io.crowds.proxy.dns.FakeOption;
+import io.crowds.proxy.services.http.HttpOption;
 import io.crowds.proxy.services.socks.SocksOption;
 import io.crowds.proxy.services.transparent.TransparentOption;
 import io.crowds.proxy.transport.ProtocolOption;
@@ -116,6 +117,7 @@ public class DDnspOptionLoader {
             ProxyOption proxyOption = new ProxyOption();
             dDnspOption.setProxy(proxyOption);
 
+
             return Future.succeededFuture(dDnspOption);
         }else{
 
@@ -161,6 +163,14 @@ public class DDnspOptionLoader {
     private ProxyOption toProxyOption(JsonObject config){
         JsonObject json = config.getJsonObject("proxy", new JsonObject());
         var proxy=new ProxyOption();
+        JsonObject httpJson = json.getJsonObject("http");
+        if (httpJson!=null){
+            HttpOption httpOption = new HttpOption();
+            httpOption.setEnable(httpJson.getBoolean("enable",false))
+                    .setHost(httpJson.getString("host","127.0.0.1"))
+                    .setPort(httpJson.getInteger("port",13448));
+            proxy.setHttp(httpOption);
+        }
         JsonObject socksJson = json.getJsonObject("socks");
         if (socksJson!=null){
             SocksOption socksOption = new SocksOption();
