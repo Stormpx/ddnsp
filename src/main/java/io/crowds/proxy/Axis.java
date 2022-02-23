@@ -178,16 +178,18 @@ public class Axis {
                         EndPoint dest= (EndPoint) future.get();
                         proxyContext.bridging(src,dest);
                         promise.trySuccess(null);
+                        proxyContext.setAutoRead();
                     });
             return promise;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("",e);
             promise.tryFailure(e);
             channel.close();
         }
         return promise;
     }
 
+    @Deprecated
     public void handleUdp(DatagramChannel datagramChannel,DatagramPacket packet){
         try {
             InetSocketAddress recipient = packet.recipient();
@@ -212,11 +214,12 @@ public class Axis {
 
                         proxyContext.bridging(src,dest);
 
+                        proxyContext.setAutoRead();
                         dest.write(packet.content());
                     });
         } catch (Exception e) {
             ReferenceCountUtil.safeRelease(packet);
-            e.printStackTrace();
+            logger.error("",e);
         }
     }
 
@@ -232,6 +235,7 @@ public class Axis {
             NetLocation finalNetLocation = netLocation;
             mappings.getOrCreate(netLocation, Lambdas.rethrowSupplier(()->{
                 ProxyContext proxyContext = new ProxyContext(datagramChannel.eventLoop(), finalNetLocation);
+                proxyContext.withFakeContext(fakeContext);
                 Promise<ProxyContext> promise = proxyContext.getEventLoop().newPromise();
                 var src=new UdpEndPoint(datagramChannel,sender);
                 Transport transport=getTransport(proxyContext);
@@ -246,8 +250,8 @@ public class Axis {
                             EndPoint dest= (EndPoint) future.get();
 
                             proxyContext.bridging(src,dest);
-
                             promise.trySuccess(proxyContext);
+                            proxyContext.setAutoRead();
 
                         });
                 return promise;
@@ -267,7 +271,7 @@ public class Axis {
 
         } catch (Exception e) {
             ReferenceCountUtil.safeRelease(packet);
-            e.printStackTrace();
+            logger.error("",e);
         }
     }
 
@@ -313,6 +317,7 @@ public class Axis {
                 future= contexts.get(netLocation);
                 if (future!=null)
                     return future;
+
 
                 future=supplier.get();
                 contexts.put(netLocation,future);

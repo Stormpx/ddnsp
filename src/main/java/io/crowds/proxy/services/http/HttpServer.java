@@ -147,51 +147,51 @@ public class HttpServer {
                             .writeAndFlush(new DefaultHttpResponse(req.protocolVersion(),new HttpResponseStatus(200,"Connection Established")))
                             .addListener(f->{
                                 if (f.isSuccess()) {
-                                    releaseChannel(ctx);
                                     axis.handleTcp(ctx.channel(), ctx.channel().remoteAddress(), address);
+                                    releaseChannel(ctx);
                                 }
                             });
 
                 }else{
+                    InetSocketAddress address =null;
                     if (req.uri().startsWith("/")){
-                        ctx.channel()
-                                .writeAndFlush(new DefaultHttpResponse(req.protocolVersion(),HttpResponseStatus.BAD_REQUEST))
-                                .addListener(ChannelFutureListener.CLOSE);
-                        return;
-                    }
-                    URI uri = URI.create(req.uri());
-                    if (Strs.isBlank(uri.getHost())){
-                        ctx.channel()
-                                .writeAndFlush(new DefaultHttpResponse(req.protocolVersion(),HttpResponseStatus.BAD_REQUEST))
-                                .addListener(ChannelFutureListener.CLOSE);
-                        return;
-                    }
-                    InetSocketAddress address = getTarget(uri);
-                    req.headers().remove("proxy-connection")
-                            .set(HttpHeaderNames.HOST,uri.getHost()+(uri.getPort()>0?":"+uri.getPort():""));
+                        String host = req.headers().get("host");
+                        if (Strs.isBlank(host)||Objects.equals(httpOption.getHost(),host)) {
+                            ctx.channel().writeAndFlush(new DefaultHttpResponse(req.protocolVersion(), HttpResponseStatus.BAD_REQUEST))
+                                    .addListener(ChannelFutureListener.CLOSE);
+                            return;
+                        }
 
-                    req.setUri("/");
+                        address=getTarget(URI.create(host));
+                    }else {
+                        URI uri = URI.create(req.uri());
+                        if (Strs.isBlank(uri.getHost())) {
+                            ctx.channel().writeAndFlush(new DefaultHttpResponse(req.protocolVersion(), HttpResponseStatus.BAD_REQUEST))
+                                    .addListener(ChannelFutureListener.CLOSE);
+                            return;
+                        }
+                        address = getTarget(uri);
+                        req.headers().remove("proxy-connection").set(HttpHeaderNames.HOST, uri.getHost() + (uri.getPort() > 0 ? ":" + uri.getPort() : ""));
+
+                        req.setUri(uri.getRawPath() + (Strs.isBlank(uri.getRawQuery()) ? "" : "?" + uri.getRawQuery()));
+                    }
                     this.pendingReq=req;
 
-//                    ctx.channel().pipeline().remove(HttpRequestDecoder.class);
-//                    ctx.channel().pipeline().remove(HttpResponseEncoder.class);
-//                    ctx.channel().pipeline().remove(HttpServerExpectContinueHandler.class);
-//                    ctx.channel().pipeline().remove(this);
 
-                    //对于content-length为0的请求在HttpRequest之后会紧跟一个空的LastHttpContent
-                    releaseChannel(ctx);
-                    //删掉所有handler后 空的LastHttpContent会被传递到`axis.handleTcp`里新增的handler随后被忽略掉.
+                    ctx.pipeline().remove(HttpResponseEncoder.class);
+
                     this.future=axis.handleTcp(ctx.channel(), ctx.channel().remoteAddress(), address)
                             .addListener(f->{
                                 if (!f.isSuccess()){
                                     return;
                                 }
-                                ctx.fireChannelRead(encoder.encodeRequest(ctx,pendingReq));
+                                ByteBuf byteBuf = encoder.encodeRequest(ctx, pendingReq);
+                                ctx.fireChannelRead(byteBuf);
+                                releaseChannel(ctx);
                             });
                 }
             }else {
 
-                //正常来说不会执行到这里
                 if (msg instanceof HttpContent payload) {
                     tryFireRead(ctx,payload.content());
                 }else {

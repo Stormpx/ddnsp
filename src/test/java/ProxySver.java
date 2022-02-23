@@ -20,8 +20,6 @@ public class ProxySver {
 
     public static void main(String[] args) throws InterruptedException, UnknownHostException {
 
-        System.out.println(HexFormat.fromHexDigits("ffff"));
-
         Vertx vertx = Vertx.vertx();
         ProxyServer server = new ProxyServer(vertx.nettyEventLoopGroup());
 

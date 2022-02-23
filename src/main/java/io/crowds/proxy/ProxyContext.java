@@ -43,6 +43,10 @@ public class ProxyContext {
 
         this.src=src;
         this.dest=dest;
+
+    }
+
+    public void setAutoRead(){
         src.setAutoRead(true);
         dest.setAutoRead(true);
     }
