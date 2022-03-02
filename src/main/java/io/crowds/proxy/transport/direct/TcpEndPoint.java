@@ -30,6 +30,7 @@ public class TcpEndPoint extends EndPoint {
 
             @Override
             protected void channelRead0(ChannelHandlerContext ctx, ByteBuf msg) throws Exception {
+//                System.out.println(msg.readableBytes());
                 if (!channel.isActive()){
                     ReferenceCountUtil.safeRelease(msg);
                     return;

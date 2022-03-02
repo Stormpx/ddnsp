@@ -24,6 +24,7 @@ import io.netty.handler.proxy.Socks5ProxyHandler;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.Future;
 import io.vertx.core.Promise;
+import io.vertx.core.parsetools.impl.JsonParserImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -139,12 +140,13 @@ public class SocksServer {
                     return;
                 }
                 Socks4CommandRequest request= (Socks4CommandRequest) msg;
-                writeMessage(ctx,new DefaultSocks4CommandResponse(Socks4CommandStatus.SUCCESS),
+                writeMessage(ctx,new DefaultSocks4CommandResponse(Socks4CommandStatus.SUCCESS,request.dstAddr(),request.dstPort()),
                         v->{
-                            releaseChannel(ctx);
                             axis.handleTcp(ctx.channel(),ctx.channel().remoteAddress(),new InetSocketAddress(request.dstAddr(),request.dstPort()));
+                            releaseChannel(ctx);
                         });
             }else if (msg.version()==SocksVersion.SOCKS5){
+                System.out.println(msg);
                 if (msg instanceof Socks5InitialRequest){
                     List<Socks5AuthMethod> authMethods = ((Socks5InitialRequest) msg).authMethods();
                     this.expectAuthMethod=socksOption.isPassAuth()?Socks5AuthMethod.PASSWORD:Socks5AuthMethod.NO_AUTH;
@@ -190,11 +192,19 @@ public class SocksServer {
                     }else{
                         //tcp
                         InetSocketAddress dest = getAddress(request);
-                        writeMessage(ctx,new DefaultSocks5CommandResponse(Socks5CommandStatus.SUCCESS,request.dstAddrType(),socksOption.getHost(),socksOption.getPort()),
-                                v->axis.handleTcp(ctx.channel(),ctx.channel().remoteAddress(), dest));
+                        axis.handleTcp(ctx.channel(),ctx.channel().remoteAddress(), dest)
+                                .addListener(f->{
+                                    if (f.isSuccess()){
+                                        writeMessage(ctx,
+                                                new DefaultSocks5CommandResponse(Socks5CommandStatus.SUCCESS,
+                                                        Socks5AddressType.IPv4, socksOption.getHost(),socksOption.getPort()),
+                                                v->releaseChannel(ctx));
+                                    }
+                                });
+
 
                     }
-                    releaseChannel(ctx);
+
                 }
             }else{
                 logger.warn("unknown socks version :{}",msg.version().byteValue());
@@ -226,10 +236,11 @@ public class SocksServer {
                     ctx.close();
                     return;
                 }
+                releaseChannel(ctx);
                 DatagramChannel datagramChannel= (DatagramChannel) f.get();
                 ctx.channel().closeFuture().addListener(it -> datagramChannel.close());
                 InetSocketAddress bindAddr = datagramChannel.localAddress();
-                writeMessage(ctx,new DefaultSocks5CommandResponse(Socks5CommandStatus.SUCCESS,request.dstAddrType(), bindAddr.getHostName(),bindAddr.getPort()),
+                writeMessage(ctx,new DefaultSocks5CommandResponse(Socks5CommandStatus.SUCCESS,Socks5AddressType.IPv4, bindAddr.getHostName(),bindAddr.getPort()),
                         v->{});
             });
 
