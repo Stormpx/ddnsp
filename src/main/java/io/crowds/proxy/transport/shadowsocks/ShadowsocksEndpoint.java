@@ -31,10 +31,9 @@ public class ShadowsocksEndpoint extends EndPoint {
     }
 
     private void init(){
-        encodeAddress();
         base.writabilityHandler(super::fireWriteable);
         base.bufferHandler(this::fireBuf);
-
+        encodeAddress();
     }
 
     private void encodeAddress(){
@@ -53,16 +52,15 @@ public class ShadowsocksEndpoint extends EndPoint {
             addressBuffer.writeByte(host.length());
         }
         addressBuffer.writeBytes(dest.getByte()).writeShort(dest.getPort());
+        if (netLocation.getTp()==TP.TCP){
+            base.write(this.addressBuffer);
+        }
     }
 
 
     @Override
     public void write(ByteBuf buf) {
         if (netLocation.getTp()== TP.TCP){
-            if (this.addressBuffer !=null){
-                buf= Unpooled.compositeBuffer().addComponent(true,this.addressBuffer).addComponent(true,buf);
-                this.addressBuffer =null;
-            }
             base.write(buf);
         }else{
             assert this.addressBuffer!=null;

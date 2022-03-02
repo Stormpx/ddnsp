@@ -3,6 +3,8 @@ package io.crowds.proxy.services.socks;
 import io.crowds.Platform;
 import io.crowds.proxy.Axis;
 import io.crowds.proxy.DatagramOption;
+import io.crowds.util.Inet;
+import io.crowds.util.Strs;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
@@ -28,8 +30,8 @@ import io.vertx.core.parsetools.impl.JsonParserImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
+import java.net.*;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -117,7 +119,7 @@ public class SocksServer {
         private InetSocketAddress getAddress(Socks5CommandRequest request){
             InetSocketAddress dest=null;
             if (request.dstAddrType()==Socks5AddressType.DOMAIN){
-                dest=InetSocketAddress.createUnresolved(request.dstAddr(),request.dstPort());
+                dest= Inet.createSocketAddress(request.dstAddr(),request.dstPort());
             }else{
                 dest=new InetSocketAddress(request.dstAddr(),request.dstPort());
             }
@@ -146,7 +148,6 @@ public class SocksServer {
                             releaseChannel(ctx);
                         });
             }else if (msg.version()==SocksVersion.SOCKS5){
-                System.out.println(msg);
                 if (msg instanceof Socks5InitialRequest){
                     List<Socks5AuthMethod> authMethods = ((Socks5InitialRequest) msg).authMethods();
                     this.expectAuthMethod=socksOption.isPassAuth()?Socks5AuthMethod.PASSWORD:Socks5AuthMethod.NO_AUTH;

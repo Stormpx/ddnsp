@@ -1,8 +1,8 @@
 package io.crowds.util;
 
 
-import java.net.URI;
-import java.net.URISyntaxException;
+import java.net.*;
+import java.nio.charset.StandardCharsets;
 import java.util.HexFormat;
 import java.util.Map;
 import java.util.regex.Matcher;

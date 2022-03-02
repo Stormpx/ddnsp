@@ -2,6 +2,7 @@ package io.crowds.proxy.services.http;
 
 import io.crowds.Platform;
 import io.crowds.proxy.Axis;
+import io.crowds.util.Inet;
 import io.crowds.util.Strs;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
@@ -99,7 +100,8 @@ public class HttpServer {
             String[] strs = str.split(":");
             var host=strs[0];
             var port= Integer.parseInt(strs.length<2?"80":strs[1]);
-            InetSocketAddress address = InetSocketAddress.createUnresolved(host, port);
+
+            InetSocketAddress address = Inet.createSocketAddress(host, port);
             return address;
         }
 
@@ -110,7 +112,6 @@ public class HttpServer {
                 port= uri.getScheme().startsWith("https") ? 443 : 80;
             }
             InetSocketAddress address = InetSocketAddress.createUnresolved(host, port);
-            System.out.println(address);
             return address;
         }
 
