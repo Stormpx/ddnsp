@@ -1,4 +1,4 @@
-FROM  openjdk:17.0.1-jdk-slim as packager
+FROM  eclipse-temurin:17-jdk as packager
 MAINTAINER crowds
 RUN { \
         java --version ; \
@@ -32,4 +32,4 @@ ENV PATH="$PATH:$JAVA_MINIMAL/bin"
 COPY --from=packager "$JAVA_MINIMAL" "$JAVA_MINIMAL"
 COPY "build/libs/ddnsp.jar" "/app.jar"
 
-ENTRYPOINT [ "java" , "-jar", "-Xmx450m" ,"/app.jar" ]
+ENTRYPOINT [ "java" ,"-XX:+UseShenandoahGC", "-jar", "-Xmx450m" ,"/app.jar" ]
