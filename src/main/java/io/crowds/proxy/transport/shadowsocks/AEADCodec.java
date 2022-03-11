@@ -9,7 +9,11 @@ import io.netty.channel.socket.DatagramPacket;
 import io.netty.handler.codec.ByteToMessageCodec;
 import io.netty.handler.codec.MessageToMessageCodec;
 
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 
@@ -206,6 +210,23 @@ public class AEADCodec {
 
         }
 
+        private InetSocketAddress readAddr(ByteBuf buf) throws Exception {
+
+            byte type = buf.readByte();
+            if (type==1||type==4){
+                byte[] ip=new byte[type==1?4:16];
+                buf.readBytes(ip);
+                InetAddress address = InetAddress.getByAddress(ip);
+                return new InetSocketAddress(address,buf.readUnsignedShort());
+            }else{
+                short len = buf.readUnsignedByte();
+                byte[] domain=new byte[len];
+                buf.readBytes(domain);
+                return InetSocketAddress.createUnresolved(new String(domain,StandardCharsets.UTF_8),buf.readUnsignedShort());
+            }
+        }
+
+
         @Override
         protected void decode(ChannelHandlerContext ctx, DatagramPacket msg, List<Object> out) throws Exception {
             int saltSize=this.cipher.getSaltSize();
@@ -214,18 +235,11 @@ public class AEADCodec {
             buf.readBytes(salt);
             byte[] subKey = genSubKey(this.cipher, shadowsocksOption.getMasterKey(), salt);
             ByteBuf plain = ByteBufCipher.doFinal(getDecryptCipher(this.cipher, subKey, ALWAYS_ZERO),buf,ctx.alloc());
-            byte type = plain.readByte();
-            if (type==1){
-                plain.skipBytes(4);
-            }else if (type==3){
-                plain.skipBytes(plain.readByte());
-            }else if (type==4){
-                plain.skipBytes(16);
-            }
-            plain.skipBytes(2);
+
+            InetSocketAddress sender = readAddr(plain);
             ByteBuf content = plain.copy();
             plain.release();
-            out.add(new DatagramPacket(content,msg.recipient(),msg.sender()));
+            out.add(new DatagramPacket(content,null,sender));
         }
     }
 }

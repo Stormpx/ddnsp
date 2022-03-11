@@ -3,7 +3,9 @@ package io.crowds.proxy;
 import io.crowds.proxy.dns.FakeContext;
 import io.crowds.proxy.transport.EndPoint;
 import io.netty.channel.EventLoop;
+import io.netty.channel.socket.DatagramPacket;
 
+import java.net.InetSocketAddress;
 import java.util.function.Consumer;
 
 public class ProxyContext {
@@ -14,6 +16,8 @@ public class ProxyContext {
 
     private String tag;
     private FakeContext fakeContext;
+
+    private Consumer<DatagramPacket> fallbackPacketHandler;
 
     private boolean close;
     private Consumer<Void> closeHandler;
@@ -97,6 +101,15 @@ public class ProxyContext {
 
     public ProxyContext closeHandler(Consumer<Void> closeHandler) {
         this.closeHandler = closeHandler;
+        return this;
+    }
+
+    public Consumer<DatagramPacket> fallbackPacketHandler() {
+        return fallbackPacketHandler;
+    }
+
+    public ProxyContext fallbackPacketHandler(Consumer<DatagramPacket> fallbackPacketHandler) {
+        this.fallbackPacketHandler = fallbackPacketHandler;
         return this;
     }
 }

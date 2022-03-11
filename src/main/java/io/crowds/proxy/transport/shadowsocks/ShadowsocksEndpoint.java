@@ -4,11 +4,15 @@ import io.crowds.proxy.NetAddr;
 import io.crowds.proxy.NetLocation;
 import io.crowds.proxy.TP;
 import io.crowds.proxy.transport.EndPoint;
+import io.crowds.proxy.transport.UdpChannel;
+import io.crowds.proxy.transport.direct.TcpEndPoint;
+import io.crowds.proxy.transport.direct.UdpEndPoint;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
+import io.netty.channel.socket.DatagramPacket;
 import io.netty.util.CharsetUtil;
 import io.netty.util.concurrent.Future;
 import org.slf4j.Logger;
@@ -23,12 +27,25 @@ public class ShadowsocksEndpoint extends EndPoint {
     private NetLocation netLocation;
 
     private ByteBuf addressBuffer;
-    public ShadowsocksEndpoint(EndPoint base, ShadowsocksOption option, NetLocation netLocation) {
-        this.base = base;
+
+
+    public ShadowsocksEndpoint(Channel channel, ShadowsocksOption option, NetLocation netLocation) {
+        this.base = new TcpEndPoint(channel);
         this.option = option;
         this.netLocation = netLocation;
         init();
     }
+
+    public ShadowsocksEndpoint(UdpChannel udpChannel, ShadowsocksOption option, NetLocation netLocation,NetAddr serverAddr) {
+
+        udpChannel.packetHandler(netLocation.getDest(), this::fireBuf);
+
+        this.base = new UdpEndPoint(udpChannel.getDatagramChannel(),serverAddr);
+        this.option = option;
+        this.netLocation = netLocation;
+        init();
+    }
+
 
     private void init(){
         base.writabilityHandler(super::fireWriteable);
@@ -37,7 +54,7 @@ public class ShadowsocksEndpoint extends EndPoint {
     }
 
     private void encodeAddress(){
-        this.addressBuffer =Unpooled.buffer(4);
+        this.addressBuffer =Unpooled.buffer(7);
         NetAddr dest = netLocation.getDest();
         if (dest.isIpv4()){
             addressBuffer.writeByte(0x01);
@@ -59,12 +76,15 @@ public class ShadowsocksEndpoint extends EndPoint {
 
 
     @Override
-    public void write(ByteBuf buf) {
+    public void write(Object msg) {
+        if (msg instanceof DatagramPacket packet){
+            msg=packet.content();
+        }
         if (netLocation.getTp()== TP.TCP){
-            base.write(buf);
+            base.write(msg);
         }else{
             assert this.addressBuffer!=null;
-            base.write(Unpooled.compositeBuffer().addComponent(true,this.addressBuffer.retain()).addComponent(true,buf));
+            base.write(Unpooled.compositeBuffer().addComponent(true,this.addressBuffer.retain()).addComponent(true, (ByteBuf) msg));
         }
     }
 

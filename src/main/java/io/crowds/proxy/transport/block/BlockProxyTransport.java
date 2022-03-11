@@ -42,8 +42,8 @@ public class BlockProxyTransport extends AbstractProxyTransport {
         }
 
         @Override
-        public void write(ByteBuf buf) {
-            ReferenceCountUtil.safeRelease(buf);
+        public void write(Object msg) {
+            ReferenceCountUtil.safeRelease(msg);
             closePromise.trySuccess(null);
         }
 

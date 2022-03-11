@@ -15,9 +15,9 @@ public abstract class EndPoint {
 
     private Consumer<Boolean> writabilityHandler;
 
-    private Consumer<ByteBuf> bufferHandler;
+    private Consumer<Object> bufferHandler;
 
-    public abstract void write(ByteBuf buf);
+    public abstract void write(Object buf);
 
     public void setAutoRead(boolean autoRead){
         channel().config().setAutoRead(autoRead);
@@ -29,7 +29,7 @@ public abstract class EndPoint {
 
     public abstract Future<Void> closeFuture();
 
-    protected void fireBuf(ByteBuf buf){
+    protected void fireBuf(Object buf){
         if(this.bufferHandler==null){
             ReferenceCountUtil.safeRelease(buf);
             return ;
@@ -44,7 +44,7 @@ public abstract class EndPoint {
         this.writabilityHandler.accept(writeable);
     }
 
-    public void bufferHandler(Consumer<ByteBuf> bufferHandler){
+    public void bufferHandler(Consumer<Object> bufferHandler){
         this.bufferHandler=bufferHandler;
     }
 

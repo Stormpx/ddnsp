@@ -1,13 +1,15 @@
 package io.crowds.proxy.transport;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.Channel;
+import io.crowds.proxy.NetAddr;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.DatagramPacket;
 import io.netty.handler.timeout.IdleStateEvent;
 
+import java.net.InetSocketAddress;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 
@@ -15,15 +17,25 @@ public class UdpChannel  extends ChannelInboundHandlerAdapter {
 
 
     private DatagramChannel datagramChannel;
-    private volatile Consumer<ByteBuf> bufferHandler;
+
+    private volatile Consumer<DatagramPacket> fallbackPacketHandler;
+
+    private Map<InetSocketAddress, Consumer<DatagramPacket>> handlers=new ConcurrentHashMap<>();
+
 
     public UdpChannel(DatagramChannel datagramChannel) {
         this.datagramChannel = datagramChannel;
         this.datagramChannel.pipeline().addLast(this);
     }
 
-    public UdpChannel bufferHandler(Consumer<ByteBuf> bufferHandler) {
-        this.bufferHandler = bufferHandler;
+    public UdpChannel fallbackHandler(Consumer<DatagramPacket> bufferHandler) {
+        this.fallbackPacketHandler = bufferHandler;
+        return this;
+    }
+
+    public UdpChannel packetHandler(NetAddr netAddr,Consumer<DatagramPacket> bufferHandler){
+        handlers.put(netAddr.getAsInetAddr(),bufferHandler);
+
         return this;
     }
 
@@ -33,8 +45,12 @@ public class UdpChannel  extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        if (bufferHandler!=null&&msg instanceof DatagramPacket){
-            bufferHandler.accept(((DatagramPacket) msg).content());
+        if (msg instanceof DatagramPacket packet){
+            InetSocketAddress address = packet.sender();
+            Consumer<DatagramPacket> handler = handlers.getOrDefault(address,this.fallbackPacketHandler);
+            if (handler!=null)
+                handler.accept(packet);
+
             return;
         }
         super.channelRead(ctx, msg);

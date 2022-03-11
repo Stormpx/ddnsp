@@ -3,7 +3,6 @@ package io.crowds.proxy.services.transparent;
 import io.crowds.Platform;
 import io.crowds.proxy.Axis;
 import io.crowds.proxy.DatagramOption;
-import io.crowds.proxy.ProxyContext;
 import io.crowds.proxy.common.BaseChannelInitializer;
 import io.crowds.proxy.dns.FakeContext;
 import io.crowds.proxy.dns.FakeDns;
@@ -29,10 +28,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 public class TransparentServer {
@@ -147,7 +143,7 @@ public class TransparentServer {
             super(false);
         }
 
-        private io.netty.util.concurrent.Future<DatagramChannel> createNonLocalChannel(ChannelHandlerContext ctx, InetSocketAddress address) throws ExecutionException, InterruptedException {
+        private io.netty.util.concurrent.Future<DatagramChannel> createForeignChannel(ChannelHandlerContext ctx, InetSocketAddress address)  {
             io.netty.util.concurrent.Promise<DatagramChannel> promise = ctx.executor().newPromise();
             axis.getChannelCreator().createDatagramChannel("transparent",address,new DatagramOption().setBindAddr(address).setIpTransport(true),
                     new BaseChannelInitializer().connIdle(300))
@@ -161,6 +157,21 @@ public class TransparentServer {
                     });
 
             return promise;
+        }
+
+        private void handleFallbackPacket(ChannelHandlerContext ctx,DatagramPacket packet)  {
+            InetSocketAddress sender = packet.sender();
+            createForeignChannel(ctx, sender)
+                    .addListener((FutureListener<DatagramChannel>) future -> {
+                        if (!future.isSuccess()){
+                            logger.error("bind addr:{} failed cause:{}",sender,future.cause().getMessage());
+                            ReferenceCountUtil.safeRelease(packet);
+                            return;
+                        }
+                        DatagramChannel datagramChannel= future.get();
+                        datagramChannel.writeAndFlush(packet);
+                    });
+
         }
 
         @Override
@@ -178,7 +189,7 @@ public class TransparentServer {
                 ReferenceCountUtil.safeRelease(msg);
                 return;
             }
-            createNonLocalChannel(ctx,recipient)
+            createForeignChannel(ctx,recipient)
                     .addListener((FutureListener<DatagramChannel>) future -> {
                         if (!future.isSuccess()){
                             logger.error("bind addr:{} failed cause:{}",recipient,future.cause().getMessage());
@@ -186,7 +197,10 @@ public class TransparentServer {
                             return;
                         }
                         DatagramChannel datagramChannel= future.get();
-                        axis.handleUdp0(datagramChannel,msg);
+                        axis.handleUdp0(datagramChannel,msg,packet->{
+
+                            this.handleFallbackPacket(ctx, new DatagramPacket(packet.content(),sender,packet.sender()));
+                        });
                     });
 
         }

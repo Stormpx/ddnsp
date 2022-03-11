@@ -3,30 +3,27 @@ package io.crowds.proxy.services.socks;
 import io.crowds.Platform;
 import io.crowds.proxy.Axis;
 import io.crowds.proxy.DatagramOption;
+import io.crowds.proxy.common.Socks;
 import io.crowds.util.Inet;
-import io.crowds.util.Strs;
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.buffer.Unpooled;
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.*;
 import io.netty.channel.epoll.Epoll;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.DatagramPacket;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.unix.UnixChannelOption;
-import io.netty.handler.codec.socks.SocksInitRequestDecoder;
+import io.netty.handler.codec.MessageToMessageEncoder;
 import io.netty.handler.codec.socksx.SocksMessage;
 import io.netty.handler.codec.socksx.SocksPortUnificationServerHandler;
 import io.netty.handler.codec.socksx.SocksVersion;
 import io.netty.handler.codec.socksx.v4.DefaultSocks4CommandResponse;
 import io.netty.handler.codec.socksx.v4.Socks4CommandRequest;
 import io.netty.handler.codec.socksx.v4.Socks4CommandStatus;
-import io.netty.handler.codec.socksx.v4.Socks4Message;
 import io.netty.handler.codec.socksx.v5.*;
-import io.netty.handler.proxy.Socks5ProxyHandler;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.Future;
 import io.vertx.core.Promise;
-import io.vertx.core.parsetools.impl.JsonParserImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,8 +49,7 @@ public class SocksServer {
         ServerBootstrap serverBootstrap = new ServerBootstrap();
         ServerBootstrap bootstrap = serverBootstrap.group(axis.getEventLoopGroup(), axis.getEventLoopGroup()).channel(Platform.getServerSocketChannelClass());
         if (Epoll.isAvailable()){
-            bootstrap.option(UnixChannelOption.SO_REUSEPORT,true)
-                    .childOption(UnixChannelOption.SO_REUSEPORT,true);
+            bootstrap.option(UnixChannelOption.SO_REUSEPORT,true);
         }
         bootstrap
                 .option(ChannelOption.SO_REUSEADDR,true)
@@ -181,30 +177,8 @@ public class SocksServer {
                             ctx.channel().close();
                         }
                     });
-                }else if (msg instanceof Socks5CommandRequest){
-                    if (!pass){
-                        ctx.channel().close();
-                        return;
-                    }
-                    Socks5CommandRequest request= (Socks5CommandRequest) msg;
-                    if (request.type()==Socks5CommandType.UDP_ASSOCIATE){
-                        //udp
-                        handleUdpAssociate(ctx,request);
-                    }else{
-                        //tcp
-                        InetSocketAddress dest = getAddress(request);
-                        axis.handleTcp(ctx.channel(),ctx.channel().remoteAddress(), dest)
-                                .addListener(f->{
-                                    if (f.isSuccess()){
-                                        writeMessage(ctx,
-                                                new DefaultSocks5CommandResponse(Socks5CommandStatus.SUCCESS,
-                                                        Socks5AddressType.IPv4, socksOption.getHost(),socksOption.getPort()),
-                                                v->releaseChannel(ctx));
-                                    }
-                                });
-
-
-                    }
+                }else if (msg instanceof Socks5CommandRequest request){
+                    handleCommandRequest(ctx,request);
 
                 }
             }else{
@@ -213,20 +187,66 @@ public class SocksServer {
             }
         }
 
-        private void handleUdpAssociate(ChannelHandlerContext ctx,Socks5CommandRequest request){
-            InetSocketAddress dest = getAddress(request);
-            Future<DatagramChannel> future=axis.getChannelCreator().createDatagramChannel(new DatagramOption(),
+        private InetSocketAddress decodeUdpDstAddr(ByteBuf byteBuf){
+            byteBuf.skipBytes(2);
+            byte frag = byteBuf.readByte();
+            if (frag!=0)
+                return null;
+
+            return Socks.readAddr(byteBuf);
+        }
+
+        private void handleCommandRequest(ChannelHandlerContext ctx,Socks5CommandRequest request){
+            if (!pass){
+                ctx.channel().close();
+                return;
+            }
+            if (request.type()==Socks5CommandType.UDP_ASSOCIATE){
+                //udp
+                handleUdpAssociate(ctx);
+            }else{
+                //tcp
+                InetSocketAddress dest = getAddress(request);
+                axis.handleTcp(ctx.channel(),ctx.channel().remoteAddress(), dest)
+                        .addListener(f->{
+                            if (f.isSuccess()){
+                                writeMessage(ctx,
+                                        new DefaultSocks5CommandResponse(Socks5CommandStatus.SUCCESS,
+                                                Socks5AddressType.IPv4, socksOption.getHost(),socksOption.getPort()),
+                                        v->releaseChannel(ctx));
+                            }
+                        });
+
+
+            }
+        }
+
+
+
+        private void handleUdpAssociate(ChannelHandlerContext context){
+//            InetSocketAddress dest = getAddress(request);
+            Future<DatagramChannel> future=axis.getChannelCreator().createDatagramChannel(
+                    new DatagramOption().setBindAddr(new InetSocketAddress(socksOption.getHost(), 0)),
                     new ChannelInitializer<>() {
                         @Override
                         protected void initChannel(Channel ch) throws Exception {
-                            ch.pipeline().addLast(new SimpleChannelInboundHandler<DatagramPacket>(false) {
+                            ch.pipeline()
+                                    .addLast(new SocksUdpEncoder())
+                                    .addLast(new SimpleChannelInboundHandler<DatagramPacket>(false) {
                                 @Override
                                 protected void channelRead0(ChannelHandlerContext ctx, DatagramPacket msg) throws Exception {
-                                    if (!msg.sender().equals(ctx.channel().remoteAddress())) {
+                                    InetSocketAddress sender = msg.sender();
+                                    ByteBuf content = msg.content();
+                                    InetSocketAddress dest = decodeUdpDstAddr(content);
+                                    if (dest==null){
                                         ReferenceCountUtil.safeRelease(msg);
                                         return;
                                     }
-                                    axis.handleUdp0((DatagramChannel) ctx.channel(), new DatagramPacket(msg.content(), dest, msg.sender()));
+
+                                    axis.handleUdp0((DatagramChannel) ctx.channel(), new DatagramPacket(content, dest, sender),
+                                            fallbackPacket -> {
+                                                ctx.channel().writeAndFlush(new DatagramPacket(fallbackPacket.content(),msg.sender(), sender));
+                                            });
                                 }
                             });
                 }
@@ -234,20 +254,56 @@ public class SocksServer {
             future.addListener(f -> {
                 if (!f.isSuccess()){
                     logger.error("{}",f.cause().getMessage());
-                    ctx.close();
+                    context.close();
                     return;
                 }
-                releaseChannel(ctx);
                 DatagramChannel datagramChannel= (DatagramChannel) f.get();
-                ctx.channel().closeFuture().addListener(it -> datagramChannel.close());
+                context.channel().closeFuture().addListener(it -> datagramChannel.close());
                 InetSocketAddress bindAddr = datagramChannel.localAddress();
-                writeMessage(ctx,new DefaultSocks5CommandResponse(Socks5CommandStatus.SUCCESS,Socks5AddressType.IPv4, bindAddr.getHostName(),bindAddr.getPort()),
-                        v->{});
+                writeMessage(context,new DefaultSocks5CommandResponse(Socks5CommandStatus.SUCCESS,Socks5AddressType.IPv4, socksOption.getHost(),bindAddr.getPort()),
+                        v->{
+                            releaseChannel(context);
+                        });
             });
 
 
 
 
+        }
+
+
+        public static class SocksUdpEncoder extends MessageToMessageEncoder<DatagramPacket> {
+
+            @Override
+            protected void encode(ChannelHandlerContext ctx, DatagramPacket msg, List<Object> out) throws Exception {
+                InetSocketAddress address = msg.sender();
+                if (address ==null){
+//                    out.add(msg.retain());
+                    return;
+                }
+                byte type=0;
+                byte[] addressBuf;
+                if (address.isUnresolved()){
+                    type=3;
+                    addressBuf=address.getHostString().getBytes(StandardCharsets.UTF_8);
+                }else{
+                    InetAddress inetAddress = address.getAddress();
+                    addressBuf=inetAddress.getAddress();
+                    type= (byte) ((inetAddress instanceof Inet4Address)?1:4);
+                }
+                ByteBuf content=ctx.alloc().buffer(4+ addressBuf.length+2+msg.content().readableBytes());
+                content.writeByte(0)
+                        .writeByte(0)
+                        .writeByte(0)
+                        .writeByte(type);
+                content.writeBytes(addressBuf);
+                content.writeShort(address.getPort());
+                content.writeBytes(msg.content());
+
+                out.add(new DatagramPacket(content,msg.recipient()));
+
+
+            }
         }
 
 

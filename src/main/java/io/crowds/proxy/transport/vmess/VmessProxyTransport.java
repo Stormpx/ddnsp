@@ -16,12 +16,10 @@ public class VmessProxyTransport extends AbstractProxyTransport  {
 
     private VmessOption vmessOption;
 
-    private Map<Tuple4,VmessEndPoint> udpEpMap;
 
     public VmessProxyTransport(  ChannelCreator channelCreator,VmessOption  vmessOption) {
         super( channelCreator);
         this.vmessOption=vmessOption;
-        this.udpEpMap=new ConcurrentHashMap<>();
     }
 
     @Override
@@ -34,28 +32,10 @@ public class VmessProxyTransport extends AbstractProxyTransport  {
         EventLoop eventLoop = proxyContext.getEventLoop();
         NetLocation netLocation = proxyContext.getNetLocation();
 
-        if (netLocation.getTp()==TP.TCP) {
-            VmessEndPoint endPoint = new VmessEndPoint(eventLoop, netLocation, vmessOption, channelCreator);
-            return endPoint.init();
-        }else{
-            //udp connect reuse
-            Tuple4 tuple4 = new Tuple4(netLocation.getSrc(), netLocation.getDest());
-            VmessEndPoint vmessEndPoint = udpEpMap.computeIfAbsent(tuple4, Lambdas.rethrowFunction(k -> {
-                VmessEndPoint endPoint = new VmessEndPoint(eventLoop, netLocation, vmessOption, channelCreator);
-                endPoint.init()
-                        .addListener(future -> {
-                            if (!future.isSuccess())
-                                udpEpMap.remove(tuple4);
-                        });
-                endPoint.closeFuture().addListener(future -> udpEpMap.remove(tuple4));
-                return endPoint;
-            }));
-            vmessEndPoint.tryActive();
-            return vmessEndPoint.getPromise();
-        }
+        VmessEndPoint endPoint = new VmessEndPoint(eventLoop, netLocation, vmessOption, channelCreator);
+        return endPoint.init();
     }
 
 
-    record Tuple4(NetAddr src,NetAddr dest){}
 
 }

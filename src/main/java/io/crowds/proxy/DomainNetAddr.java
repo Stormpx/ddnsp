@@ -25,6 +25,10 @@ public class DomainNetAddr  extends NetAddr{
 
     }
 
+    public NetAddr resolve(){
+        return new NetAddr(new InetSocketAddress(host,port));
+    }
+
     public SocketAddress getResolveAddress(){
         return new InetSocketAddress(host,port);
     }

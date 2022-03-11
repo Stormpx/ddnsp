@@ -5,6 +5,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.channel.socket.DatagramPacket;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.Future;
 
@@ -46,11 +47,6 @@ public class TcpEndPoint extends EndPoint {
         });
     }
 
-    @Override
-    public void bufferHandler(Consumer<ByteBuf> bufferHandler) {
-        super.bufferHandler(bufferHandler);
-//        setAutoRead(true);
-    }
 
     public TcpEndPoint exceptionHandler(Consumer<Throwable> throwableHandler) {
         this.throwableHandler = throwableHandler;
@@ -59,12 +55,15 @@ public class TcpEndPoint extends EndPoint {
 
 
     @Override
-    public void write(ByteBuf buf) {
+    public void write(Object msg) {
         if (!channel.isActive()){
-            ReferenceCountUtil.safeRelease(buf);
+            ReferenceCountUtil.safeRelease(msg);
             return;
         }
-        channel.writeAndFlush(buf);
+        if (msg instanceof DatagramPacket packet) {
+            msg=packet.content();
+        }
+        channel.writeAndFlush(msg);
     }
 
     @Override

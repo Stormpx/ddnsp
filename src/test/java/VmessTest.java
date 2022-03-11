@@ -74,7 +74,7 @@ public class VmessTest {
         NetLocation location = new NetLocation(null, new DomainNetAddr("www.baidu.com", 80), TP.TCP);
         EndPoint endPoint = createEndPoint(location);
         endPoint.bufferHandler(buf->{
-            System.out.println(buf.toString(StandardCharsets.UTF_8));
+            System.out.println(((ByteBuf)buf).toString(StandardCharsets.UTF_8));
         });
 
         EmbeddedChannel channel = new EmbeddedChannel(new HttpRequestEncoder());
@@ -104,7 +104,8 @@ public class VmessTest {
         NetLocation location = new NetLocation(null, new DomainNetAddr("www.baidu.com", 80), TP.TCP);
         EndPoint endPoint = createWebsocketEndPoint(location);
         endPoint.bufferHandler(buf->{
-            System.out.println(buf.toString(StandardCharsets.UTF_8));
+            System.out.println(((ByteBuf)buf).toString(StandardCharsets.UTF_8));
+
         });
 
         EmbeddedChannel channel = new EmbeddedChannel(new HttpRequestEncoder());
@@ -136,7 +137,7 @@ public class VmessTest {
         EndPoint endPoint = createEndPoint(location);
         endPoint.bufferHandler(buf->{
             try {
-                channel.writeInbound(new DatagramPacket(buf,null,address));
+                channel.writeInbound(buf);
                 DnsResponse response=channel.readInbound();
 
                 System.out.println(response);
@@ -180,7 +181,7 @@ public class VmessTest {
         EndPoint endPoint = createWebsocketEndPoint(location);
         endPoint.bufferHandler(buf->{
             try {
-                channel.writeInbound(new DatagramPacket(buf,null,address));
+                channel.writeInbound(buf);
                 DnsResponse response=channel.readInbound();
 
                 System.out.println(response);

@@ -196,9 +196,6 @@ public class FakeDns implements Handler<DnsContext> {
         return context;
     }
 
-    record Domain1(String name,DnsRecordType type){
-
-    }
 
     class Domain{
         private String name;

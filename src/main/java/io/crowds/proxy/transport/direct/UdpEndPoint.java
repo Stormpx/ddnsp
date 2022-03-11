@@ -1,5 +1,6 @@
 package io.crowds.proxy.transport.direct;
 
+import io.crowds.proxy.NetAddr;
 import io.crowds.proxy.transport.EndPoint;
 import io.crowds.proxy.transport.UdpChannel;
 import io.netty.buffer.ByteBuf;
@@ -16,29 +17,31 @@ import java.net.InetSocketAddress;
 public class UdpEndPoint extends EndPoint {
 
     private Channel channel;
-    private InetSocketAddress recipient;
+    private NetAddr dest;
 
-
-    public UdpEndPoint(Channel channel, InetSocketAddress recipient) {
+    public UdpEndPoint(Channel channel, NetAddr dest) {
         this.channel = channel;
-        this.recipient = recipient;
+        this.dest = dest;
     }
 
-    public UdpEndPoint(UdpChannel channel, InetSocketAddress recipient) {
+    public UdpEndPoint(UdpChannel channel, NetAddr dest) {
         this.channel = channel.getDatagramChannel();
-        this.recipient = recipient;
-        channel.bufferHandler(this::fireBuf);
+        this.dest=dest;
+        channel.packetHandler(dest, this::fireBuf);
     }
-
-
 
     @Override
-    public void write(ByteBuf buf) {
+    public void write(Object msg) {
         if (!channel.isActive()){
-            ReferenceCountUtil.safeRelease(buf);
+            ReferenceCountUtil.safeRelease(msg);
             return;
         }
-        channel.writeAndFlush(new DatagramPacket(buf,recipient,null));
+        if (msg instanceof DatagramPacket packet){
+            channel.writeAndFlush(new DatagramPacket(packet.content(), dest.getAsInetAddr(),packet.sender()));
+        }else if (msg instanceof ByteBuf){
+            channel.writeAndFlush(new DatagramPacket((ByteBuf) msg,dest.getAsInetAddr(),null));
+        }
+
     }
 
     @Override

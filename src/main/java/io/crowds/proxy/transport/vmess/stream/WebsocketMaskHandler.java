@@ -33,6 +33,12 @@ public class WebsocketMaskHandler extends ChannelDuplexHandler {
         return handshakeFuture;
     }
 
+    public ChannelFuture handshake(Channel channel){
+        this.handshakeFuture=channel.newPromise();
+        handshaker.handshake(channel);
+        return this.handshakeFuture;
+    }
+
 
 //    @Override
 //    public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
@@ -52,6 +58,14 @@ public class WebsocketMaskHandler extends ChannelDuplexHandler {
 
         ctx.write(new BinaryWebSocketFrame((ByteBuf) msg),promise);
 
+    }
+
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        if (!handshakeFuture.isDone()){
+            handshakeFuture.tryFailure(new WebSocketHandshakeException("connection closed."));
+        }
+        super.channelInactive(ctx);
     }
 
     @Override

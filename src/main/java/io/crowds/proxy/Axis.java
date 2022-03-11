@@ -26,6 +26,7 @@ import java.net.*;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 public class Axis {
@@ -189,41 +190,7 @@ public class Axis {
         return promise;
     }
 
-    @Deprecated
-    public void handleUdp(DatagramChannel datagramChannel,DatagramPacket packet){
-        try {
-            InetSocketAddress recipient = packet.recipient();
-            InetSocketAddress sender = packet.sender();
-            NetLocation netLocation = new NetLocation(getNetAddr(sender), getNetAddr(recipient), TP.UDP);
-
-            ProxyContext proxyContext = createContext(datagramChannel.eventLoop(),netLocation);
-
-            var src=new UdpEndPoint(datagramChannel,sender);
-            Transport transport=getTransport(proxyContext);
-            logger.info("udp {} to {} via [{}]",proxyContext.getNetLocation().getSrc(),proxyContext.getNetLocation().getDest(),transport.getChain());
-            ProxyTransport proxy = transport.proxy();
-            proxy.createEndPoint(proxyContext)
-                    .addListener(future -> {
-                        if (!future.isSuccess()){
-                            if (logger.isDebugEnabled())
-                                logger.error("",future.cause());
-                            ReferenceCountUtil.safeRelease(packet);
-                            return;
-                        }
-                        EndPoint dest= (EndPoint) future.get();
-
-                        proxyContext.bridging(src,dest);
-
-                        proxyContext.setAutoRead();
-                        dest.write(packet.content());
-                    });
-        } catch (Exception e) {
-            ReferenceCountUtil.safeRelease(packet);
-            logger.error("",e);
-        }
-    }
-
-    public void handleUdp0(DatagramChannel datagramChannel,DatagramPacket packet){
+    public void handleUdp0(DatagramChannel datagramChannel, DatagramPacket packet, Consumer<DatagramPacket> fallbackPacketHandler){
         try {
             InetSocketAddress recipient = packet.recipient();
             InetSocketAddress sender = packet.sender();
@@ -234,10 +201,11 @@ public class Axis {
 
             NetLocation finalNetLocation = netLocation;
             mappings.getOrCreate(netLocation, Lambdas.rethrowSupplier(()->{
-                ProxyContext proxyContext = new ProxyContext(datagramChannel.eventLoop(), finalNetLocation);
-                proxyContext.withFakeContext(fakeContext);
+                ProxyContext proxyContext = new ProxyContext(datagramChannel.eventLoop(), finalNetLocation)
+                        .fallbackPacketHandler(fallbackPacketHandler)
+                        .withFakeContext(fakeContext);
                 Promise<ProxyContext> promise = proxyContext.getEventLoop().newPromise();
-                var src=new UdpEndPoint(datagramChannel,sender);
+                var src=new UdpEndPoint(datagramChannel,finalNetLocation.getSrc());
                 Transport transport=getTransport(proxyContext);
                 logger.info("udp {} to {} via [{}]",proxyContext.getNetLocation().getSrc(),proxyContext.getNetLocation().getDest(),transport.getChain());
                 ProxyTransport proxy = transport.proxy();

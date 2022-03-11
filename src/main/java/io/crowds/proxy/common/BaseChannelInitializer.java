@@ -1,7 +1,10 @@
 package io.crowds.proxy.common;
 
+import io.crowds.proxy.transport.common.TlsOption;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
+import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
@@ -22,7 +25,15 @@ public class BaseChannelInitializer extends ChannelInitializer<Channel> {
     private ChannelInitializer<Channel> subInitializer;
     private HandlerConfigurer configurer;
 
-    public BaseChannelInitializer tls(boolean tls,boolean allowInsecure,String serverName,int port) throws SSLException {
+    private LogLevel logLevel;
+
+    public BaseChannelInitializer() {
+    }
+
+
+
+
+    public BaseChannelInitializer tls(boolean tls, boolean allowInsecure, String serverName, int port) throws SSLException {
         if (tls){
             var builder= SslContextBuilder.forClient().sslProvider(SslProvider.OPENSSL);
             if (allowInsecure)
@@ -56,6 +67,9 @@ public class BaseChannelInitializer extends ChannelInitializer<Channel> {
         if (sslContext!=null){
             ch.pipeline().addLast("tls",sslContext.newHandler(ch.alloc(),this.tlsServerName,this.port));
         }
+        if (logLevel!=null) {
+            ch.pipeline().addLast(new LoggingHandler(logLevel));
+        }
         if (this.subInitializer!=null){
             ch.pipeline().addLast(this.subInitializer);
         }
@@ -65,5 +79,10 @@ public class BaseChannelInitializer extends ChannelInitializer<Channel> {
         if (connIdle!=null&&connIdle>0){
             ch.pipeline().addLast(new IdleStateHandler(0,0, connIdle));
         }
+    }
+
+    public BaseChannelInitializer logLevel(LogLevel logLevel) {
+        this.logLevel = logLevel;
+        return this;
     }
 }

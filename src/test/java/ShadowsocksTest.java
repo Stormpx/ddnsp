@@ -34,7 +34,9 @@ public class ShadowsocksTest {
 
         assert future.isSuccess();
 
-        return future.getNow();
+        EndPoint endPoint = future.getNow();
+        endPoint.setAutoRead(true);
+        return endPoint;
     }
 
     @Test
@@ -44,7 +46,7 @@ public class ShadowsocksTest {
         EndPoint endPoint = createEndPoint(location);
 
         endPoint.bufferHandler(buf->{
-            System.out.println(buf.toString(StandardCharsets.UTF_8));
+            System.out.println(((ByteBuf)buf).toString(StandardCharsets.UTF_8));
         });
 
         EmbeddedChannel channel = new EmbeddedChannel(new HttpRequestEncoder());
@@ -79,7 +81,7 @@ public class ShadowsocksTest {
         EndPoint endPoint = createEndPoint(location);
         endPoint.bufferHandler(buf->{
             try {
-                channel.writeInbound(new DatagramPacket(buf,null,address));
+                channel.writeInbound(buf);
                 DnsResponse response=channel.readInbound();
 
                 System.out.println(response);
@@ -88,8 +90,6 @@ public class ShadowsocksTest {
             }
 
         });
-
-
 
         DatagramDnsQuery query = new DatagramDnsQuery(null, address,0, DnsOpCode.QUERY);
         query.setRecursionDesired(true);

@@ -9,6 +9,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
+import io.netty.channel.socket.DatagramPacket;
 import io.netty.handler.codec.http.websocketx.WebSocketClientProtocolHandler;
 import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.handler.timeout.IdleStateHandler;
@@ -76,8 +77,11 @@ public class VmessEndPoint extends EndPoint {
 
 
     @Override
-    public void write(ByteBuf buf) {
-        channel.writeAndFlush(buf)
+    public void write(Object msg) {
+        if (msg instanceof DatagramPacket packet){
+            msg=packet.content();
+        }
+        channel.writeAndFlush(msg)
             .addListener(future -> {
                 if (!future.isSuccess()){
                     handleThrowable(future.cause());
@@ -159,8 +163,12 @@ public class VmessEndPoint extends EndPoint {
 
         @Override
         public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-            if (msg instanceof ByteBuf)
-                fireBuf((ByteBuf) msg);
+            if (msg instanceof ByteBuf) {
+                if (netLocation.getTp()==TP.UDP){
+                    msg=new DatagramPacket((ByteBuf) msg,null,netLocation.getDest().getAsInetAddr());
+                }
+                fireBuf(msg);
+            }
             if (msg instanceof VmessDynamicPortCmd)
                 handleDynamicCmd((VmessDynamicPortCmd)msg);
         }
