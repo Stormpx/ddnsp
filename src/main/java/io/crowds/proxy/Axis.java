@@ -86,7 +86,7 @@ public class Axis {
             if (fakeOption.getIpv6Pool()!=null&&!fakeOption.getIpv6Pool().isBlank()){
                 ipv6Cidr=new IPCIDR(fakeOption.getIpv6Pool());
                 if (!(ipv6Cidr.getAddress() instanceof Inet6Address)){
-                    throw new IllegalArgumentException("expect ipv4 cidr");
+                    throw new IllegalArgumentException("expect ipv6 cidr");
                 }
             }
             this.fakeDns=new FakeDns(eventLoopGroup.next(), router,ipv4Cidr,ipv6Cidr,fakeOption.getDestStrategy());
@@ -234,7 +234,7 @@ public class Axis {
                 }
 
                 ProxyContext proxyContext= (ProxyContext) f.get();
-                proxyContext.getDest().write(packet.content());
+                proxyContext.getDest().write(packet);
 
             })
             ;

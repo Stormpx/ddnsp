@@ -215,7 +215,7 @@ public class AEADCodec {
             byte[] subKey = genSubKey(this.cipher, shadowsocksOption.getMasterKey(), salt);
             ByteBuf plain = ByteBufCipher.doFinal(getDecryptCipher(this.cipher, subKey, ALWAYS_ZERO),buf,ctx.alloc());
 
-            InetSocketAddress sender = Socks.readAddr(plain);
+            InetSocketAddress sender = Socks.decodeAddr(plain);
             ByteBuf content = plain.copy();
             plain.release();
             out.add(new DatagramPacket(content,null,sender));

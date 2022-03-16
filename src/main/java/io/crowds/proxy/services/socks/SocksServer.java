@@ -131,6 +131,9 @@ public class SocksServer {
 
         @Override
         protected void channelRead0(ChannelHandlerContext ctx, SocksMessage msg) throws Exception {
+            if (!msg.decoderResult().isSuccess()){
+                ctx.close();
+            }
             if (msg.version()== SocksVersion.SOCKS4a){
                 pass=true;
                 if (socksOption.isPassAuth()){
@@ -193,7 +196,7 @@ public class SocksServer {
             if (frag!=0)
                 return null;
 
-            return Socks.readAddr(byteBuf);
+            return Socks.decodeAddr(byteBuf);
         }
 
         private void handleCommandRequest(ChannelHandlerContext ctx,Socks5CommandRequest request){

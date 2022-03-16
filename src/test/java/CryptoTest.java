@@ -1,8 +1,12 @@
+import io.crowds.proxy.transport.proxy.trojan.TrojanOption;
 import io.crowds.util.Crypto;
 import io.crowds.util.Hash;
 import io.crowds.util.Rands;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
+import org.bouncycastle.crypto.digests.SHA224Digest;
+import org.bouncycastle.crypto.digests.SHA256Digest;
+import org.bouncycastle.util.encoders.Hex;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -15,6 +19,7 @@ import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
+import java.util.HexFormat;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -51,6 +56,15 @@ public class CryptoTest {
 
 
 
+    }
+    @Test
+    public void test(){
+        Assert.assertEquals(
+                "23097d223405d8228642a477bda255b32aadbce4bda0b3f7e36c9da7",
+                Hash.sha224Hex("abc".getBytes(StandardCharsets.UTF_8)));
+        Assert.assertEquals(
+                "75388b16512776cc5dba5da1fd890150b0c6455cb4f58b1952522525",
+                Hash.sha224Hex("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq".getBytes(StandardCharsets.UTF_8)));
     }
 
     @Test

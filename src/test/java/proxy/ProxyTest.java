@@ -99,7 +99,7 @@ public abstract class ProxyTest {
         System.out.println(query);
         channel.writeOutbound(query);
         DatagramPacket packet=channel.readOutbound();
-        endPoint.write(packet.content());
+        endPoint.write(packet);
 
         System.out.println();
 
@@ -109,7 +109,7 @@ public abstract class ProxyTest {
         System.out.println(query);
         channel.writeOutbound(query);
         packet=channel.readOutbound();
-        endPoint.write(packet.content());
+        endPoint.write(packet);
 
         if (!countDownLatch.await(5,TimeUnit.SECONDS)){
             throw new RuntimeException("timeout..");

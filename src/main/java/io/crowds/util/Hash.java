@@ -2,6 +2,7 @@ package io.crowds.util;
 
 import org.bouncycastle.crypto.digests.KeccakDigest;
 import org.bouncycastle.crypto.digests.SHA1Digest;
+import org.bouncycastle.crypto.digests.SHA224Digest;
 import org.bouncycastle.crypto.digests.SHAKEDigest;
 import org.bouncycastle.crypto.generators.HKDFBytesGenerator;
 import org.bouncycastle.crypto.params.HKDFParameters;
@@ -9,16 +10,19 @@ import org.bouncycastle.crypto.params.KDFParameters;
 import org.bouncycastle.jcajce.provider.asymmetric.rsa.PSSSignatureSpi;
 import org.bouncycastle.jcajce.provider.digest.Keccak;
 import org.bouncycastle.jcajce.provider.digest.SHA3;
+import org.bouncycastle.util.encoders.HexEncoder;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.security.DigestException;
 import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.util.zip.CRC32;
 
 public class Hash {
@@ -152,4 +156,20 @@ public class Hash {
         crc32.update(buffer);
         return crc32.getValue();
     }
+
+    public static String sha224Hex(byte[] bytes){
+        SHA224Digest digest = new SHA224Digest();
+        digest.update(bytes,0, bytes.length);
+        byte[] b=new byte[digest.getDigestSize()];
+        digest.doFinal(b,0);
+        return HexFormat.of().formatHex(b);
+    }
+    public static byte[] sha224(byte[] bytes){
+        SHA224Digest digest = new SHA224Digest();
+        digest.update(bytes,0, bytes.length);
+        byte[] b=new byte[digest.getDigestSize()];
+        digest.doFinal(b,0);
+        return b;
+    }
+
 }
