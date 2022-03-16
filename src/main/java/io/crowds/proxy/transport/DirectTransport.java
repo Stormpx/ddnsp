@@ -57,7 +57,7 @@ public class DirectTransport implements Transport {
         NetAddr addr = destination.addr();
         TP tp = destination.tp();
         BaseChannelInitializer initializer = new BaseChannelInitializer();
-        initializer.logLevel(LogLevel.INFO);
+//        initializer.logLevel(LogLevel.INFO);
         if (protocolOption.getConnIdle()>0){
             initializer.connIdle(protocolOption.getConnIdle());
         }else if (tp==TP.UDP){
