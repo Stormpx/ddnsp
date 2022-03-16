@@ -11,6 +11,16 @@ public class NetAddr {
         this.address = address;
     }
 
+
+    public static NetAddr of(InetSocketAddress address){
+        if (address.isUnresolved()){
+            return new DomainNetAddr(address);
+        }else{
+            return new NetAddr(address);
+        }
+    }
+
+
     public SocketAddress getAddress() {
         return address;
     }

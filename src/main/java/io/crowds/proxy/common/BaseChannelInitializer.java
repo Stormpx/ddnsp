@@ -1,6 +1,5 @@
 package io.crowds.proxy.common;
 
-import io.crowds.proxy.transport.common.TlsOption;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
 import io.netty.handler.logging.LogLevel;

@@ -3,19 +3,15 @@ import io.crowds.proxy.ProxyServer;
 import io.crowds.proxy.services.http.HttpOption;
 import io.crowds.proxy.services.socks.SocksOption;
 import io.crowds.proxy.transport.ProtocolOption;
-import io.crowds.proxy.transport.shadowsocks.Cipher;
-import io.crowds.proxy.transport.shadowsocks.ShadowsocksOption;
+import io.crowds.proxy.transport.proxy.shadowsocks.Cipher;
+import io.crowds.proxy.transport.proxy.shadowsocks.ShadowsocksOption;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 
 import java.net.*;
-import java.time.*;
-import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
-import java.util.HexFormat;
 import java.util.List;
-import java.util.Objects;
 
 public class ProxySver {
 
@@ -33,7 +29,10 @@ public class ProxySver {
                                 new ProtocolOption().setName("direct_3").setProtocol("direct"),
                                 new ProtocolOption().setName("direct_4").setProtocol("direct"),
                                 new ShadowsocksOption()
-                                        .setName("ss-105")
+                                        .setAddress(new InetSocketAddress("121.5.62.230",12345))
+                                        .setPassword("testnattype")
+                                        .setCipher(Cipher.AES_128_GCM)
+                                        .setName("ss_1")
                                         .setProtocol("ss")
 
                         ))

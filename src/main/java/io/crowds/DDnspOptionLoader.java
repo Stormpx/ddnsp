@@ -10,11 +10,14 @@ import io.crowds.proxy.services.http.HttpOption;
 import io.crowds.proxy.services.socks.SocksOption;
 import io.crowds.proxy.services.transparent.TransparentOption;
 import io.crowds.proxy.transport.ProtocolOption;
-import io.crowds.proxy.transport.shadowsocks.Cipher;
-import io.crowds.proxy.transport.shadowsocks.ShadowsocksOption;
-import io.crowds.proxy.transport.vmess.Security;
-import io.crowds.proxy.transport.vmess.User;
-import io.crowds.proxy.transport.vmess.VmessOption;
+import io.crowds.proxy.transport.TlsOption;
+import io.crowds.proxy.transport.TransportOption;
+import io.crowds.proxy.transport.proxy.shadowsocks.Cipher;
+import io.crowds.proxy.transport.proxy.shadowsocks.ShadowsocksOption;
+import io.crowds.proxy.transport.proxy.vmess.Security;
+import io.crowds.proxy.transport.proxy.vmess.User;
+import io.crowds.proxy.transport.proxy.vmess.VmessOption;
+import io.crowds.proxy.transport.ws.WsOption;
 import io.crowds.util.Strs;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.dns.DefaultDnsPtrRecord;
@@ -199,6 +202,9 @@ public class DDnspOptionLoader {
                     var protocol = protocolJson.getString("protocol");
                     var name = protocolJson.getString("name");
                     var connIdle = protocolJson.getInteger("connIdle");
+                    String network = protocolJson.getString("network");
+                    JsonObject tls = protocolJson.getJsonObject("tls");
+                    JsonObject transportJson = protocolJson.getJsonObject("transport");
                     ProtocolOption protocolOption = null;
                     if ("vmess".equalsIgnoreCase(protocol)){
                         protocolOption=parseVmess(protocolJson);
@@ -207,9 +213,20 @@ public class DDnspOptionLoader {
                     }
                     if (protocolOption!=null){
                         protocolOption.setProtocol(protocol)
-                                .setName(name);
+                                .setName(name)
+                                .setNetwork(network)
+                        ;
                         if (connIdle!=null){
                             protocolOption.setConnIdle(connIdle<0?0:connIdle);
+                        }
+                        if (tls!=null){
+                            protocolOption.setTls(parseTls(tls));
+                        }
+                        if (transportJson!=null){
+                            TransportOption transportOption = new TransportOption();
+                            transportOption.setWs(parseWs(transportJson.getJsonObject("ws")));
+
+                            protocolOption.setTransport(transportOption);
                         }
                         protocolOptions.add(protocolOption);
                     }
@@ -220,6 +237,7 @@ public class DDnspOptionLoader {
             }
             proxy.setProxies(protocolOptions);
         }
+
         JsonArray selectors = json.getJsonArray("selectors");
         proxy.setSelectors(selectors);
 
@@ -246,6 +264,38 @@ public class DDnspOptionLoader {
 
         return proxy;
     }
+    private TlsOption parseTls(JsonObject json){
+        if (json==null)
+            return null;
+        TlsOption tlsOption = new TlsOption();
+        var tls=json.getBoolean("enable",false);
+        var tlsAllowInsecure=json.getBoolean("allowInsecure",false);
+        var tlsServerName=json.getString("serverName");
+        tlsOption.setEnable(tls)
+                .setAllowInsecure(tlsAllowInsecure)
+                .setServerName(tlsServerName);
+
+        return tlsOption;
+
+    }
+
+    private WsOption parseWs(JsonObject json){
+        if (json==null)
+            return null;
+        WsOption wsOption = new WsOption();
+        String path = json.getString("path","/");
+        wsOption.setPath(path);
+        JsonObject headersJson = json.getJsonObject("headers");
+        if (headersJson!=null){
+            HttpHeaders headers = new DefaultHttpHeaders();
+            for (Map.Entry<String, Object> entry : headersJson) {
+                headers.add(entry.getKey(),entry.getValue());
+            }
+            wsOption.setHeaders(headers);
+        }
+
+        return wsOption;
+    }
 
     private VmessOption parseVmess(JsonObject json){
         VmessOption vmessOption = new VmessOption();
@@ -262,30 +312,6 @@ public class DDnspOptionLoader {
         String securityStr = json.getString("security");
         Security security = Security.of(securityStr);
         vmessOption.setSecurity(security);
-
-        var tls=json.getBoolean("tls",false);
-        var tlsAllowInsecure=json.getBoolean("tlsAllowInsecure",false);
-        var tlsServerName=json.getString("tlsServerName");
-        vmessOption.setTls(tls)
-                .setTlsAllowInsecure(tlsAllowInsecure)
-                .setTlsServerName(tlsServerName);
-
-        String network = json.getString("network");
-        if ("ws".equalsIgnoreCase(network)){
-            VmessOption.WsOption wsOption = new VmessOption.WsOption();
-            JsonObject wsJson = json.getJsonObject("ws");
-            String path = wsJson.getString("path","/");
-            wsOption.setPath(path);
-            JsonObject headersJson = wsJson.getJsonObject("headers");
-            if (headersJson!=null){
-                HttpHeaders headers = new DefaultHttpHeaders();
-                for (Map.Entry<String, Object> entry : headersJson) {
-                    headers.add(entry.getKey(),entry.getValue());
-                } wsOption.setHeaders(headers);
-            }
-            vmessOption.setWs(wsOption);
-            vmessOption.setNetWork("ws");
-        }
 
         return vmessOption;
     }

@@ -245,7 +245,7 @@ public class SocksServer {
 
                                     axis.handleUdp0((DatagramChannel) ctx.channel(), new DatagramPacket(content, dest, sender),
                                             fallbackPacket -> {
-                                                ctx.channel().writeAndFlush(new DatagramPacket(fallbackPacket.content(),msg.sender(), sender));
+                                                ctx.channel().writeAndFlush(new DatagramPacket(fallbackPacket.content(),sender,fallbackPacket.sender()));
                                             });
                                 }
                             });
@@ -258,7 +258,9 @@ public class SocksServer {
                     return;
                 }
                 DatagramChannel datagramChannel= (DatagramChannel) f.get();
-                context.channel().closeFuture().addListener(it -> datagramChannel.close());
+                context.channel().closeFuture().addListener(it -> {
+                    datagramChannel.close();
+                });
                 InetSocketAddress bindAddr = datagramChannel.localAddress();
                 writeMessage(context,new DefaultSocks5CommandResponse(Socks5CommandStatus.SUCCESS,Socks5AddressType.IPv4, socksOption.getHost(),bindAddr.getPort()),
                         v->{

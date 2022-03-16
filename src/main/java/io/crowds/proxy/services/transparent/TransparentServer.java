@@ -28,6 +28,8 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -38,9 +40,13 @@ public class TransparentServer {
     private Axis axis;
     private boolean logSuccess;
 
+    private Map<InetSocketAddress, io.netty.util.concurrent.Future<DatagramChannel>> tupleMap;
+
+
     public TransparentServer(TransparentOption option, Axis axis) {
         this.option = option;
         this.axis = axis;
+        this.tupleMap=new ConcurrentHashMap<>();
     }
 
     public Future<Void> start(){
@@ -138,25 +144,46 @@ public class TransparentServer {
         return true;
     }
 
+
+
+
     private class ProxyUdpHandler extends SimpleChannelInboundHandler<DatagramPacket> {
         public ProxyUdpHandler() {
             super(false);
         }
 
         private io.netty.util.concurrent.Future<DatagramChannel> createForeignChannel(ChannelHandlerContext ctx, InetSocketAddress address)  {
-            io.netty.util.concurrent.Promise<DatagramChannel> promise = ctx.executor().newPromise();
-            axis.getChannelCreator().createDatagramChannel("transparent",address,new DatagramOption().setBindAddr(address).setIpTransport(true),
-                    new BaseChannelInitializer().connIdle(300))
-                    .addListener(future -> {
-                        if (!future.isSuccess()){
-                            promise.tryFailure(future.cause());
-                            return;
-                        }
-                        UdpChannel udpChannel= (UdpChannel) future.getNow();
-                        promise.trySuccess(udpChannel.getDatagramChannel());
-                    });
+            return tupleMap.computeIfAbsent(address,k->{
+                var future= axis.getChannelCreator().createDatagramChannel(
+                        new DatagramOption().setBindAddr(address).setIpTransport(true),
+                        new BaseChannelInitializer().connIdle(300)
+                );
+                future.addListener((FutureListener<DatagramChannel>)f->{
+                    if (!f.isSuccess()){
+                        tupleMap.compute(address,(key,value)->{
+                            if (value==future){
+                                return null;
+                            }
+                            return value;
+                        });
+                        return;
+                    }
+                    DatagramChannel channel = f.get();
+                    channel.closeFuture().addListener(it->tupleMap.remove(address));
+                });
+                return future;
+            });
+//            axis.getChannelCreator().createDatagramChannel("transparent",address,new DatagramOption().setBindAddr(address).setIpTransport(true),
+//                    new BaseChannelInitializer().connIdle(300))
+//                    .addListener(future -> {
+//                        if (!future.isSuccess()){
+//                            promise.tryFailure(future.cause());
+//                            return;
+//                        }
+//                        UdpChannel udpChannel= (UdpChannel) future.getNow();
+//                        promise.trySuccess(udpChannel.getDatagramChannel());
+//                    });
 
-            return promise;
         }
 
         private void handleFallbackPacket(ChannelHandlerContext ctx,DatagramPacket packet)  {

@@ -7,8 +7,9 @@ import io.crowds.proxy.routing.Router;
 import io.crowds.proxy.select.TransportProvider;
 import io.crowds.proxy.select.Transport;
 import io.crowds.proxy.transport.EndPoint;
-import io.crowds.proxy.transport.direct.TcpEndPoint;
-import io.crowds.proxy.transport.direct.UdpEndPoint;
+import io.crowds.proxy.transport.ProxyTransport;
+import io.crowds.proxy.transport.TcpEndPoint;
+import io.crowds.proxy.transport.UdpEndPoint;
 import io.crowds.util.IPCIDR;
 import io.crowds.util.Lambdas;
 import io.netty.channel.Channel;
@@ -192,14 +193,15 @@ public class Axis {
 
     public void handleUdp0(DatagramChannel datagramChannel, DatagramPacket packet, Consumer<DatagramPacket> fallbackPacketHandler){
         try {
-            InetSocketAddress recipient = packet.recipient();
-            InetSocketAddress sender = packet.sender();
-            NetLocation netLocation = new NetLocation(getNetAddr(sender), getNetAddr(recipient), TP.UDP);
+            NetAddr recipient = getNetAddr(packet.recipient());
+            NetAddr sender = getNetAddr(packet.sender());
+            NetLocation netLocation = new NetLocation(sender, recipient, TP.UDP);
             FakeContext fakeContext=getFakeContext(netLocation.getDest());
             if (fakeContext!=null)
                 netLocation=new NetLocation(netLocation.getSrc(), fakeContext.getNetAddr(netLocation.getDest().getPort()), netLocation.getTp());
 
             NetLocation finalNetLocation = netLocation;
+
             mappings.getOrCreate(netLocation, Lambdas.rethrowSupplier(()->{
                 ProxyContext proxyContext = new ProxyContext(datagramChannel.eventLoop(), finalNetLocation)
                         .fallbackPacketHandler(fallbackPacketHandler)
@@ -259,6 +261,7 @@ public class Axis {
     public static class UdpMappings{
         private Map<NetLocation, ReentrantLock> lockTable;
         private Map<NetLocation, Future<ProxyContext>> contexts;
+
 
         public UdpMappings() {
             this.lockTable=new ConcurrentHashMap<>();
