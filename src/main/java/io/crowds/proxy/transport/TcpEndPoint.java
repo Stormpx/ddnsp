@@ -44,14 +44,14 @@ public class TcpEndPoint extends EndPoint {
                     throwableHandler.accept(cause);
             }
 
-            @Override
-            public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-                if (evt instanceof IdleStateEvent){
-                    close();
-//                    handleThrowable(new RuntimeException("connect idle timeout"));
-                }else
-                    super.userEventTriggered(ctx, evt);
-            }
+//            @Override
+//            public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+//                if (evt instanceof IdleStateEvent){
+//                    close();
+////                    handleThrowable(new RuntimeException("connect idle timeout"));
+//                }else
+//                    super.userEventTriggered(ctx, evt);
+//            }
         });
     }
 

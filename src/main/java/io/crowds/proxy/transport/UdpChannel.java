@@ -7,6 +7,8 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.DatagramPacket;
 import io.netty.handler.timeout.IdleStateEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
 import java.util.Map;
@@ -15,11 +17,11 @@ import java.util.function.Consumer;
 
 
 public class UdpChannel  extends ChannelInboundHandlerAdapter {
-
+    private final static Logger logger= LoggerFactory.getLogger(UdpChannel.class);
 
     private Channel channel;
 
-    private volatile Consumer<DatagramPacket> fallbackPacketHandler;
+    private Consumer<DatagramPacket> fallbackPacketHandler;
 
     private Map<InetSocketAddress, Consumer<DatagramPacket>> handlers=new ConcurrentHashMap<>();
 
@@ -65,13 +67,13 @@ public class UdpChannel  extends ChannelInboundHandlerAdapter {
         super.channelRead(ctx, msg);
     }
 
-    @Override
-    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-        if (evt instanceof IdleStateEvent){
-            channel.close();
-        }else
-            super.userEventTriggered(ctx, evt);
-    }
+//    @Override
+//    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+//        if (evt instanceof IdleStateEvent){
+//            channel.close();
+//        }else
+//            super.userEventTriggered(ctx, evt);
+//    }
 
     @Override
     public String toString() {

@@ -259,12 +259,12 @@ public class Axis {
 
 
     public static class UdpMappings{
-        private Map<NetLocation, ReentrantLock> lockTable;
+//        private Map<NetLocation, ReentrantLock> lockTable;
         private Map<NetLocation, Future<ProxyContext>> contexts;
 
 
         public UdpMappings() {
-            this.lockTable=new ConcurrentHashMap<>();
+//            this.lockTable=new ConcurrentHashMap<>();
             this.contexts =new ConcurrentHashMap<>();
         }
 
@@ -274,7 +274,7 @@ public class Axis {
         }
 
         private void del(NetLocation netLocation){
-            lockTable.remove(netLocation);
+//            lockTable.remove(netLocation);
             contexts.remove(netLocation);
         }
 
@@ -282,29 +282,40 @@ public class Axis {
             Future<ProxyContext> future = get(netLocation);
             if (future!=null)
                 return future;
-            ReentrantLock lock = lockTable.computeIfAbsent(netLocation, k -> new ReentrantLock());
-            lock.lock();
-            try {
-                future= contexts.get(netLocation);
-                if (future!=null)
-                    return future;
-
-
-                future=supplier.get();
-                contexts.put(netLocation,future);
-                future.addListener(p->{
-                    if (!p.isSuccess()){
-                        contexts.remove(netLocation);
-                        return;
-                    }
-                    ProxyContext context= (ProxyContext) p.get();
-                    context.closeHandler(v->del(netLocation));
-                });
-
-                return future;
-            } finally {
-                lock.unlock();
-            }
+            return contexts.computeIfAbsent(netLocation,k-> {
+                        return supplier.get()
+                                .addListener(p->{
+                                    if (!p.isSuccess()){
+                                        del(netLocation);
+                                        return;
+                                    }
+                                    ProxyContext context= (ProxyContext) p.get();
+                                    context.closeHandler(v->del(netLocation));
+                                });
+                    });
+//            ReentrantLock lock = lockTable.computeIfAbsent(netLocation, k -> new ReentrantLock());
+//            lock.lock();
+//            try {
+//                future= contexts.get(netLocation);
+//                if (future!=null)
+//                    return future;
+//
+//
+//                future=supplier.get();
+//                contexts.put(netLocation,future);
+//                future.addListener(p->{
+//                    if (!p.isSuccess()){
+//                        contexts.remove(netLocation);
+//                        return;
+//                    }
+//                    ProxyContext context= (ProxyContext) p.get();
+//                    context.closeHandler(v->del(netLocation));
+//                });
+//
+//                return future;
+//            } finally {
+//                lock.unlock();
+//            }
         }
 
 

@@ -2,6 +2,7 @@ package io.crowds.proxy.common;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniHandler;
@@ -9,9 +10,11 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.SslProvider;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
+import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.handler.timeout.IdleStateHandler;
 
 import javax.net.ssl.SSLException;
+import java.util.function.Consumer;
 
 
 public class BaseChannelInitializer extends ChannelInitializer<Channel> {
@@ -21,6 +24,7 @@ public class BaseChannelInitializer extends ChannelInitializer<Channel> {
     private int port;
 
     private Integer connIdle;
+    private Consumer<IdleStateEvent> idleEventHandler;
     private ChannelInitializer<Channel> subInitializer;
     private HandlerConfigurer configurer;
 
@@ -51,6 +55,12 @@ public class BaseChannelInitializer extends ChannelInitializer<Channel> {
         return this;
     }
 
+    public BaseChannelInitializer connIdle(int idle,Consumer<IdleStateEvent> idleEventHandler){
+        this.connIdle=idle;
+        this.idleEventHandler=idleEventHandler;
+        return this;
+    }
+
     public BaseChannelInitializer configurer(HandlerConfigurer configurer) {
         this.configurer = configurer;
         return this;
@@ -76,7 +86,7 @@ public class BaseChannelInitializer extends ChannelInitializer<Channel> {
             ch.pipeline().addLast(this.configurer);
         }
         if (connIdle!=null&&connIdle>0){
-            ch.pipeline().addLast(new IdleStateHandler(0,0, connIdle));
+            ch.pipeline().addLast(new IdleTimeoutHandler(connIdle,this.idleEventHandler));
         }
     }
 

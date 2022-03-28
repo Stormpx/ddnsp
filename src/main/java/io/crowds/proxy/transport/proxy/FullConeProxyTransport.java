@@ -55,6 +55,8 @@ public abstract class FullConeProxyTransport extends AbstractProxyTransport {
                                     if (!future.isSuccess()){
                                         udpChannelMap.remove(netLocation.getSrc());
                                     }
+                                    if (proxyContext.fallbackPacketHandler()!=null)
+                                        future.get().fallbackHandler(proxyContext.fallbackPacketHandler());
                                 }))
             );
 
@@ -67,8 +69,6 @@ public abstract class FullConeProxyTransport extends AbstractProxyTransport {
                             return;
                         }
                         UdpChannel udpChannel = f.get();
-                        if (proxyContext.fallbackPacketHandler()!=null)
-                            udpChannel.fallbackHandler(proxyContext.fallbackPacketHandler());
                         promise.trySuccess(new UdpEndPoint(udpChannel,netLocation.getDest()));
                     });
 

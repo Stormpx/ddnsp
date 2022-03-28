@@ -30,6 +30,7 @@ import java.net.SocketAddress;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -152,7 +153,8 @@ public class TransparentServer {
             super(false);
         }
 
-        private io.netty.util.concurrent.Future<DatagramChannel> createForeignChannel(ChannelHandlerContext ctx, InetSocketAddress address)  {
+
+        private io.netty.util.concurrent.Future<DatagramChannel> createForeignChannel(InetSocketAddress address)  {
             return tupleMap.computeIfAbsent(address,k->{
                 var future= axis.getChannelCreator().createDatagramChannel(
                         new DatagramOption().setBindAddr(address).setIpTransport(true),
@@ -160,12 +162,7 @@ public class TransparentServer {
                 );
                 future.addListener((FutureListener<DatagramChannel>)f->{
                     if (!f.isSuccess()){
-                        tupleMap.compute(address,(key,value)->{
-                            if (value==future){
-                                return null;
-                            }
-                            return value;
-                        });
+                        tupleMap.remove(address);
                         return;
                     }
                     DatagramChannel channel = f.get();
@@ -173,22 +170,12 @@ public class TransparentServer {
                 });
                 return future;
             });
-//            axis.getChannelCreator().createDatagramChannel("transparent",address,new DatagramOption().setBindAddr(address).setIpTransport(true),
-//                    new BaseChannelInitializer().connIdle(300))
-//                    .addListener(future -> {
-//                        if (!future.isSuccess()){
-//                            promise.tryFailure(future.cause());
-//                            return;
-//                        }
-//                        UdpChannel udpChannel= (UdpChannel) future.getNow();
-//                        promise.trySuccess(udpChannel.getDatagramChannel());
-//                    });
 
         }
 
-        private void handleFallbackPacket(ChannelHandlerContext ctx,DatagramPacket packet)  {
+        private void handleFallbackPacket(DatagramPacket packet)  {
             InetSocketAddress sender = packet.sender();
-            createForeignChannel(ctx, sender)
+            createForeignChannel(sender)
                     .addListener((FutureListener<DatagramChannel>) future -> {
                         if (!future.isSuccess()){
                             logger.error("bind addr:{} failed cause:{}",sender,future.cause().getMessage());
@@ -216,7 +203,7 @@ public class TransparentServer {
                 ReferenceCountUtil.safeRelease(msg);
                 return;
             }
-            createForeignChannel(ctx,recipient)
+            createForeignChannel(recipient)
                     .addListener((FutureListener<DatagramChannel>) future -> {
                         if (!future.isSuccess()){
                             logger.error("bind addr:{} failed cause:{}",recipient,future.cause().getMessage());
@@ -225,8 +212,7 @@ public class TransparentServer {
                         }
                         DatagramChannel datagramChannel= future.get();
                         axis.handleUdp0(datagramChannel,msg,packet->{
-
-                            this.handleFallbackPacket(ctx, new DatagramPacket(packet.content(),sender,packet.sender()));
+                            this.handleFallbackPacket(new DatagramPacket(packet.content(),sender,packet.sender()));
                         });
                     });
 
