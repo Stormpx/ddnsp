@@ -247,9 +247,7 @@ public class SocksServer {
                                     }
 
                                     axis.handleUdp0((DatagramChannel) ctx.channel(), new DatagramPacket(content, dest, sender),
-                                            fallbackPacket -> {
-                                                ctx.channel().writeAndFlush(new DatagramPacket(fallbackPacket.content(),sender,fallbackPacket.sender()));
-                                            });
+                                            packet -> ctx.channel().writeAndFlush(packet));
                                 }
                             });
                 }

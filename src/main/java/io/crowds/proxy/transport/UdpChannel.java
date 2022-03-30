@@ -21,14 +21,16 @@ public class UdpChannel  extends ChannelInboundHandlerAdapter {
 
     private Channel channel;
 
+    private InetSocketAddress src;
     private Consumer<DatagramPacket> fallbackPacketHandler;
 
     private Map<InetSocketAddress, Consumer<DatagramPacket>> handlers=new ConcurrentHashMap<>();
 
 
 
-    public UdpChannel(Channel channel) {
+    public UdpChannel(Channel channel,InetSocketAddress src) {
         this.channel = channel;
+        this.src=src;
         this.channel.pipeline().addLast(this);
     }
 
@@ -59,9 +61,10 @@ public class UdpChannel  extends ChannelInboundHandlerAdapter {
         if (msg instanceof DatagramPacket packet){
             InetSocketAddress address = packet.sender();
             Consumer<DatagramPacket> handler = handlers.getOrDefault(address,this.fallbackPacketHandler);
-            if (handler!=null)
-                handler.accept(packet);
+            if (handler!=null) {
 
+                handler.accept(new DatagramPacket(packet.content(),src,address));
+            }
             return;
         }
         super.channelRead(ctx, msg);

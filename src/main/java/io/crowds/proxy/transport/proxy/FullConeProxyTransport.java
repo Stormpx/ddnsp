@@ -27,13 +27,15 @@ public abstract class FullConeProxyTransport extends AbstractProxyTransport {
 
     private Future<UdpChannel> createUdpChannel(ProxyContext proxyContext) throws Exception {
         Promise<UdpChannel> promise = proxyContext.getEventLoop().newPromise();
+        NetLocation netLocation = proxyContext.getNetLocation();
         createChannel(proxyContext)
                 .addListener((FutureListener<Channel>) f->{
                     if (!f.isSuccess()){
                         return;
                     }
                     Channel channel = f.get();
-                    UdpChannel udpChannel = new UdpChannel(channel);
+                    UdpChannel udpChannel = new UdpChannel(channel,
+                            proxyContext.getNetLocation().getSrc().getAsInetAddr());
 
                     promise.trySuccess(udpChannel);
 
@@ -48,15 +50,21 @@ public abstract class FullConeProxyTransport extends AbstractProxyTransport {
         if (netLocation.getTp()== TP.TCP){
             return super.createEndPoint(proxyContext);
         }else {
-            Future<UdpChannel> channelFuture = udpChannelMap.computeIfAbsent(netLocation.getSrc(),
+            NetAddr src = netLocation.getSrc();
+            Future<UdpChannel> channelFuture = udpChannelMap.computeIfAbsent(src,
                     Lambdas.rethrowFunction(k->
                             createUdpChannel(proxyContext)
                                 .addListener((FutureListener<UdpChannel>)future -> {
                                     if (!future.isSuccess()){
-                                        udpChannelMap.remove(netLocation.getSrc());
+                                        udpChannelMap.remove(src);
                                     }
+                                    UdpChannel udpChannel = future.get();
+
                                     if (proxyContext.fallbackPacketHandler()!=null)
-                                        future.get().fallbackHandler(proxyContext.fallbackPacketHandler());
+                                        udpChannel.fallbackHandler(proxyContext.fallbackPacketHandler());
+
+                                    udpChannel.getChannel().closeFuture()
+                                            .addListener(f->udpChannelMap.remove(src));
                                 }))
             );
 
