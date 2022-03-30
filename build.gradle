@@ -38,12 +38,13 @@ dependencies {
     Architecture arch= DefaultNativePlatform.currentArchitecture;
     println "os is ${os.toFamilyName()}"
     println "arch is ${arch.name}"
+    implementation 'com.maxmind.geoip2:geoip2:3.0.0'
     implementation 'org.bouncycastle:bcprov-jdk15on:1.69'
-    implementation 'io.vertx:vertx-core:4.0.0'
-    implementation 'io.vertx:vertx-config:4.0.0'
-    implementation 'io.vertx:vertx-config-yaml:4.0.0'
-    implementation 'ch.qos.logback:logback-core:1.2.9'
-    implementation 'ch.qos.logback:logback-classic:1.2.9'
+    implementation 'io.vertx:vertx-core:4.2.6'
+    implementation 'io.vertx:vertx-config:4.2.6'
+    implementation 'io.vertx:vertx-config-yaml:4.2.6'
+    implementation 'ch.qos.logback:logback-core:1.2.11'
+    implementation 'ch.qos.logback:logback-classic:1.2.11'
 
     implementation "io.netty:netty-transport-native-epoll:4.1.50.Final:linux-${arch.isAmd64()?'x86_64':'aarch64'}"
 

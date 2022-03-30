@@ -29,8 +29,6 @@ public class ProxySver {
                                 new ProtocolOption().setName("direct_3").setProtocol("direct"),
                                 new ProtocolOption().setName("direct_4").setProtocol("direct"),
                                 new ShadowsocksOption()
-                                        .setAddress(new InetSocketAddress("121.5.62.230",12345))
-                                        .setPassword("testnattype")
                                         .setCipher(Cipher.AES_128_GCM)
                                         .setName("ss_1")
                                         .setProtocol("ss")

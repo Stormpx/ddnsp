@@ -11,7 +11,7 @@ import io.netty.handler.codec.dns.*;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Promise;
-import io.vertx.core.net.impl.PartialPooledByteBufAllocator;
+import io.vertx.core.buffer.impl.PartialPooledByteBufAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

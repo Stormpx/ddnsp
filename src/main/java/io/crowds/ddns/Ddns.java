@@ -32,7 +32,9 @@ public class Ddns {
 
     public Ddns(Vertx vertx, DDnsOption option) {
         this.vertx = vertx;
-        this.httpClient=vertx.createHttpClient(new HttpClientOptions().setTryUseCompression(true).setKeepAlive(true));
+        this.httpClient=vertx.createHttpClient(new HttpClientOptions()
+                        .setShared(true)
+                .setTryUseCompression(true).setKeepAlive(true));
         setOption(option);
         logger.info("ddns created");
     }

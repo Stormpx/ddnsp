@@ -3,7 +3,6 @@ package io.crowds.proxy.routing;
 import io.crowds.proxy.DomainNetAddr;
 import io.crowds.proxy.NetAddr;
 import io.crowds.proxy.NetLocation;
-import io.crowds.proxy.TP;
 import io.crowds.proxy.routing.rule.*;
 
 import java.net.InetAddress;
@@ -15,9 +14,17 @@ public class Router {
 
     private List<Rule> rules;
 
+    private String defaultTag;
 
     public Router(List<String> ruleStr){
         initRule(ruleStr);
+    }
+
+
+    private Rule setDefaultTag(String tag){
+        if (this.defaultTag!=null)
+            this.defaultTag=tag;
+        return null;
     }
 
     private void initRule(List<String> ruleStr){
@@ -33,13 +40,9 @@ public class Router {
                         return;
                     }
                     var ruleType=str.substring(0,index);
-                    RuleType type = RuleType.of(ruleType.trim());
-                    if (type==null){
-                        return;
-                    }
                     var content=str.substring(index+1,lastIndex);
                     var tag=str.substring(lastIndex+1);
-                    Rule rule = createRule(type, content.trim(), tag.trim());
+                    Rule rule = lookupRule(ruleType, content.trim(), tag.trim());
                     if (rule!=null)
                         rules.add(rule);
 
@@ -48,8 +51,13 @@ public class Router {
         this.rules=rules;
     }
 
-    private Rule createRule(RuleType ruleType,String content,String tag){
-        return switch (ruleType){
+    private Rule lookupRule(String type, String content, String tag){
+        type=type.trim();
+        RuleType ruleType = RuleType.of(type);
+        if (ruleType==null){
+            return null;
+        }
+        var r=switch (ruleType){
             case DOMAIN -> new Domain(content,tag);
             case EQ -> new Equal(content,tag);
             case EW -> new EndsWith(content,tag);
@@ -58,8 +66,10 @@ public class Router {
             case CIDR-> new Cidr(content,tag,true);
             case SRC_POST-> new Port(content,tag,false);
             case PORT-> new Port(content,tag,true);
+            case GEOIP -> new GeoIpR(content,tag);
+            case DEFAULT -> setDefaultTag(tag);
         };
-
+        return r;
     }
 
 
@@ -71,14 +81,14 @@ public class Router {
                 return rule.getTag();
             }
         }
-        return null;
+        return defaultTag;
     }
 
     public String routing(NetLocation netLocation){
         if (netLocation.getDest() instanceof DomainNetAddr){
             return routing(netLocation, RuleType.EQ,RuleType.EW,RuleType.KW,RuleType.DOMAIN,RuleType.PORT,RuleType.SRC_CIDR,RuleType.SRC_POST);
         }else {
-            return routing(netLocation, RuleType.CIDR,RuleType.PORT,RuleType.SRC_CIDR,RuleType.SRC_POST);
+            return routing(netLocation, RuleType.CIDR,RuleType.PORT,RuleType.SRC_CIDR,RuleType.SRC_POST,RuleType.GEOIP);
         }
     }
 
@@ -90,13 +100,22 @@ public class Router {
     public String routing(InetAddress address,boolean dest){
         NetAddr netAddr = new NetAddr(new InetSocketAddress(address, 0));
         var net=new NetLocation(dest?null:netAddr, dest?netAddr:null, null);
-        return routing(net,dest?RuleType.CIDR:RuleType.SRC_CIDR);
+        if (dest){
+            return routing(net, RuleType.CIDR,RuleType.GEOIP);
+        }else {
+            return routing(net, RuleType.SRC_CIDR);
+        }
     }
 
     public String routing(InetSocketAddress address,boolean dest){
         NetAddr netAddr = new NetAddr(address);
         var net=new NetLocation(dest?null:netAddr, dest?netAddr:null, null);
-        return routing(net,dest?RuleType.CIDR:RuleType.SRC_CIDR,dest?RuleType.PORT:RuleType.SRC_POST);
+        if (dest){
+            return routing(net, RuleType.CIDR, RuleType.PORT,RuleType.GEOIP);
+        }else{
+            return routing(net, RuleType.SRC_CIDR, RuleType.SRC_POST);
+        }
+
     }
 
 

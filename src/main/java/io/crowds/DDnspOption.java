@@ -8,6 +8,8 @@ public class DDnspOption {
 
     private String logLevel;
 
+    private String mmdb;
+
     private DnsOption dns;
 
     private DDnsOption ddns;
@@ -49,6 +51,15 @@ public class DDnspOption {
 
     public DDnspOption setLogLevel(String logLevel) {
         this.logLevel = logLevel;
+        return this;
+    }
+
+    public String getMmdb() {
+        return mmdb;
+    }
+
+    public DDnspOption setMmdb(String mmdb) {
+        this.mmdb = mmdb;
         return this;
     }
 }

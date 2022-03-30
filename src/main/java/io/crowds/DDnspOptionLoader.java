@@ -88,11 +88,7 @@ public class DDnspOptionLoader {
             if (optionChangeHandler!=null){
                 JsonObject configuration = cc.getNewConfiguration();
 
-                optionChangeHandler.handle(new DDnspOption()
-                        .setLogLevel(configuration.getString("logLevel","info"))
-                        .setDns(toOption(configuration))
-                        .setDdns(toDDnsOption(configuration))
-                        .setProxy(toProxyOption(configuration)));
+                optionChangeHandler.handle(toDDnspOption(configuration));
             }
         });
 
@@ -128,14 +124,18 @@ public class DDnspOptionLoader {
                     .onSuccess(it->{
                         reload();
                     })
-                    .map(json-> new DDnspOption()
-                            .setLogLevel(json.getString("logLevel","info"))
-                            .setDns(toOption(json))
-                            .setDdns(toDDnsOption(json))
-                            .setProxy(toProxyOption(json))
-                    );
+                    .map(this::toDDnspOption);
 
         }
+    }
+
+    private DDnspOption toDDnspOption(JsonObject json){
+        return new DDnspOption()
+                .setLogLevel(json.getString("logLevel","info"))
+                .setMmdb(json.getString("mmdb"))
+                .setDns(toOption(json))
+                .setDdns(toDDnsOption(json))
+                .setProxy(toProxyOption(json));
     }
 
     @SuppressWarnings(value = "unchecked")

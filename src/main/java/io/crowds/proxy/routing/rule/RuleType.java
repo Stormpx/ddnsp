@@ -9,6 +9,8 @@ public enum  RuleType {
     CIDR("cidr"),
     SRC_POST("src-port"),
     PORT("port"),
+    GEOIP("geoip"),
+    DEFAULT("default"),
     ;
 
     private String rule;

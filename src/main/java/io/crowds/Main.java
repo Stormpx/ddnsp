@@ -8,6 +8,7 @@ import io.crowds.dns.DnsServer;
 import io.crowds.dns.DnsOption;
 import io.crowds.proxy.ProxyOption;
 import io.crowds.proxy.ProxyServer;
+import io.crowds.util.Mmdb;
 import io.crowds.util.Strs;
 import io.netty.channel.epoll.Epoll;
 import io.netty.util.ResourceLeakDetector;
@@ -25,9 +26,14 @@ import org.slf4j.LoggerFactory;
 import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
 import java.util.Arrays;
+import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 
 public class Main {
+
+    private static String mmdbTarget;
+
     public static void main(String[] args) {
 //        ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.PARANOID);
         System.getProperties().setProperty("vertx.disableDnsResolver","true");
@@ -44,9 +50,13 @@ public class Main {
         if (configFile != null) {
            loader.setFilePath(configFile);
         }
+        Mmdb.initialize(vertx,12, TimeUnit.HOURS);
 
         loader.load()
                 .compose(option->{
+                    if (!Strs.isBlank(option.getMmdb())){
+                        loadMMDB(option.getMmdb());
+                    }
 
                     ProxyOption proxyOption = option.getProxy();
                     DnsOption dnsOption = option.getDns();
@@ -59,7 +69,6 @@ public class Main {
                     Future<Void> dnsFuture = dnsServer.start(socketAddress);
 
                     ProxyServer proxyServer = new ProxyServer(vertx.nettyEventLoopGroup()).setProxyOption(proxyOption);
-//                    new InetSocketAddress(proxyOption.getHost(), proxyOption.getPort())
                     Future<Void> proxyFuture = proxyServer.start()
                             .onSuccess(v->{
                                 if (proxyServer.getFakeDnsHandler()!=null){
@@ -71,6 +80,10 @@ public class Main {
                         if (!Strs.isBlank(it.getLogLevel())){
                             setLoggerLevel(Level.toLevel(it.getLogLevel()));
                         }
+                        if (!Strs.isBlank(it.getMmdb())){
+                            loadMMDB(it.getMmdb());
+                        }
+
                         DnsOption po = it.getDns();
                         ddns.setOption(it.getDdns());
                         dnsClient.setDnsOption(po);
@@ -101,5 +114,13 @@ public class Main {
     private static void setLoggerLevel(Level level){
         Logger root = (Logger) LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
         root.setLevel(level);
+    }
+
+    private static void loadMMDB(String mmdb){
+        try {
+            Mmdb.instance().load(mmdb);
+        }catch (Exception e){
+            e.printStackTrace();
+        }
     }
 }
