@@ -73,7 +73,7 @@ public class IpCidrTest {
 
 
         for (int i = 4; i <= 32; i++) {
-            IpPool ipPool = new IpPool(new IPCIDR("10.10.1.44/" + i));
+            IpPool ipPool = new IpPool(new IPCIDR(ip+"/" + i));
             long c=0;
             InetAddress address = ipPool.getAvailableAddress();
             while (address !=null){

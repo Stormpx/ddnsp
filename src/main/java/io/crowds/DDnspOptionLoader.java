@@ -14,6 +14,7 @@ import io.crowds.proxy.transport.TlsOption;
 import io.crowds.proxy.transport.TransportOption;
 import io.crowds.proxy.transport.proxy.shadowsocks.Cipher;
 import io.crowds.proxy.transport.proxy.shadowsocks.ShadowsocksOption;
+import io.crowds.proxy.transport.proxy.trojan.TrojanOption;
 import io.crowds.proxy.transport.proxy.vmess.Security;
 import io.crowds.proxy.transport.proxy.vmess.User;
 import io.crowds.proxy.transport.proxy.vmess.VmessOption;
@@ -197,9 +198,9 @@ public class DDnspOptionLoader {
         if (proxiesArray!=null){
             List<ProtocolOption> protocolOptions=new ArrayList<>();
             for (int i = 0; i < proxiesArray.size(); i++) {
+                var protocolJson = proxiesArray.getJsonObject(i);
+                var protocol = protocolJson.getString("protocol");
                 try {
-                    var protocolJson = proxiesArray.getJsonObject(i);
-                    var protocol = protocolJson.getString("protocol");
                     var name = protocolJson.getString("name");
                     var connIdle = protocolJson.getInteger("connIdle");
                     String network = protocolJson.getString("network");
@@ -210,6 +211,8 @@ public class DDnspOptionLoader {
                         protocolOption=parseVmess(protocolJson);
                     }else if ("ss".equalsIgnoreCase(protocol)){
                         protocolOption=parseSs(protocolJson);
+                    }else if ("trojan".equalsIgnoreCase(protocol)){
+                        protocolOption=parseTrojan(protocolJson);
                     }
                     if (protocolOption!=null){
                         protocolOption.setProtocol(protocol)
@@ -232,7 +235,7 @@ public class DDnspOptionLoader {
                     }
 
                 } catch (Exception e) {
-                    logger.warn("unable parse proxy option. because: {}",e.getMessage());
+                    logger.warn("unable parse {} option. because: {}",protocol,e.getMessage());
                 }
             }
             proxy.setProxies(protocolOptions);
@@ -335,6 +338,21 @@ public class DDnspOptionLoader {
                 .setCipher(cipher)
                 .setPassword(password);
         return shadowsocksOption;
+    }
+
+    private TrojanOption parseTrojan(JsonObject json){
+
+        TrojanOption trojanOption = new TrojanOption();
+        var host=json.getString("host");
+        var port=json.getInteger("port");
+        InetSocketAddress address = new InetSocketAddress(host, port);
+        String password = json.getString("password");
+        if (Strs.isBlank(password)){
+            throw new IllegalArgumentException("password is required");
+        }
+        trojanOption.setAddress(address)
+                .setPassword(password);
+        return trojanOption;
     }
 
     private List<InetSocketAddress> convert(List<String> serverList){
