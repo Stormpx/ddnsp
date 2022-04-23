@@ -3,8 +3,10 @@ import io.crowds.proxy.ProxyServer;
 import io.crowds.proxy.services.http.HttpOption;
 import io.crowds.proxy.services.socks.SocksOption;
 import io.crowds.proxy.transport.ProtocolOption;
+import io.crowds.proxy.transport.TlsOption;
 import io.crowds.proxy.transport.proxy.shadowsocks.Cipher;
 import io.crowds.proxy.transport.proxy.shadowsocks.ShadowsocksOption;
+import io.crowds.proxy.transport.proxy.trojan.TrojanOption;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -31,7 +33,10 @@ public class ProxySver {
                                 new ShadowsocksOption()
                                         .setCipher(Cipher.AES_128_GCM)
                                         .setName("ss_1")
-                                        .setProtocol("ss")
+                                        .setProtocol("ss"),
+                                new TrojanOption()
+                                        .setName("tj_1")
+                                        .setProtocol("trojan")
 
                         ))
                         .setSelectors(new JsonArray()
@@ -62,10 +67,10 @@ public class ProxySver {
 
                         )
                 .setRules(Arrays.asList(
-                        "src-cidr;127.0.0.1/32;ss_1",
+                        "src-cidr;127.0.0.1/32;tj_1",
                             "kw;youtube;block",
                             "ew;www.google.com;block",
-                            "kw;google;block",
+                            "kw;google;tj_1",
                             "domain;pixiv.net;block",
                             "domain;pixiv.org;block",
                             "kw;pximg;block",

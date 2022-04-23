@@ -208,10 +208,14 @@ public class AEADCodec {
 
         @Override
         protected void decode(ChannelHandlerContext ctx, DatagramPacket msg, List<Object> out) throws Exception {
-            int saltSize=this.cipher.getSaltSize();
-            byte[] salt=new byte[saltSize];
             ByteBuf buf = msg.content();
+            int saltSize=this.cipher.getSaltSize();
+            if (buf.readableBytes()<saltSize){
+                return;
+            }
+            byte[] salt=new byte[saltSize];
             buf.readBytes(salt);
+
             byte[] subKey = genSubKey(this.cipher, shadowsocksOption.getMasterKey(), salt);
             ByteBuf plain = ByteBufCipher.doFinal(getDecryptCipher(this.cipher, subKey, ALWAYS_ZERO),buf,ctx.alloc());
 

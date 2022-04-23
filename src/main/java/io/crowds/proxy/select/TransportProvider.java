@@ -7,6 +7,8 @@ import io.crowds.proxy.transport.proxy.block.BlockProxyTransport;
 import io.crowds.proxy.transport.proxy.direct.DirectProxyTransport;
 import io.crowds.proxy.transport.proxy.shadowsocks.ShadowsocksOption;
 import io.crowds.proxy.transport.proxy.shadowsocks.ShadowsocksTransport;
+import io.crowds.proxy.transport.proxy.trojan.TrojanOption;
+import io.crowds.proxy.transport.proxy.trojan.TrojanProxyTransport;
 import io.crowds.proxy.transport.proxy.vmess.VmessOption;
 import io.crowds.proxy.transport.proxy.vmess.VmessProxyTransport;
 import io.vertx.core.json.JsonArray;
@@ -49,6 +51,8 @@ public class TransportProvider {
                     map.put(protocolOption.getName(), new VmessProxyTransport(channelCreator, (VmessOption) protocolOption));
                 } else if ("ss".equalsIgnoreCase(protocolOption.getProtocol())) {
                     map.put(protocolOption.getName(), new ShadowsocksTransport(channelCreator, (ShadowsocksOption) protocolOption));
+                } else if ("trojan".equalsIgnoreCase(protocolOption.getProtocol())){
+                    map.put(protocolOption.getName(), new TrojanProxyTransport(channelCreator, (TrojanOption) protocolOption));
                 }else if ("direct".equalsIgnoreCase(protocolOption.getProtocol())){
                     map.put(protocolOption.getName(),new DirectProxyTransport(channelCreator,protocolOption));
                 }
