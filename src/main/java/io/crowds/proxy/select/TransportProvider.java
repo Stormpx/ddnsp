@@ -85,6 +85,7 @@ public class TransportProvider {
                 case WRR -> createWRR(name,entries);
                 case HASH -> createHash(name,entries);
                 case RAND -> createRand(name,entries);
+                case ROUTING -> createRouting(name,entries);
             }
         }
         List<String> refs = new RingDetector(this.selectorMap).searchCircularRef();
@@ -135,6 +136,13 @@ public class TransportProvider {
         if (!nodes.isEmpty()) {
             selectorMap.put(name, new WRR(name, nodes));
         }
+    }
+
+    private void createRouting(String name, JsonObject json){
+        JsonArray tagArr = json.getJsonArray("tags");
+        List<String> rules=new ArrayList<>();
+        readTag(tagArr, rules::add);
+        selectorMap.put(name,new Routing(name,rules));
     }
 
     private void createRand(String name,JsonObject json){
@@ -195,6 +203,9 @@ public class TransportProvider {
         while (selector!=null){
 
             tag=selector.nextTag(proxyContext);
+            if (tag==null){
+                break;
+            }
             chain.add(tag);
 
             ProxyTransport proxy = transportMap.get(tag);

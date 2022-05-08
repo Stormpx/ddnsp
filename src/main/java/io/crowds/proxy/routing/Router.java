@@ -16,14 +16,15 @@ public class Router {
 
     private String defaultTag;
 
-    public Router(List<String> ruleStr){
-        initRule(ruleStr);
+    public Router(List<String> rules){
+        initRule(rules);
     }
 
 
     private Rule setDefaultTag(String tag){
-        if (this.defaultTag!=null)
+        if (tag!=null)
             this.defaultTag=tag;
+
         return null;
     }
 
@@ -116,6 +117,10 @@ public class Router {
             return routing(net, RuleType.SRC_CIDR, RuleType.SRC_POST);
         }
 
+    }
+
+    public List<Rule> getRules(){
+        return this.rules;
     }
 
 

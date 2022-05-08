@@ -38,7 +38,7 @@ public class TransparentServer {
 
     private TransparentOption option;
     private Axis axis;
-    private boolean logSuccess;
+    private volatile boolean logSuccess;
 
     private Map<InetSocketAddress, io.netty.util.concurrent.Future<DatagramChannel>> tupleMap;
 

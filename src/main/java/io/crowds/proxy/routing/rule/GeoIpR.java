@@ -37,9 +37,9 @@ public class GeoIpR implements Rule{
         NetAddr addr = netLocation.getDest();
         if (addr.isIpv4()||addr.isIpv6()){
             String code = Mmdb.instance().queryIsoCode(addr.getAsInetAddr().getAddress());
-            if (code!=null){
-                return not != this.isoCode.equalsIgnoreCase(code);
-            }
+            return not != this.isoCode.equalsIgnoreCase(code);
+//            if (code!=null){
+//            }
         }
         return false;
     }

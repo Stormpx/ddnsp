@@ -6,7 +6,8 @@ public enum Method {
     RR("rr"),
     WRR("wrr"),
     HASH("hash"),
-    RAND("rand")
+    RAND("rand"),
+    ROUTING("routing"),
     ;
 
     private String value;
