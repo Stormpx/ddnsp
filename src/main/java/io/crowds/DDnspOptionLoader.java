@@ -10,23 +10,12 @@ import io.crowds.proxy.services.http.HttpOption;
 import io.crowds.proxy.services.socks.SocksOption;
 import io.crowds.proxy.services.transparent.TransparentOption;
 import io.crowds.proxy.transport.ProtocolOption;
-import io.crowds.proxy.transport.TlsOption;
-import io.crowds.proxy.transport.TransportOption;
-import io.crowds.proxy.transport.proxy.shadowsocks.Cipher;
-import io.crowds.proxy.transport.proxy.shadowsocks.ShadowsocksOption;
-import io.crowds.proxy.transport.proxy.trojan.TrojanOption;
-import io.crowds.proxy.transport.proxy.vmess.Security;
-import io.crowds.proxy.transport.proxy.vmess.User;
-import io.crowds.proxy.transport.proxy.vmess.VmessOption;
-import io.crowds.proxy.transport.ws.WsOption;
-import io.crowds.util.Strs;
+import io.crowds.proxy.transport.proxy.ProtocolOptionFactory;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.dns.DefaultDnsPtrRecord;
 import io.netty.handler.codec.dns.DefaultDnsRawRecord;
 import io.netty.handler.codec.dns.DnsRecord;
 import io.netty.handler.codec.dns.DnsRecordType;
-import io.netty.handler.codec.http.DefaultHttpHeaders;
-import io.netty.handler.codec.http.HttpHeaders;
 import io.vertx.config.ConfigRetriever;
 import io.vertx.config.ConfigRetrieverOptions;
 import io.vertx.config.ConfigStoreOptions;
@@ -198,44 +187,14 @@ public class DDnspOptionLoader {
         if (proxiesArray!=null){
             List<ProtocolOption> protocolOptions=new ArrayList<>();
             for (int i = 0; i < proxiesArray.size(); i++) {
-                var protocolJson = proxiesArray.getJsonObject(i);
-                var protocol = protocolJson.getString("protocol");
                 try {
-                    var name = protocolJson.getString("name");
-                    var connIdle = protocolJson.getInteger("connIdle");
-                    String network = protocolJson.getString("network");
-                    JsonObject tls = protocolJson.getJsonObject("tls");
-                    JsonObject transportJson = protocolJson.getJsonObject("transport");
-                    ProtocolOption protocolOption = null;
-                    if ("vmess".equalsIgnoreCase(protocol)){
-                        protocolOption=parseVmess(protocolJson);
-                    }else if ("ss".equalsIgnoreCase(protocol)){
-                        protocolOption=parseSs(protocolJson);
-                    }else if ("trojan".equalsIgnoreCase(protocol)){
-                        protocolOption=parseTrojan(protocolJson);
-                    }
+                    var protocolJson = proxiesArray.getJsonObject(i);
+                    ProtocolOption protocolOption = ProtocolOptionFactory.newOption(protocolJson);
                     if (protocolOption!=null){
-                        protocolOption.setProtocol(protocol)
-                                .setName(name)
-                                .setNetwork(network)
-                        ;
-                        if (connIdle!=null){
-                            protocolOption.setConnIdle(connIdle<0?0:connIdle);
-                        }
-                        if (tls!=null){
-                            protocolOption.setTls(parseTls(tls));
-                        }
-                        if (transportJson!=null){
-                            TransportOption transportOption = new TransportOption();
-                            transportOption.setWs(parseWs(transportJson.getJsonObject("ws")));
-
-                            protocolOption.setTransport(transportOption);
-                        }
                         protocolOptions.add(protocolOption);
                     }
-
                 } catch (Exception e) {
-                    logger.warn("unable parse {} option. because: {}",protocol,e.getMessage());
+                    logger.error(e.getMessage(),e.getCause());
                 }
             }
             proxy.setProxies(protocolOptions);
@@ -266,93 +225,6 @@ public class DDnspOptionLoader {
         }
 
         return proxy;
-    }
-    private TlsOption parseTls(JsonObject json){
-        if (json==null)
-            return null;
-        TlsOption tlsOption = new TlsOption();
-        var tls=json.getBoolean("enable",false);
-        var tlsAllowInsecure=json.getBoolean("allowInsecure",false);
-        var tlsServerName=json.getString("serverName");
-        tlsOption.setEnable(tls)
-                .setAllowInsecure(tlsAllowInsecure)
-                .setServerName(tlsServerName);
-
-        return tlsOption;
-
-    }
-
-    private WsOption parseWs(JsonObject json){
-        if (json==null)
-            return null;
-        WsOption wsOption = new WsOption();
-        String path = json.getString("path","/");
-        wsOption.setPath(path);
-        JsonObject headersJson = json.getJsonObject("headers");
-        if (headersJson!=null){
-            HttpHeaders headers = new DefaultHttpHeaders();
-            for (Map.Entry<String, Object> entry : headersJson) {
-                headers.add(entry.getKey(),entry.getValue());
-            }
-            wsOption.setHeaders(headers);
-        }
-
-        return wsOption;
-    }
-
-    private VmessOption parseVmess(JsonObject json){
-        VmessOption vmessOption = new VmessOption();
-        var host=json.getString("host");
-        var port=json.getInteger("port");
-        vmessOption.setAddress(new InetSocketAddress(host, port));
-        String uuid = json.getString("uid");
-        Integer alterId = json.getInteger("alterId",0);
-        if (Strs.isBlank(uuid)) {
-            throw new NullPointerException("uid is required.");
-        }
-        vmessOption.setUser(new User(UUID.fromString(uuid),alterId));
-
-        String securityStr = json.getString("security");
-        Security security = Security.of(securityStr);
-        vmessOption.setSecurity(security);
-
-        return vmessOption;
-    }
-
-    private ShadowsocksOption parseSs(JsonObject json){
-
-        ShadowsocksOption shadowsocksOption = new ShadowsocksOption();
-        var host=json.getString("host");
-        var port=json.getInteger("port");
-        InetSocketAddress address = new InetSocketAddress(host, port);
-        String cipherStr = json.getString("cipher");
-        Cipher cipher = Cipher.of(cipherStr);
-        if (cipher==null){
-            throw new IllegalArgumentException("invalid cipher: "+cipherStr);
-        }
-        String password = json.getString("password");
-        if (Strs.isBlank(password)){
-            throw new IllegalArgumentException("password is required");
-        }
-        shadowsocksOption.setAddress(address)
-                .setCipher(cipher)
-                .setPassword(password);
-        return shadowsocksOption;
-    }
-
-    private TrojanOption parseTrojan(JsonObject json){
-
-        TrojanOption trojanOption = new TrojanOption();
-        var host=json.getString("host");
-        var port=json.getInteger("port");
-        InetSocketAddress address = new InetSocketAddress(host, port);
-        String password = json.getString("password");
-        if (Strs.isBlank(password)){
-            throw new IllegalArgumentException("password is required");
-        }
-        trojanOption.setAddress(address)
-                .setPassword(password);
-        return trojanOption;
     }
 
     private List<InetSocketAddress> convert(List<String> serverList){

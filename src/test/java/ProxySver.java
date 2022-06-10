@@ -38,7 +38,7 @@ public class ProxySver {
                                 new ProtocolOption().setName("direct_3").setProtocol("direct"),
                                 new ProtocolOption().setName("direct_4").setProtocol("direct"),
                                 new VmessOption()
-                                        .setNetwork("ws")
+//                                        .setNetwork("ws")
                                         .setName("vmess_1")
                                         .setProtocol("vmess"),
                                 new ShadowsocksOption()
@@ -78,37 +78,18 @@ public class ProxySver {
 
                         )
                 .setRules(Arrays.asList(
-                        "src-cidr;127.0.0.1/32;vmess_1",
+//                        "src-cidr;127.0.0.1/32;vmess_1",
                             "kw;youtube;block",
                             "ew;www.google.com;block",
-                            "kw;google;tj_1",
+                            "kw;google;block",
                             "domain;pixiv.net;block",
                             "domain;pixiv.org;block",
                             "kw;pximg;block",
-                            "kw;baidu.com;test_wrr"
+                            "kw;baidu.com;direct"
                         )
                 ));
 
         server.start();
-//        InetSocketAddress address = new InetSocketAddress("116.29.89.106", 0);
-//        InetSocketAddress address1 = new InetSocketAddress("116.29.89.106", 38270);
-//        System.out.println(address.equals(address1));
-        //        NioEventLoopGroup eventLoopGroup = new NioEventLoopGroup();
-//        NioDatagramChannel channel = new NioDatagramChannel();
-//        eventLoopGroup.register(channel);
-//        InetSocketAddress address = new InetSocketAddress(53352);
-//        ChannelFuture future = channel.bind(address).sync();
-//        assert future.isSuccess();
-//        System.out.println(future.channel().isActive());
-//        channel.closeFuture().addListener(future1 -> {
-//            System.out.println(channel.isActive()+"closed");
-//        });
-//        System.out.println("dwqewq");
-//        channel.close().sync();
-//        System.out.println(channel.isActive());
-//
-//        assert new NioDatagramChannel().bind(address).sync().isSuccess();
-//        System.out.println("awewaewa");
 
     }
 }
