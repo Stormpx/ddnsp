@@ -1,58 +1,32 @@
-import io.crowds.proxy.transport.proxy.trojan.TrojanOption;
+import io.crowds.proxy.transport.proxy.shadowsocks.AEAD;
+import io.crowds.proxy.transport.proxy.shadowsocks.CipherAlgo;
 import io.crowds.util.Crypto;
 import io.crowds.util.Hash;
 import io.crowds.util.Rands;
 import io.netty.buffer.ByteBufUtil;
-import io.netty.buffer.Unpooled;
-import org.bouncycastle.crypto.digests.SHA224Digest;
-import org.bouncycastle.crypto.digests.SHA256Digest;
-import org.bouncycastle.util.encoders.Hex;
 import org.junit.Assert;
 import org.junit.Test;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
-import javax.crypto.ShortBufferException;
+import javax.crypto.Cipher;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
+import java.util.Base64;
 import java.util.HexFormat;
-import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class CryptoTest {
 
     public static void main(String[] args) throws Exception {
-
-        byte[] key=new byte[16];
-        byte[] iv=new byte[16];
-        ThreadLocalRandom.current().nextBytes(key);
+        byte[] key=new byte[32];
+        byte[] iv=new byte[12];
         ThreadLocalRandom.current().nextBytes(iv);
-
-        byte[] plain = "dhwioadh12315616iowadhwioadhwa".getBytes(StandardCharsets.UTF_8);
-//        byte[] plain = new byte[0];
-        System.out.println(plain.length);
-        byte[] bytes = Crypto.aes128CFBEncrypt(key, iv, plain);
-
-        System.out.println(bytes.length);
-
-        byte[] r = Crypto.aes128CFBDecrypt(key, iv, bytes);
-        System.out.println(new String(r,StandardCharsets.UTF_8));
-        System.out.println(Arrays.equals(plain,r));
-
-//        byte[] bytes1=new byte[bytes.length/2];
-//        System.arraycopy(bytes,0,bytes1,0,bytes1.length);
-//        byte[] r1 = Crypto.aes128CFBDecrypt(key, iv, bytes1);
-//        System.out.println(new String(r1,StandardCharsets.UTF_8));
+        ThreadLocalRandom.current().nextBytes(key);
+//        iv=HexFormat.of().parseHex("9376a67423cdd1ab972a87e9fb1b9ba70a363b6da18fc3daf4b566ed6c82bc4e");
 //
-//        byte[] bytes2=new byte[bytes.length/2];
-//        System.arraycopy(bytes,15,bytes2,0,bytes2.length);
-//        byte[] r2 = Crypto.aes128CFBDecrypt(key, iv, bytes2);
-//        System.out.println(new String(r2,StandardCharsets.UTF_8));
-
+//        byte[] key = AEAD.genSubKey(CipherAlgo.AES_256_GCM_2022, Base64.getDecoder().decode("LYfdF9Ka9TdphHJTKY0zkGB8UqnPpvVrDnNYnmILvRA="), iv);
+//
+//        System.out.println(HexFormat.of().formatHex(key));
 
 
 

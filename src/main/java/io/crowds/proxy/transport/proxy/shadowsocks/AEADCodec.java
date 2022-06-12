@@ -18,10 +18,6 @@ import java.util.List;
 
 public class AEADCodec {
 
-    public static TcpCodec tcp(ShadowsocksOption option){
-        return new TcpCodec(option);
-    }
-
     public static UdpCodec udp(ShadowsocksOption option){
         return new UdpCodec(option);
     }
@@ -29,7 +25,7 @@ public class AEADCodec {
 
     public static class  TcpCodec extends ByteToMessageCodec<Object> {
         protected ShadowsocksOption shadowsocksOption;
-        protected Cipher cipher;
+        protected CipherAlgo cipherAlgo;
 
         protected boolean sendSalt=false;
         protected byte[] encryptSalt;
@@ -46,13 +42,13 @@ public class AEADCodec {
 
         public TcpCodec(ShadowsocksOption shadowsocksOption) {
             this.shadowsocksOption = shadowsocksOption;
-            this.cipher=shadowsocksOption.getCipher();
+            this.cipherAlgo =shadowsocksOption.getCipher();
             init();
         }
 
         private void init(){
-            this.encryptSalt = AEAD.genSalt(this.cipher);
-            this.encryptSubKey =AEAD.genSubKey(this.cipher,shadowsocksOption.getMasterKey(),this.encryptSalt);
+            this.encryptSalt = AEAD.genSalt(this.cipherAlgo);
+            this.encryptSubKey =AEAD.genSubKey(this.cipherAlgo,shadowsocksOption.getMasterKey(),this.encryptSalt);
 
             this.encryptNonce= new byte[12];
             Arrays.fill(encryptNonce, (byte) 0xff);
@@ -111,13 +107,13 @@ public class AEADCodec {
                 byte[] lenBytes=new byte[2];
                 Bufs.writeShort(lenBytes,0,readBytes);
                 ByteBufCipher.doFinal(
-                        AEAD.getEncryptCipher(this.cipher, this.encryptSubKey, incrementedAndGet(this.encryptNonce)),
+                        AEAD.getEncryptCipher(this.cipherAlgo, this.encryptSubKey, incrementedAndGet(this.encryptNonce)),
                         Unpooled.wrappedBuffer(lenBytes),out
                 );
 
                 //encode payload
                 ByteBufCipher.doFinal(
-                        AEAD.getEncryptCipher(this.cipher, this.encryptSubKey, incrementedAndGet(this.encryptNonce)),
+                        AEAD.getEncryptCipher(this.cipherAlgo, this.encryptSubKey, incrementedAndGet(this.encryptNonce)),
                         buf.readSlice(readBytes),out
                 );
 
@@ -129,22 +125,30 @@ public class AEADCodec {
         }
 
 
-        private ByteBuf readAndDecrypt(ChannelHandlerContext ctx,ByteBuf buf,int length) throws Exception {
+
+        protected ByteBuf readAndDecrypt(ChannelHandlerContext ctx,ByteBuf buf,int length) throws Exception {
             return ByteBufCipher.doFinal(
-                    AEAD.getDecryptCipher(this.cipher,this.decryptSubKey,incrementedAndGet(this.decryptNonce)),
+                    AEAD.getDecryptCipher(this.cipherAlgo,this.decryptSubKey,incrementedAndGet(this.decryptNonce)),
                     buf.readSlice(length),ctx.alloc()
             );
+        }
+
+        protected boolean readDecryptSalt(ByteBuf in){
+            if (in.readableBytes()<this.cipherAlgo.getSaltSize()){
+                return false;
+            }
+            this.decryptSalt=new byte[this.cipherAlgo.getSaltSize()];
+            in.readBytes(this.decryptSalt);
+            this.decryptSubKey=AEAD.genSubKey(this.cipherAlgo,shadowsocksOption.getMasterKey(),this.decryptSalt);
+            return true;
         }
 
         @Override
         protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
             if (this.decryptSalt==null){
-                if (in.readableBytes()<this.cipher.getSaltSize()){
+                if (!readDecryptSalt(in)){
                     return;
                 }
-                this.decryptSalt=new byte[this.cipher.getSaltSize()];
-                in.readBytes(this.decryptSalt);
-                this.decryptSubKey=AEAD.genSubKey(this.cipher,shadowsocksOption.getMasterKey(),this.decryptSalt);
             }
             if (this.expectPayloadLength==null){
                 if (in.readableBytes()<this.expectLength){
@@ -173,19 +177,19 @@ public class AEADCodec {
 
     public static class UdpCodec extends MessageToMessageCodec<DatagramPacket,ShadowsocksRequest>{
         private final static byte[] ALWAYS_ZERO=new byte[12];
-        private ShadowsocksOption shadowsocksOption;
-        private Cipher cipher;
+        protected ShadowsocksOption shadowsocksOption;
+        protected CipherAlgo cipherAlgo;
 
         public UdpCodec(ShadowsocksOption shadowsocksOption) {
             this.shadowsocksOption = shadowsocksOption;
-            this.cipher=shadowsocksOption.getCipher();
+            this.cipherAlgo =shadowsocksOption.getCipher();
         }
 
 
         @Override
         protected void encode(ChannelHandlerContext ctx, ShadowsocksRequest msg, List<Object> out) throws Exception {
-            byte[] salt = AEAD.genSalt(this.cipher);
-            byte[] subKey = AEAD.genSubKey(this.cipher, shadowsocksOption.getMasterKey(), salt);
+            byte[] salt = AEAD.genSalt(this.cipherAlgo);
+            byte[] subKey = AEAD.genSubKey(this.cipherAlgo, shadowsocksOption.getMasterKey(), salt);
 
             Destination destination = msg.getDestination();
             Object payload = msg.getPayload();
@@ -202,7 +206,7 @@ public class AEADCodec {
             ByteBuf buf = ctx.alloc().buffer(salt.length+content.readableBytes()+16);
             buf.writeBytes(salt);
             ByteBufCipher.doFinal(
-                    AEAD.getEncryptCipher(this.cipher, subKey, ALWAYS_ZERO),
+                    AEAD.getEncryptCipher(this.cipherAlgo, subKey, ALWAYS_ZERO),
                     content,
                     buf
             );
@@ -214,15 +218,15 @@ public class AEADCodec {
         @Override
         protected void decode(ChannelHandlerContext ctx, DatagramPacket msg, List<Object> out) throws Exception {
             ByteBuf buf = msg.content();
-            int saltSize=this.cipher.getSaltSize();
+            int saltSize=this.cipherAlgo.getSaltSize();
             if (buf.readableBytes()<saltSize){
                 return;
             }
             byte[] salt=new byte[saltSize];
             buf.readBytes(salt);
 
-            byte[] subKey = AEAD.genSubKey(this.cipher, shadowsocksOption.getMasterKey(), salt);
-            ByteBuf plain = ByteBufCipher.doFinal(AEAD.getDecryptCipher(this.cipher, subKey, ALWAYS_ZERO),buf,ctx.alloc());
+            byte[] subKey = AEAD.genSubKey(this.cipherAlgo, shadowsocksOption.getMasterKey(), salt);
+            ByteBuf plain = ByteBufCipher.doFinal(AEAD.getDecryptCipher(this.cipherAlgo, subKey, ALWAYS_ZERO),buf,ctx.alloc());
 
             InetSocketAddress sender = Socks.decodeAddr(plain);
             plain.discardReadBytes();

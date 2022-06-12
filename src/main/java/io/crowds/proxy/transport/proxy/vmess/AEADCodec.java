@@ -73,7 +73,7 @@ public class AEADCodec {
         byte[] key = kdf16(cmdKey, KDFSaltConstAuthIDEncryptionKey.getBytes());
 //        ByteBuf eAuId = Unpooled.buffer(16);
         byte[] eAuId=new byte[16];
-        ByteBuf buf = ByteBufCipher.doFinal(Crypto.getCipher(key, true), eAuIdPlain, out.alloc());
+        ByteBuf buf = ByteBufCipher.doFinal(Crypto.getAESCipher(key, true), eAuIdPlain, out.alloc());
         buf.readBytes(eAuId);
 
         out.writeBytes(eAuId);

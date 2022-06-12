@@ -1,10 +1,9 @@
 package io.crowds.proxy.transport.proxy;
 
-import io.crowds.proxy.ProxyOption;
 import io.crowds.proxy.transport.ProtocolOption;
 import io.crowds.proxy.transport.TlsOption;
 import io.crowds.proxy.transport.TransportOption;
-import io.crowds.proxy.transport.proxy.shadowsocks.Cipher;
+import io.crowds.proxy.transport.proxy.shadowsocks.CipherAlgo;
 import io.crowds.proxy.transport.proxy.shadowsocks.ShadowsocksOption;
 import io.crowds.proxy.transport.proxy.trojan.TrojanOption;
 import io.crowds.proxy.transport.proxy.vmess.Security;
@@ -81,7 +80,7 @@ public class ProtocolOptionFactory {
         var port=json.getInteger("port");
         InetSocketAddress address = new InetSocketAddress(host, port);
         String cipherStr = json.getString("cipher");
-        Cipher cipher = Cipher.of(cipherStr);
+        CipherAlgo cipher = CipherAlgo.of(cipherStr);
         if (cipher==null){
             throw new IllegalArgumentException("invalid cipher: "+cipherStr);
         }

@@ -2,6 +2,8 @@ package io.crowds.util;
 
 import org.bouncycastle.crypto.digests.*;
 import org.bouncycastle.crypto.generators.HKDFBytesGenerator;
+import org.bouncycastle.crypto.generators.KDF1BytesGenerator;
+import org.bouncycastle.crypto.generators.KDF2BytesGenerator;
 import org.bouncycastle.crypto.params.Blake3Parameters;
 import org.bouncycastle.crypto.params.HKDFParameters;
 import org.bouncycastle.crypto.params.KDFParameters;
@@ -148,12 +150,12 @@ public class Hash {
         return bytes;
     }
 
-    public static byte[] blake3(byte[] key,byte[] plain){
-        var blake3=new Blake3Digest(key.length);
-        blake3.init(Blake3Parameters.key(key));
-        blake3.update(plain,0,plain.length);
-        byte[] b=new byte[blake3.getDigestSize()];
-        blake3.doFinal(b,0);
+    public static byte[] kdfBlake3(byte[] context,byte[] keyMaterial,int len){
+        var blake3=new Blake3Digest(keyMaterial.length);
+        blake3.init(Blake3Parameters.context(context));
+        blake3.update(keyMaterial,0,keyMaterial.length);
+        byte[] b=new byte[len];
+        blake3.doFinal(b,0,len);
         return b;
     }
 

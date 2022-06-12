@@ -3,16 +3,10 @@ import io.crowds.proxy.ProxyServer;
 import io.crowds.proxy.services.http.HttpOption;
 import io.crowds.proxy.services.socks.SocksOption;
 import io.crowds.proxy.transport.ProtocolOption;
-import io.crowds.proxy.transport.TlsOption;
-import io.crowds.proxy.transport.TransportOption;
-import io.crowds.proxy.transport.proxy.shadowsocks.Cipher;
+import io.crowds.proxy.transport.proxy.shadowsocks.CipherAlgo;
 import io.crowds.proxy.transport.proxy.shadowsocks.ShadowsocksOption;
 import io.crowds.proxy.transport.proxy.trojan.TrojanOption;
-import io.crowds.proxy.transport.proxy.vmess.Security;
-import io.crowds.proxy.transport.proxy.vmess.User;
 import io.crowds.proxy.transport.proxy.vmess.VmessOption;
-import io.crowds.proxy.transport.ws.WsOption;
-import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -20,7 +14,6 @@ import io.vertx.core.json.JsonObject;
 import java.net.*;
 import java.util.Arrays;
 import java.util.List;
-import java.util.UUID;
 
 public class ProxySver {
 
@@ -42,7 +35,7 @@ public class ProxySver {
                                         .setName("vmess_1")
                                         .setProtocol("vmess"),
                                 new ShadowsocksOption()
-                                        .setCipher(Cipher.AES_128_GCM)
+                                        .setCipher(CipherAlgo.AES_128_GCM)
                                         .setName("ss_1")
                                         .setProtocol("ss"),
                                 new TrojanOption()

@@ -18,10 +18,9 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 
 public class Crypto {
-
-    public static Cipher getCipher(byte[] key,boolean encrypt) throws Exception{
-        SecretKeySpec key_spec = new SecretKeySpec(key, "AES");
+    public static Cipher getAESCipher(byte[] key, boolean encrypt) throws Exception{
         Cipher cipher = Cipher.getInstance("AES");
+        SecretKeySpec key_spec = new SecretKeySpec(key, "AES");
         if (encrypt){
             cipher.init(Cipher.ENCRYPT_MODE, key_spec);
         }else{
@@ -29,6 +28,18 @@ public class Crypto {
         }
         return cipher;
     }
+
+    public static Cipher getAESWithoutPaddingCipher(byte[] key, boolean encrypt) throws Exception{
+        Cipher cipher = Cipher.getInstance("AES/ECB/NoPadding");
+        SecretKeySpec key_spec = new SecretKeySpec(key, "AES");
+        if (encrypt){
+            cipher.init(Cipher.ENCRYPT_MODE, key_spec);
+        }else{
+            cipher.init(Cipher.DECRYPT_MODE, key_spec);
+        }
+        return cipher;
+    }
+
 
     public static Cipher getCFBCipher(byte[] key, byte[] ivByte, boolean encrypt) throws Exception {
         // unchanged

@@ -11,16 +11,16 @@ import java.util.Base64;
 
 public class ShadowsocksOption extends ProtocolOption {
     private InetSocketAddress address;
-    private Cipher cipher;
+    private CipherAlgo cipherAlgo;
     private String password;
     private byte[] masterKey;
 
     private void genMasterKey(){
-        if (this.password==null||this.cipher==null)
+        if (this.password==null||this.cipherAlgo ==null)
             return;
-        switch (cipher){
+        switch (cipherAlgo){
             case CHACHA20_IETF_POLY1305,AES_128_GCM,AES_192_GCM,AES_256_GCM ->{
-                byte[] key=new byte[cipher.getKeySize()];
+                byte[] key=new byte[cipherAlgo.getKeySize()];
                 ByteBuf buf = Unpooled.buffer();
 
                 int writerIndex=0;
@@ -54,12 +54,12 @@ public class ShadowsocksOption extends ProtocolOption {
         return this;
     }
 
-    public Cipher getCipher() {
-        return cipher;
+    public CipherAlgo getCipher() {
+        return cipherAlgo;
     }
 
-    public ShadowsocksOption setCipher(Cipher cipher) {
-        this.cipher = cipher;
+    public ShadowsocksOption setCipher(CipherAlgo cipherAlgo) {
+        this.cipherAlgo = cipherAlgo;
         genMasterKey();
         return this;
     }

@@ -7,10 +7,7 @@ import io.crowds.proxy.transport.Destination;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelOutboundHandlerAdapter;
-import io.netty.channel.ChannelPromise;
+import io.netty.channel.*;
 import io.netty.channel.socket.DatagramPacket;
 import io.netty.util.ReferenceCountUtil;
 import org.slf4j.Logger;
@@ -19,7 +16,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
-public class ShadowsocksHandler extends ChannelOutboundHandlerAdapter {
+public class ShadowsocksHandler extends ChannelDuplexHandler {
     private final static Logger logger= LoggerFactory.getLogger(ShadowsocksHandler.class);
     private ShadowsocksOption option;
 
@@ -27,6 +24,9 @@ public class ShadowsocksHandler extends ChannelOutboundHandlerAdapter {
     private NetAddr serverAddr;
 
     private boolean writeAddr;
+
+    private boolean protocolError;
+
 
     public ShadowsocksHandler( ShadowsocksOption option, NetLocation netLocation) {
         this.option = option;
@@ -80,8 +80,29 @@ public class ShadowsocksHandler extends ChannelOutboundHandlerAdapter {
 
     }
 
+
+    @Override
+    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+        if (this.protocolError){
+            ReferenceCountUtil.safeRelease(msg);
+            return;
+        }
+        super.channelRead(ctx, msg);
+    }
+
+    @Override
+    public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
+        if (this.protocolError){
+            System.out.println("complete");
+            ctx.close();
+        }
+        super.channelReadComplete(ctx);
+    }
+
+
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        this.protocolError=true;
         logger.error("",cause);
     }
 }

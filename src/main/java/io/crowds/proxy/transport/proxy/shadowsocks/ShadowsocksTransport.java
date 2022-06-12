@@ -6,15 +6,22 @@ import io.crowds.proxy.transport.proxy.FullConeProxyTransport;
 import io.netty.channel.Channel;
 import io.netty.util.concurrent.Future;
 
+import java.util.Objects;
+
 
 public class ShadowsocksTransport extends FullConeProxyTransport {
 
     private ShadowsocksOption shadowsocksOption;
+    private SaltPool saltPool;
 
     public ShadowsocksTransport(ChannelCreator channelCreator, ShadowsocksOption shadowsocksOption) {
         super(channelCreator,shadowsocksOption);
         this.shadowsocksOption = shadowsocksOption;
-
+        Objects.requireNonNull(shadowsocksOption.getCipher());
+        this.saltPool=switch (shadowsocksOption.getCipher()){
+            case AES_128_GCM_2022,AES_256_GCM_2022 ->new SaltPool(channelCreator.getEventLoopGroup().next());
+            default -> null;
+        };
     }
 
     @Override
@@ -37,7 +44,7 @@ public class ShadowsocksTransport extends FullConeProxyTransport {
     @Override
     protected Future<Channel> proxy(Channel channel, NetLocation netLocation) {
         channel.pipeline()
-                .addLast(netLocation.getTp()==TP.TCP?AEADCodec.tcp(shadowsocksOption):AEADCodec.udp(shadowsocksOption))
+                .addLast(netLocation.getTp()==TP.TCP?AEAD.tcp(shadowsocksOption,saltPool):AEAD.udp(shadowsocksOption))
                 .addLast(newHandler(netLocation));
 
         return channel.eventLoop().newSucceededFuture(channel);

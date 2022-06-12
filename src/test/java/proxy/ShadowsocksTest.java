@@ -3,7 +3,7 @@ package proxy;
 import io.crowds.proxy.*;
 import io.crowds.proxy.transport.ProxyTransport;
 import io.crowds.proxy.transport.TransportOption;
-import io.crowds.proxy.transport.proxy.shadowsocks.Cipher;
+import io.crowds.proxy.transport.proxy.shadowsocks.CipherAlgo;
 import io.crowds.proxy.transport.proxy.shadowsocks.ShadowsocksOption;
 import io.crowds.proxy.transport.proxy.shadowsocks.ShadowsocksTransport;
 import io.crowds.proxy.transport.ws.WsOption;
@@ -17,7 +17,7 @@ public class ShadowsocksTest extends ProxyTest {
         InetSocketAddress dest = new InetSocketAddress("127.0.0.1", 16827);
         ShadowsocksOption option=new ShadowsocksOption()
                 .setAddress(dest)
-                .setCipher(Cipher.CHACHA20_IETF_POLY1305)
+                .setCipher(CipherAlgo.CHACHA20_IETF_POLY1305)
                 .setPassword("passpasspass");
         option.setName("ss");
         return new ShadowsocksTransport(channelCreator, option);
@@ -27,13 +27,23 @@ public class ShadowsocksTest extends ProxyTest {
         InetSocketAddress dest = new InetSocketAddress("127.0.0.1", 16829);
         var option=new ShadowsocksOption()
                 .setAddress(dest)
-                .setCipher(Cipher.CHACHA20_IETF_POLY1305)
+                .setCipher(CipherAlgo.CHACHA20_IETF_POLY1305)
                 .setPassword("passpasspass")
                 .setName("ss")
                 .setNetwork("ws")
                 .setTransport(new TransportOption().setWs(new WsOption()));
         return new ShadowsocksTransport(channelCreator, (ShadowsocksOption) option);
+    }
 
+
+    protected ProxyTransport createProxy2022(ChannelCreator channelCreator) {
+        InetSocketAddress dest = new InetSocketAddress("127.0.0.1", 16835);
+        ShadowsocksOption option=new ShadowsocksOption()
+                .setAddress(dest)
+                .setCipher(CipherAlgo.AES_256_GCM_2022)
+                .setPassword("LYfdF9Ka9TdphHJTKY0zkGB8UqnPpvVrDnNYnmILvRA=");
+        option.setName("ss");
+        return new ShadowsocksTransport(channelCreator, option);
     }
 
     @Test
@@ -49,5 +59,16 @@ public class ShadowsocksTest extends ProxyTest {
     @Test
     public void udpTest() throws Exception {
         super.udpTest(createProxy(channelCreator));
+    }
+
+    @Test
+    public void tcp2022Test() throws Exception {
+        super.tcpTest(createProxy2022(channelCreator));
+    }
+
+
+    @Test
+    public void udp2022Test() throws Exception {
+        super.udpTest(createProxy2022(channelCreator));
     }
 }
