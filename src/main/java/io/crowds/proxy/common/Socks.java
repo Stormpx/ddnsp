@@ -51,8 +51,4 @@ public class Socks {
 
     }
 
-    public static class DecodeState{
-        private byte type;
-
-    }
 }

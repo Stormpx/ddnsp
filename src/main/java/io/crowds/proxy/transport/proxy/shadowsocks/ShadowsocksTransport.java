@@ -27,14 +27,18 @@ public class ShadowsocksTransport extends FullConeProxyTransport {
         return new Destination(NetAddr.of(shadowsocksOption.getAddress()),tp);
     }
 
+
+    private ShadowsocksHandler newHandler(NetLocation netLocation){
+        return netLocation.getTp()==TP.TCP?
+                new ShadowsocksHandler(shadowsocksOption,netLocation):
+                new ShadowsocksHandler(shadowsocksOption,new NetAddr(shadowsocksOption.getAddress()));
+    }
+
     @Override
     protected Future<Channel> proxy(Channel channel, NetLocation netLocation) {
-        if (netLocation.getTp()==TP.TCP){
-            new ShadowsocksHandler(channel,shadowsocksOption,netLocation);
-        }else {
-            NetAddr serverAddr = new NetAddr(shadowsocksOption.getAddress());
-            new ShadowsocksHandler(channel,shadowsocksOption,serverAddr);
-        }
+        channel.pipeline()
+                .addLast(netLocation.getTp()==TP.TCP?AEADCodec.tcp(shadowsocksOption):AEADCodec.udp(shadowsocksOption))
+                .addLast(newHandler(netLocation));
 
         return channel.eventLoop().newSucceededFuture(channel);
     }

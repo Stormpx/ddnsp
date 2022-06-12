@@ -156,8 +156,8 @@ public class Axis {
         Promise<Void> promise = channel.eventLoop().newPromise();
         try {
 
-            TcpEndPoint src = new TcpEndPoint(channel)
-                    .exceptionHandler(e->logger.info("src {} caught exception :{}",channel.remoteAddress(),e.getMessage()));
+            TcpEndPoint src = new TcpEndPoint(channel);
+            src.exceptionHandler(e->logger.info("src {} caught exception :{}",channel.remoteAddress(),e.getMessage()));
 
 
             NetLocation netLocation = new NetLocation(getNetAddr(srcAddr),getNetAddr(destAddr), TP.TCP);

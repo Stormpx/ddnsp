@@ -11,11 +11,12 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.socket.DatagramPacket;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.Future;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
 
 public class UdpEndPoint extends EndPoint {
-
     private Channel channel;
     private UdpChannel udpChannel;
     private NetAddr dest;
@@ -39,9 +40,19 @@ public class UdpEndPoint extends EndPoint {
             return;
         }
         if (msg instanceof DatagramPacket packet){
-            channel.writeAndFlush(new DatagramPacket(packet.content(), dest.getAsInetAddr(),packet.sender()));
+            channel.writeAndFlush(new DatagramPacket(packet.content(), dest.getAsInetAddr(),packet.sender()))
+                    .addListener(f->{
+                        if (!f.isSuccess()){
+                            fireException(f.cause());
+                        }
+                    });
         }else if (msg instanceof ByteBuf){
-            channel.writeAndFlush(new DatagramPacket((ByteBuf) msg,dest.getAsInetAddr(),null));
+            channel.writeAndFlush(new DatagramPacket((ByteBuf) msg,dest.getAsInetAddr(),null))
+                    .addListener(f->{
+                        if (!f.isSuccess()){
+                            fireException(f.cause());
+                        }
+                    });
         }
 
     }

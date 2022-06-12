@@ -40,8 +40,8 @@ public class TcpEndPoint extends EndPoint {
             @Override
             public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
 //                logger.info("src {} caught exception :{}",ctx.channel().remoteAddress(),cause.getMessage());
-                if (throwableHandler!=null)
-                    throwableHandler.accept(cause);
+                fireException(cause);
+
             }
 
 //            @Override
@@ -56,10 +56,6 @@ public class TcpEndPoint extends EndPoint {
     }
 
 
-    public TcpEndPoint exceptionHandler(Consumer<Throwable> throwableHandler) {
-        this.throwableHandler = throwableHandler;
-        return this;
-    }
 
 
     @Override
@@ -71,7 +67,12 @@ public class TcpEndPoint extends EndPoint {
         if (msg instanceof DatagramPacket packet) {
             msg=packet.content();
         }
-        channel.writeAndFlush(msg);
+        channel.writeAndFlush(msg)
+                .addListener(f->{
+                    if (!f.isSuccess()){
+                        fireException(f.cause());
+                    }
+                });;
     }
 
     @Override

@@ -7,6 +7,7 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 
 import java.net.InetSocketAddress;
+import java.util.Base64;
 
 public class ShadowsocksOption extends ProtocolOption {
     private InetSocketAddress address;
@@ -17,20 +18,27 @@ public class ShadowsocksOption extends ProtocolOption {
     private void genMasterKey(){
         if (this.password==null||this.cipher==null)
             return;
+        switch (cipher){
+            case CHACHA20_IETF_POLY1305,AES_128_GCM,AES_192_GCM,AES_256_GCM ->{
+                byte[] key=new byte[cipher.getKeySize()];
+                ByteBuf buf = Unpooled.buffer();
 
-        byte[] key=new byte[cipher.getKeySize()];
-        ByteBuf buf = Unpooled.buffer();
+                int writerIndex=0;
+                do {
+                    buf.writerIndex(writerIndex).writeBytes(password.getBytes());
+                    byte[] md5 = Hash.md5(ByteBufUtil.getBytes(buf));
+                    buf.writerIndex(writerIndex).writeBytes(md5);
+                    writerIndex+=md5.length;
+                }while (buf.readableBytes()<key.length);
 
-        int writerIndex=0;
-        do {
-            buf.writerIndex(writerIndex).writeBytes(password.getBytes());
-            byte[] md5 = Hash.md5(ByteBufUtil.getBytes(buf));
-            buf.writerIndex(writerIndex).writeBytes(md5);
-            writerIndex+=md5.length;
-        }while (buf.readableBytes()<key.length);
+                buf.readBytes(key);
+                this.masterKey=key;
+            }
+            case AES_128_GCM_2022,AES_256_GCM_2022 -> {
+                this.masterKey=Base64.getDecoder().decode(password);
+            }
+        }
 
-        buf.readBytes(key);
-        this.masterKey=key;
     }
 
     public byte[] getMasterKey(){

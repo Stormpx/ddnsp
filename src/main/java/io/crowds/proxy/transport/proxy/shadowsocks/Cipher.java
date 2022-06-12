@@ -6,6 +6,8 @@ public enum  Cipher {
     AES_256_GCM(32,32,"aes-256-gcm"),
     AES_192_GCM(24,24,"aes-192-gcm"),
     AES_128_GCM(16,16,"aes-128-gcm"),
+    AES_128_GCM_2022(16,16,"2022-aes-128-gcm"),
+    AES_256_GCM_2022(32,32,"2022-aes-256-gcm"),
     ;
     private int keySize;
     private int saltSize;
