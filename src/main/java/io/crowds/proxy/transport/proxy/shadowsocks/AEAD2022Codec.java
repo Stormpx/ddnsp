@@ -113,28 +113,28 @@ public class AEAD2022Codec {
                     //fixed-length header
                     expectLength+=11+ cipherAlgo.getSaltSize()+16;
                     if (in.readableBytes()<expectLength){
-                        throw new DecoderException("data not enough for decryption");
+                        throw new ShadowsocksException("data not enough for decryption");
                     }
                     if (!readDecryptSalt(in)){
-                        throw new DecoderException("unable read decrypt salt");
+                        throw new ShadowsocksException("unable read decrypt salt");
                     }
                     long now = System.currentTimeMillis()/1000;
                     if (!this.saltPool.against(this.decryptSalt,now)){
-                        throw new DecoderException("repeat salt detected");
+                        throw new ShadowsocksException("repeat salt detected");
                     }
 
                     ByteBuf fixedHeader = readAndDecrypt(ctx, in, expectLength- cipherAlgo.getSaltSize());
                     byte type = fixedHeader.readByte();
                     if (type !=1){
-                        throw new DecoderException("headerTypeServerStream = "+type);
+                        throw new ShadowsocksException("headerTypeServerStream = "+type);
                     }
                     long timestamp = fixedHeader.readLong();
                     if (Ints.diff(now,timestamp) > 30){
-                        throw new DecoderException("bad timestamp");
+                        throw new ShadowsocksException("bad timestamp");
                     }
                     ByteBuf salt = fixedHeader.readSlice(cipherAlgo.getSaltSize());
                     if (!salt.equals(Unpooled.wrappedBuffer(this.encryptSalt))){
-                        throw new DecoderException("bad request salt");
+                        throw new ShadowsocksException("bad request salt");
                     }
                     int expectPayloadLength= fixedHeader.readUnsignedShort();
                     if (expectPayloadLength>0)
@@ -267,21 +267,25 @@ public class AEAD2022Codec {
                 currentSession=this.remoteSession;
             }
 
-
-            currentSession.receivePacket(packetId,now);
-
+            if (!currentSession.receivePacket(packetId,now)){
+                //reject
+                return;
+            }
 
             ByteBuf plain = currentSession.decrypt(cipherAlgo, content, packetId);
             try {
                 if (plain.readByte()!=1){
-                    throw new DecoderException("bad header type");
+                    throw new ShadowsocksException("bad header type");
                 }
                 long timestamp = plain.readLong();
                 if (Ints.diff(now,timestamp) >30){
-                    throw new DecoderException("bad timestamp");
+                    throw new ShadowsocksException("bad timestamp");
                 }
-                //???
-                plain.skipBytes(8);
+                //client sessionid
+                long clientSessionId=plain.readLong();
+                if (!Objects.equals(clientSessionId,this.session.id)){
+                    throw new ShadowsocksException("bad client session id");
+                }
                 //skip padding
                 plain.skipBytes(plain.readUnsignedShort());
 
@@ -292,12 +296,12 @@ public class AEAD2022Codec {
             } catch (Exception e){
                 ReferenceCountUtil.safeRelease(plain);
                 throw e;
-            }finally {
-                //swap
-                if (currentSession==this.remoteOldSession){
-                    this.remoteOldSession=this.remoteSession;
-                    this.remoteSession =currentSession;
-                }
+            }
+
+            //swap
+            if (currentSession==this.remoteOldSession){
+                this.remoteOldSession=this.remoteSession;
+                this.remoteSession =currentSession;
             }
         }
     }
@@ -308,6 +312,7 @@ public class AEAD2022Codec {
         private final long id;
         private long packetId;
         private long lastTimestamp;
+        private ReplayWindow window;
 
         public UdpSession(long id, byte[] subKey) {
             this.id = id;
@@ -315,9 +320,17 @@ public class AEAD2022Codec {
             this.packetId=0;
         }
 
-        public void receivePacket(long packetId,long timestamp){
-            //TODO  sliding window filter
+        public boolean receivePacket(long packetId,long timestamp){
+            if (this.window==null)
+                this.window=new ReplayWindow(1<<4);
+            // sliding window filter
+            if (!this.window.check(packetId)){
+                return false;
+            }
+            this.window.update(packetId);
+
             this.lastTimestamp=timestamp;
+            return true;
         }
 
         public void encrypt(long packetId,CipherAlgo cipherAlgo,ByteBuf in,ByteBuf out) throws Exception {

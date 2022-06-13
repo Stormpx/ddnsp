@@ -93,7 +93,6 @@ public class ShadowsocksHandler extends ChannelDuplexHandler {
     @Override
     public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
         if (this.protocolError){
-            System.out.println("complete");
             ctx.close();
         }
         super.channelReadComplete(ctx);
@@ -102,7 +101,11 @@ public class ShadowsocksHandler extends ChannelDuplexHandler {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        this.protocolError=true;
-        logger.error("",cause);
+        if (cause instanceof ShadowsocksException){
+            this.protocolError=true;
+            logger.error("",cause);
+        }else{
+            super.exceptionCaught(ctx, cause);
+        }
     }
 }

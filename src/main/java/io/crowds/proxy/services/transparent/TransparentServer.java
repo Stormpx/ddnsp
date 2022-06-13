@@ -29,6 +29,7 @@ import java.net.SocketAddress;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -38,7 +39,7 @@ public class TransparentServer {
 
     private TransparentOption option;
     private Axis axis;
-    private volatile boolean logSuccess;
+    private AtomicBoolean logSuccess;
 
     private Map<InetSocketAddress, io.netty.util.concurrent.Future<DatagramChannel>> tupleMap;
 
@@ -48,6 +49,7 @@ public class TransparentServer {
         this.option = option;
         this.axis = axis;
         this.tupleMap=new ConcurrentHashMap<>();
+        this.logSuccess=new AtomicBoolean(false);
     }
 
     public Future<Void> start(){
@@ -120,9 +122,8 @@ public class TransparentServer {
                 .addListener(future -> {
                     if (future.isSuccess()) {
                         promise.complete();
-                        if (!this.logSuccess) {
+                        if (this.logSuccess.compareAndSet(false,true)) {
                             logger.info("start transparent udp proxy server {}", socketAddress);
-                            this.logSuccess=true;
                         }
                     }else {
                         promise.tryFail(future.cause());
