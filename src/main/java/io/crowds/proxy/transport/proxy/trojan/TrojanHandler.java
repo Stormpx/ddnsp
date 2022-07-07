@@ -6,6 +6,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.*;
 import io.netty.channel.socket.DatagramPacket;
 
+import java.util.concurrent.TimeUnit;
+
 public class TrojanHandler extends ChannelOutboundHandlerAdapter {
 
     private TrojanOption trojanOption;
@@ -35,11 +37,11 @@ public class TrojanHandler extends ChannelOutboundHandlerAdapter {
 
     @Override
     public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
-        ctx.channel().eventLoop().execute(()->{
+        ctx.channel().eventLoop().schedule(()->{
             if (!request){
                 ctx.writeAndFlush(newRequest(null));
             }
-        });
+        },50, TimeUnit.MILLISECONDS);
         super.handlerAdded(ctx);
     }
 

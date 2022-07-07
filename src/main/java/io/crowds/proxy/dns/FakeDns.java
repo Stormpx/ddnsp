@@ -70,7 +70,7 @@ public class FakeDns implements Handler<DnsContext> {
 //        logger.warn("fakedns hit cache domain: {} fakeAddr:{} realAddr: {}",domain,context.getFakeAddr(),context.getRealAddr());
         InetAddress fakeAddr = context.getFakeAddr();
         ctx.resp(DnsOpCode.QUERY,DnsResponseCode.NOERROR,
-                Collections.singletonList(new DefaultDnsRawRecord(domain.getName(), ctx.getQuestion().type(), context.remainTimeMillis()/1000, Unpooled.wrappedBuffer(fakeAddr.getAddress()))));
+                Collections.singletonList(new DefaultDnsRawRecord(domain.name(), ctx.getQuestion().type(), context.remainTimeMillis()/1000, Unpooled.wrappedBuffer(fakeAddr.getAddress()))));
 
         return true;
     }
@@ -88,13 +88,13 @@ public class FakeDns implements Handler<DnsContext> {
 
     private void mappingAndResp(DnsContext ctx, Domain domain, RealAddr realAddr, String tag){
         if (executors.inEventLoop()){
-            var ipPool=DnsRecordType.AAAA.equals(domain.getType()) ? this.ipv6Pool:ipv4Pool;
+            var ipPool=DnsRecordType.AAAA.equals(domain.type()) ? this.ipv6Pool:ipv4Pool;
             InetAddress fakeAddr = ipPool.getAvailableAddress();
             if (fakeAddr==null){
                 logger.warn("unable get available addr from ipPool");
                 return;
             }
-            FakeContext fakeContext = new FakeContext(fakeAddr, domain.getName(), realAddr, tag, this.destStrategy);
+            FakeContext fakeContext = new FakeContext(fakeAddr, domain.name(), realAddr, tag, this.destStrategy);
             domainFakeMap.put(domain,fakeContext);
             addrFakeMap.put(fakeAddr,fakeContext);
             executors.schedule(()->{
@@ -116,7 +116,7 @@ public class FakeDns implements Handler<DnsContext> {
 //            logger.warn("domain:{} fakeAddr:{}  realAddr: {}",domain,fakeAddr,realAddr);
 
             ctx.resp(DnsOpCode.QUERY,DnsResponseCode.NOERROR,
-                    Collections.singletonList(new DefaultDnsRawRecord(domain.getName(), ctx.getQuestion().type(), realAddr.ttl(), Unpooled.wrappedBuffer(fakeAddr.getAddress()))));
+                    Collections.singletonList(new DefaultDnsRawRecord(domain.name(), ctx.getQuestion().type(), realAddr.ttl(), Unpooled.wrappedBuffer(fakeAddr.getAddress()))));
         }else{
             executors.execute(()->mappingAndResp(ctx, domain, realAddr, tag));
         }
@@ -196,42 +196,8 @@ public class FakeDns implements Handler<DnsContext> {
         return context;
     }
 
+    record Domain(String name,DnsRecordType type){}
 
-    class Domain{
-        private String name;
-        private DnsRecordType type;
-
-        public Domain(String name, DnsRecordType type) {
-            this.name = name;
-            this.type = type;
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        public DnsRecordType getType() {
-            return type;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            Domain domain = (Domain) o;
-            return Objects.equals(name, domain.name) && Objects.equals(type, domain.type);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(name, type);
-        }
-
-        @Override
-        public String toString() {
-            return "{" + "name='" + name + '\'' + ", type=" + type + '}';
-        }
-    }
 
 
 }

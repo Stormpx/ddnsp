@@ -324,10 +324,10 @@ public class AEAD2022Codec {
             if (this.window==null)
                 this.window=new ReplayWindow(1<<4);
             // sliding window filter
-            if (!this.window.check(packetId)){
+            if (!this.window.update(packetId)){
                 return false;
             }
-            this.window.update(packetId);
+
 
             this.lastTimestamp=timestamp;
             return true;

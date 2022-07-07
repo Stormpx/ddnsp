@@ -16,6 +16,7 @@ import io.netty.util.concurrent.FutureListener;
 import io.netty.util.concurrent.Promise;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Objects;
 
 public class WebsocketTransport extends DirectTransport {
@@ -27,20 +28,25 @@ public class WebsocketTransport extends DirectTransport {
         Objects.requireNonNull(wsOption);
     }
 
-    @Override
-    public Future<Channel> createChannel(EventLoop eventLoop, Destination dest) throws Exception {
-        Future<Channel> future = super.createChannel(eventLoop, dest);
-        TP tp = dest.tp();
-        NetAddr addr = dest.addr();
-        if (tp==TP.UDP)
-            return future;
+    private WebsocketMaskHandler newHandler(NetAddr addr) throws URISyntaxException {
 
         boolean tls=protocolOption.getTls()!=null&&protocolOption.getTls().isEnable();
 
         var uri=new URI(!tls?"ws":"wss",null, addr.getHost(), addr.getPort(), wsOption.getPath(),null,null);
-        var maskHandler=new WebsocketMaskHandler(
+
+        return new WebsocketMaskHandler(
                 WebSocketClientHandshakerFactory.newHandshaker(
                         uri, WebSocketVersion.V13,null,true,wsOption.getHeaders()!=null?wsOption.getHeaders():new DefaultHttpHeaders()));
+    }
+
+    @Override
+    public Future<Channel> createChannel(EventLoop eventLoop, Destination dest) throws Exception {
+        Future<Channel> future = super.createChannel(eventLoop, dest);
+        if (dest.tp()==TP.UDP)
+            return future;
+
+        var maskHandler=newHandler(dest.addr());
+
         Promise<Channel> promise = eventLoop.newPromise();
         future.addListener((FutureListener<Channel>) f->{
             if (!f.isSuccess()){

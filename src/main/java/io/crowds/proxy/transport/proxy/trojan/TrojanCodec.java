@@ -61,7 +61,7 @@ public class TrojanCodec extends CombinedChannelDuplexHandler<ByteToMessageDecod
                }else if (payload instanceof DatagramPacket packet){
                    encodePacket(packet,out);
                }
-                ReferenceCountUtil.safeRelease(payload);
+               ReferenceCountUtil.safeRelease(payload);
             }
         }
 

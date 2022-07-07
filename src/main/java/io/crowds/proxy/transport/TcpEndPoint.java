@@ -14,7 +14,7 @@ import java.util.function.Consumer;
 public class TcpEndPoint extends EndPoint {
 
     private final Channel channel;
-    private Consumer<Throwable> throwableHandler;
+    private boolean closed;
 
     public TcpEndPoint(Channel channel) {
         this.channel = channel;
@@ -30,6 +30,12 @@ public class TcpEndPoint extends EndPoint {
             }
 
             @Override
+            public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+                closed=true;
+                super.channelInactive(ctx);
+            }
+
+            @Override
             protected void channelRead0(ChannelHandlerContext ctx, ByteBuf msg) throws Exception {
                 if (!channel.isActive()){
                     ReferenceCountUtil.safeRelease(msg);
@@ -39,20 +45,10 @@ public class TcpEndPoint extends EndPoint {
             }
             @Override
             public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-//                logger.info("src {} caught exception :{}",ctx.channel().remoteAddress(),cause.getMessage());
                 fireException(cause);
-
             }
-
-//            @Override
-//            public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-//                if (evt instanceof IdleStateEvent){
-//                    close();
-////                    handleThrowable(new RuntimeException("connect idle timeout"));
-//                }else
-//                    super.userEventTriggered(ctx, evt);
-//            }
         });
+
     }
 
 
@@ -60,7 +56,7 @@ public class TcpEndPoint extends EndPoint {
 
     @Override
     public void write(Object msg) {
-        if (!channel.isActive()){
+        if (!channel.isActive()||closed){
             ReferenceCountUtil.safeRelease(msg);
             return;
         }
@@ -82,8 +78,10 @@ public class TcpEndPoint extends EndPoint {
 
     @Override
     public void close() {
-        if (channel.isActive())
+        if (channel.isActive()) {
+            closed=true;
             channel.close();
+        }
     }
 
     @Override

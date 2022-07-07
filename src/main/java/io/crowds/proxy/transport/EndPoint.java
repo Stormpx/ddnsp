@@ -1,11 +1,13 @@
 package io.crowds.proxy.transport;
 
+import io.crowds.util.Exceptions;
 import io.netty.channel.Channel;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.channels.ClosedChannelException;
 import java.util.function.Consumer;
 
 
@@ -49,7 +51,7 @@ public abstract class EndPoint  {
     }
 
     protected void fireException(Throwable cause){
-        if (this.exceptionHandler!=null)
+        if (this.exceptionHandler!=null&&!Exceptions.isExpected(cause))
             this.exceptionHandler.accept(cause);
     }
 
