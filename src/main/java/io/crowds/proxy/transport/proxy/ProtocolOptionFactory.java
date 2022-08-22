@@ -58,7 +58,7 @@ public class ProtocolOptionFactory {
         VmessOption vmessOption = new VmessOption();
         var host=json.getString("host");
         var port=json.getInteger("port");
-        vmessOption.setAddress(new InetSocketAddress(host, port));
+        vmessOption.setAddress(InetSocketAddress.createUnresolved(host, port));
         String uuid = json.getString("uid");
         Integer alterId = json.getInteger("alterId",0);
         if (Strs.isBlank(uuid)) {
@@ -78,7 +78,7 @@ public class ProtocolOptionFactory {
         ShadowsocksOption shadowsocksOption = new ShadowsocksOption();
         var host=json.getString("host");
         var port=json.getInteger("port");
-        InetSocketAddress address = new InetSocketAddress(host, port);
+        InetSocketAddress address = InetSocketAddress.createUnresolved(host, port);
         String cipherStr = json.getString("cipher");
         CipherAlgo cipher = CipherAlgo.of(cipherStr);
         if (cipher==null){
@@ -99,7 +99,8 @@ public class ProtocolOptionFactory {
         TrojanOption trojanOption = new TrojanOption();
         var host=json.getString("host");
         var port=json.getInteger("port");
-        InetSocketAddress address = new InetSocketAddress(host, port);
+
+        InetSocketAddress address = InetSocketAddress.createUnresolved(host,port);
         String password = json.getString("password");
         if (Strs.isBlank(password)){
             throw new IllegalArgumentException("password is required");
