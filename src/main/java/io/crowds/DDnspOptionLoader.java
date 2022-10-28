@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 
 import java.net.*;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class DDnspOptionLoader {
 
@@ -98,7 +99,11 @@ public class DDnspOptionLoader {
                     .setHost("127.0.0.1")
                     .setPort(53)
                     .setTtl(300)
-                    .setDnsServers(provider.nameServerAddresses());
+                    .setDnsServers(provider.nameServerAddresses()
+                            .stream()
+                            .map(inet->URI.create("dns://"+inet.getHostName()+":"+(inet.getPort()<0?53:inet.getPort())))
+                            .collect(Collectors.toList())
+                    );
 
             dDnspOption.setDns(dnsOption);
             dDnspOption.setDdns(new DDnsOption().setEnable(false));
@@ -136,7 +141,7 @@ public class DDnspOptionLoader {
                 .setTtl(Optional.ofNullable(json.getInteger("ttl")).orElse(120))
                 .setHost(Optional.ofNullable(json.getString("host")).orElse("0.0.0.0"))
                 .setPort(Optional.ofNullable(json.getInteger("port")).filter(p->p>0&&p<=65535).orElse(53))
-                .setDnsServers(convert((List<String>) json.getJsonArray("dnsServers").getList()))
+                .setDnsServers(convert(json.getJsonArray("dnsServers")))
 //                .setRecordsMap(getHosts(json.getJsonArray("records").getList()))
                 .setRrMap(getStaticRecord(json.getJsonArray("records").getList()))
         ;
@@ -227,51 +232,23 @@ public class DDnspOptionLoader {
         return proxy;
     }
 
-    private List<InetSocketAddress> convert(List<String> serverList){
+    private List<URI> convert(JsonArray serverList){
 
-        List<InetSocketAddress> addressList=new ArrayList<>();
+        return serverList.stream()
+                .filter(Objects::nonNull)
+                .filter(o-> o instanceof String)
+                .map(Object::toString)
+                .filter(s->!s.isBlank())
+                .map(s->{
+                    if (s.startsWith("dns")||s.startsWith("udp")||s.startsWith("http"))
+                        return URI.create(s);
+                    return URI.create("dns://"+s);
+                })
+                .collect(Collectors.toList());
 
-        for (String s : serverList) {
-            if (s==null||s.isBlank())
-                continue;
-
-            String[] strings = s.split(":");
-            String host="";
-            int port=53;
-            host=strings[0];
-            if (strings.length>1){
-                port=Integer.parseInt(strings[1]);
-            }
-            InetSocketAddress address = new InetSocketAddress(host, port);
-            addressList.add(address);
-        }
-
-        return addressList;
     }
 
 
-    public Map<String, RR> getHosts(List<String> list) {
-        try {
-            Map<String,RR> map=new HashMap<>();
-            for (String str : list) {
-                if (str==null)
-                    continue;
-                String[] strings = str.trim().split(" ");
-                if (strings.length<2){
-                    continue;
-                }
-                String domain=strings[0];
-                if (!domain.endsWith(".")){
-                    domain=domain+".";
-                }
-                RR rr = new RR(strings[1]);
-                map.put(domain,rr);
-            }
-            return map;
-        } catch (UnknownHostException e) {
-            throw new RuntimeException(e);
-        }
-    }
 
     public Map<String, RecordData> getStaticRecord(List<String> rr){
         Map<String,RecordData> map=new HashMap<>();

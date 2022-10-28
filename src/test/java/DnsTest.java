@@ -8,13 +8,16 @@ import io.vertx.core.Vertx;
 import io.vertx.core.dns.DnsClient;
 
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 public class DnsTest {
 
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
         Vertx vertx = Vertx.vertx();
 
 //        DnsClient dnsClient = vertx.createDnsClient(53,"114.114.114.114");
@@ -28,9 +31,12 @@ public class DnsTest {
 //                .onFailure(Throwable::printStackTrace)
 //                .onSuccess(str-> System.out.println(str));
 //        InetSocketAddress inetSocketAddress = new InetSocketAddress("127.0.0.1", 53);
-        InetSocketAddress inetSocketAddress = new InetSocketAddress("114.114.114.114", 53);
-        var dc=new io.crowds.dns.DnsClient(vertx.nettyEventLoopGroup(),new DnsOption()
-                .setDnsServers(Arrays.asList(inetSocketAddress)));
+//        InetSocketAddress inetSocketAddress = new InetSocketAddress("114.114.114.114", 53);
+        var dc=new io.crowds.dns.DnsClient(vertx,new DnsOption()
+                .setDnsServers(List.of(
+//                        URI.create("dns://114.114.114.114:53")
+                        URI.create("https://doh.pub/dns-query")
+                )));
         dc.request("www.baidu.com", DnsRecordType.AAAA)
                 .onFailure(Throwable::printStackTrace)
                 .onSuccess(message->{
@@ -48,6 +54,8 @@ public class DnsTest {
 //                .onFailure(Throwable::printStackTrace)
 //                .onSuccess(str-> System.out.println("dcC"+str));
 
+        vertx.nettyEventLoopGroup().awaitTermination(6, TimeUnit.SECONDS);
+        vertx.close();
 
     }
 

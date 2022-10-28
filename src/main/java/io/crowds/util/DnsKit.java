@@ -165,6 +165,20 @@ public class DnsKit {
         return null;
     }
 
+    public static void encodeQueryHeader(DnsQuery query,ByteBuf out){
+        out.writeShort(query.id());
+        int flags=0;
+        flags |= (query.opCode().byteValue() & 0xFF) << 14;
+        if (query.isRecursionDesired()) {
+            flags |= 1 << 8;
+        }
+        out.writeShort(flags);
+        out.writeShort(query.count(DnsSection.QUESTION));
+        out.writeShort(0); // answerCount
+        out.writeShort(0); // authorityResourceCount
+        out.writeShort(query.count(DnsSection.ADDITIONAL));
+    }
+
 
 
 }

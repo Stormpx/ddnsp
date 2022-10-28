@@ -1,6 +1,6 @@
 package io.crowds.ddns.resolve;
 
-import io.crowds.util.Https;
+import io.crowds.util.Http;
 import io.crowds.util.Strs;
 import io.netty.handler.codec.http.HttpHeaderValues;
 import io.vertx.core.Future;
@@ -63,7 +63,7 @@ public class CloudFlareDnsResolver  implements DnsResolver{
                     .putHeader("Authorization","Bearer "+apiToken)
                     .setAbsoluteURI(url))
                 .compose(HttpClientRequest::send)
-                .compose(Https::assertSuccess)
+                .compose(Http::assertSuccess)
                 .map(Buffer::toJsonObject)
                 .compose(this::checkSuccess)
                 .map(jsonArr->{
@@ -109,7 +109,7 @@ public class CloudFlareDnsResolver  implements DnsResolver{
                             .putHeader("Authorization","Bearer "+apiToken)
                         )
                 .compose(req-> req.send(toJson(updateRecord).toBuffer()))
-                .compose(Https::assertSuccess)
+                .compose(Http::assertSuccess)
                 .map(Buffer::toJsonObject)
                 .compose(this::checkSuccess)
                 .map((Void)null);

@@ -1,13 +1,14 @@
 package io.crowds.dns;
 
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
 public class DnsOption {
     private boolean enable=true;
 
-    private List<InetSocketAddress> dnsServers;
+    private List<URI> dnsServers;
     private String host;
     private Integer port;
     private int ttl;
@@ -43,11 +44,11 @@ public class DnsOption {
         return this;
     }
 
-    public List<InetSocketAddress> getDnsServers() {
+    public List<URI> getDnsServers() {
         return dnsServers;
     }
 
-    public DnsOption setDnsServers(List<InetSocketAddress> dnsServers) {
+    public DnsOption setDnsServers(List<URI> dnsServers) {
         this.dnsServers = dnsServers;
         return this;
     }

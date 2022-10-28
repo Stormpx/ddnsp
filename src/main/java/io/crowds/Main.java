@@ -60,7 +60,7 @@ public class Main {
 
                     ProxyOption proxyOption = option.getProxy();
                     DnsOption dnsOption = option.getDns();
-                    var dnsClient=new DnsClient(vertx.nettyEventLoopGroup(), dnsOption);
+                    var dnsClient=new DnsClient(vertx, dnsOption);
                     InetSocketAddress socketAddress = new InetSocketAddress(dnsOption.getHost(), dnsOption.getPort());
                     DnsServer dnsServer = new DnsServer(vertx.nettyEventLoopGroup(),dnsClient).setOption(dnsOption);
                     Ddns ddns = new Ddns(vertx, option.getDdns());

@@ -1,9 +1,11 @@
 package io.crowds.util;
 
+import io.netty.buffer.ByteBufUtil;
 import io.netty.util.NetUtil;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 
 public class Inet {
 
@@ -22,6 +24,12 @@ public class Inet {
         }
     }
 
-
+    public static InetAddress address(byte[] addr){
+        try {
+            return InetAddress.getByAddress(addr);
+        } catch (UnknownHostException e) {
+            return null;
+        }
+    }
 
 }
