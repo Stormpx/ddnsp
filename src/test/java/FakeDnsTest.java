@@ -1,11 +1,8 @@
-import io.crowds.dns.DnsClient;
 import io.crowds.dns.DnsContext;
-import io.crowds.dns.DnsOption;
-import io.crowds.dns.DnsServer;
 import io.crowds.proxy.dns.FakeContext;
 import io.crowds.proxy.dns.FakeDns;
 import io.crowds.proxy.dns.RealAddr;
-import io.crowds.proxy.routing.Router;
+import io.crowds.proxy.routing.LinearRouter;
 import io.crowds.util.IPCIDR;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
@@ -52,7 +49,7 @@ public class FakeDnsTest {
     public void test() throws UnknownHostException, InterruptedException {
         NioEventLoopGroup eventLoopGroup = new NioEventLoopGroup();
 
-        FakeDns fakeDns = new FakeDns(eventLoopGroup.next(), new Router(Arrays.asList("kw;google;test")), new IPCIDR("192.168.1.0/24"),null,"domain");
+        FakeDns fakeDns = new FakeDns(eventLoopGroup.next(), new LinearRouter(Arrays.asList("kw;google;test")), new IPCIDR("192.168.1.0/24"),null,"domain");
         String targetDomain = "www.google.com";
         InetAddress realAddr = InetAddress.getByName("10.10.10.10");
         var r=new DefaultDnsResponse(0, DnsOpCode.QUERY, DnsResponseCode.NOERROR)

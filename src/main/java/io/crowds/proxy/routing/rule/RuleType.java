@@ -1,5 +1,9 @@
 package io.crowds.proxy.routing.rule;
 
+import io.crowds.proxy.NetLocation;
+
+import java.util.Objects;
+
 public enum  RuleType {
     DOMAIN("domain"),
     EQ("eq"),
@@ -30,5 +34,15 @@ public enum  RuleType {
             }
         }
         return null;
+    }
+
+    public Object getMatchKey(NetLocation netLocation){
+        return switch (this){
+            case DOMAIN,EQ,EW,KW, GEOIP, CIDR -> netLocation.getDest().getHost();
+            case SRC_CIDR -> netLocation.getSrc().getHost();
+            case SRC_POST -> netLocation.getSrc().getPort();
+            case PORT -> netLocation.getDest().getPort();
+            case DEFAULT -> null;
+        };
     }
 }

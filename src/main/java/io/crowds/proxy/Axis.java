@@ -3,6 +3,8 @@ package io.crowds.proxy;
 import io.crowds.proxy.dns.FakeContext;
 import io.crowds.proxy.dns.FakeDns;
 import io.crowds.proxy.dns.FakeOption;
+import io.crowds.proxy.routing.CachedRouter;
+import io.crowds.proxy.routing.LinearRouter;
 import io.crowds.proxy.routing.Router;
 import io.crowds.proxy.select.TransportProvider;
 import io.crowds.proxy.select.Transport;
@@ -26,7 +28,6 @@ import org.slf4j.LoggerFactory;
 import java.net.*;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -56,7 +57,7 @@ public class Axis {
 
         if (proxyOption.getRules()!=null){
             if (this.proxyOption==null||!proxyOption.getRules().equals(this.proxyOption.getRules())) {
-                this.router = new Router(proxyOption.getRules());
+                this.router = new CachedRouter(proxyOption.getRules(),2,6,12);
                 if (this.fakeDns != null) this.fakeDns.setRouter(router);
                 logger.info("router rules setup.");
             }

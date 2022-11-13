@@ -37,7 +37,7 @@ public class FakeDns implements Handler<DnsContext> {
     private Map<Domain,FakeContext> domainFakeMap;
     private Map<InetAddress,FakeContext> addrFakeMap;
 
-    public FakeDns(EventLoop executors,Router router, IPCIDR ipv4Cidr, IPCIDR ipv6Cidr,String destStrategy) {
+    public FakeDns(EventLoop executors, Router router, IPCIDR ipv4Cidr, IPCIDR ipv6Cidr, String destStrategy) {
         Objects.requireNonNull(executors);
         Objects.requireNonNull(router);
         this.executors = executors;
@@ -154,7 +154,7 @@ public class FakeDns implements Handler<DnsContext> {
                         RealAddr address = getAddress(record, question.type());
                         if (address!=null){
                             if (tag==null) {
-                                String routingTag = router.routing(address.addr(), true);
+                                String routingTag = router.routingIp(address.addr(), true);
                                 if (routingTag != null) {
                                     //mapping
                                     mappingAndResp(ctx, domain, address, routingTag);

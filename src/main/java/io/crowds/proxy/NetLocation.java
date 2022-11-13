@@ -48,4 +48,9 @@ public class NetLocation {
     public int hashCode() {
         return Objects.hash(src, dest, tp);
     }
+
+    @Override
+    public String toString() {
+        return "NetLocation{" + "src=" + src + ", dest=" + dest + ", tp=" + tp + '}';
+    }
 }
