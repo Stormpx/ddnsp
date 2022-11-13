@@ -64,7 +64,7 @@ public class Mmdb {
         if (timeoutStream!=null)
             timeoutStream.cancel();
 
-        timeoutStream=vertx.periodicStream(timeUnit.toMillis(duration))
+        timeoutStream=vertx.timerStream(timeUnit.toMillis(duration))
                 .handler(id->{
                     logger.info("try reload mmdb target: {}",target);
                     load(target);
@@ -150,6 +150,8 @@ public class Mmdb {
 
     public String queryIsoCode(InetAddress address){
         if (database==null)
+            return null;
+        if (address==null)
             return null;
         try {
             CountryResponse response = database.tryCountry(address).orElse(null);

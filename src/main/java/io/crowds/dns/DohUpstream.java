@@ -3,10 +3,8 @@ package io.crowds.dns;
 import io.crowds.util.DnsKit;
 import io.netty.buffer.*;
 import io.netty.handler.codec.dns.*;
-import io.netty.util.CharsetUtil;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
-import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,7 +50,7 @@ public class DohUpstream implements DnsUpstream {
         return url;
     }
 
-    private ByteBuf encode(DnsQuery query, ByteBufAllocator allocator) throws Exception {
+    private ByteBuf encodeQuery(DnsQuery query, ByteBufAllocator allocator) throws Exception {
         ByteBuf buf = allocator.buffer();
         query.setId(0);
         DnsKit.encodeQueryHeader(query,buf);
@@ -68,7 +66,7 @@ public class DohUpstream implements DnsUpstream {
     }
 
 
-    private DnsResponse decode(ByteBuf buf) throws Exception {
+    private DnsResponse decodeResponse(ByteBuf buf) throws Exception {
         int id = buf.readUnsignedShort();
         int flags = buf.readUnsignedShort();
         if (flags>>15 == 0){
@@ -105,7 +103,7 @@ public class DohUpstream implements DnsUpstream {
     @Override
     public Future<DnsResponse> lookup(DnsQuery query) {
         try {
-            var buf = encode(query, UnpooledByteBufAllocator.DEFAULT);
+            var buf = encodeQuery(query, UnpooledByteBufAllocator.DEFAULT);
             var base64= StandardCharsets.UTF_8.decode(Base64.getUrlEncoder().withoutPadding().encode(buf.nioBuffer()));
             buf.release();
             return httpClient.request(new RequestOptions()
@@ -122,13 +120,13 @@ public class DohUpstream implements DnsUpstream {
                         }
                         String contentType = resp.getHeader("content-type");
                         if (!Objects.equals(contentType,CONTENT_TYPE)){
-                            return Future.failedFuture("unsupported content type: "+ contentType);
+                            return Future.failedFuture("unrecognized content type: "+ contentType);
                         }
                         return resp.body();
                     })
                     .compose(buffer->{
                         try {
-                            return Future.succeededFuture(decode(buffer.getByteBuf()));
+                            return Future.succeededFuture(decodeResponse(buffer.getByteBuf()));
                         } catch (Exception e) {
                             return Future.failedFuture(e);
                         }

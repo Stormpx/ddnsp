@@ -41,7 +41,7 @@ public class NetAddr {
         return getAsInetAddr().getAddress().getAddress();
     }
 
-    public String getHost(){return getAsInetAddr().getHostName();}
+    public String getHost(){return getAsInetAddr().getHostString();}
 
     public int getPort(){
         return getAsInetAddr().getPort();

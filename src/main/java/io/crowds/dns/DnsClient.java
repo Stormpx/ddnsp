@@ -43,8 +43,7 @@ public class DnsClient {
                 .map(uri->{
                     String scheme = uri.getScheme();
                     return switch (Strs.isBlank(scheme)?"dns":scheme) {
-                        case "dns", "udp" ->
-                                new UdpUpstream(eventLoopGroup, new InetSocketAddress(uri.getHost(), uri.getPort()));
+                        case "dns", "udp" -> new UdpUpstream(eventLoopGroup, new InetSocketAddress(uri.getHost(), uri.getPort()));
                         case "http", "https" -> new DohUpstream(vertx, uri);
                         default -> {
                             logger.error("unsupported dns server {}",uri);
