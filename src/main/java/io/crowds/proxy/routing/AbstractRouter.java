@@ -20,7 +20,7 @@ public abstract class AbstractRouter implements Router{
         return null;
     }
 
-    protected Rule lookupRule(int seq,String type, String content, String tag){
+    protected Rule lookupRule(String type, String content, String tag){
         type=type.trim();
         RuleType ruleType = RuleType.of(type);
         if (ruleType==null){
@@ -42,9 +42,6 @@ public abstract class AbstractRouter implements Router{
     }
 
     protected void initRule(List<String> ruleStr, Consumer<Rule> ruleHandler){
-        var ref = new Object() {
-            int counter = 0;
-        };
         ruleStr.stream()
                 .filter(Objects::nonNull)
                 .filter(Predicate.not(String::isBlank))
@@ -57,7 +54,7 @@ public abstract class AbstractRouter implements Router{
                     var ruleType=str.substring(0,index);
                     var content=str.substring(index+1,lastIndex);
                     var tag=str.substring(lastIndex+1);
-                    Rule rule = lookupRule(ref.counter++,ruleType, content.trim(), tag.trim());
+                    Rule rule = lookupRule(ruleType, content.trim(), tag.trim());
                     if (rule!=null)
                         ruleHandler.accept(rule);
 
@@ -66,28 +63,28 @@ public abstract class AbstractRouter implements Router{
 
 
 
-    protected abstract String routingIp(NetLocation netLocation, RuleType... types);
+    protected abstract String routing(NetLocation netLocation, RuleType... types);
 
     public String routing(NetLocation netLocation){
         if (netLocation.getDest() instanceof DomainNetAddr){
-            return routingIp(netLocation, RuleType.EQ,RuleType.EW,RuleType.KW,RuleType.DOMAIN,RuleType.PORT,RuleType.SRC_CIDR,RuleType.SRC_POST);
+            return routing(netLocation, RuleType.EQ,RuleType.EW,RuleType.KW,RuleType.DOMAIN,RuleType.PORT,RuleType.SRC_CIDR,RuleType.SRC_POST);
         }else {
-            return routingIp(netLocation, RuleType.CIDR,RuleType.PORT,RuleType.SRC_CIDR,RuleType.SRC_POST,RuleType.GEOIP);
+            return routing(netLocation, RuleType.CIDR,RuleType.PORT,RuleType.SRC_CIDR,RuleType.SRC_POST,RuleType.GEOIP);
         }
     }
 
     public String routing(InetSocketAddress src, String domain){
         var net=new NetLocation(new NetAddr(src),new DomainNetAddr(domain,0), null);
-        return routingIp(net,RuleType.SRC_CIDR,RuleType.SRC_POST,RuleType.EQ,RuleType.EW,RuleType.KW,RuleType.DOMAIN);
+        return routing(net,RuleType.SRC_CIDR,RuleType.SRC_POST,RuleType.EQ,RuleType.EW,RuleType.KW,RuleType.DOMAIN);
     }
 
     public String routingIp(InetAddress address, boolean dest){
         NetAddr netAddr = new NetAddr(new InetSocketAddress(address, 0));
         var net=new NetLocation(dest?null:netAddr, dest?netAddr:null, null);
         if (dest){
-            return routingIp(net, RuleType.CIDR,RuleType.GEOIP);
+            return routing(net, RuleType.CIDR,RuleType.GEOIP);
         }else {
-            return routingIp(net, RuleType.SRC_CIDR);
+            return routing(net, RuleType.SRC_CIDR);
         }
     }
 
@@ -95,9 +92,9 @@ public abstract class AbstractRouter implements Router{
         NetAddr netAddr = NetAddr.of(address);
         var net=new NetLocation(dest?null:netAddr, dest?netAddr:null, null);
         if (dest){
-            return routingIp(net, RuleType.CIDR, RuleType.PORT,RuleType.GEOIP);
+            return routing(net, RuleType.CIDR, RuleType.PORT,RuleType.GEOIP);
         }else{
-            return routingIp(net, RuleType.SRC_CIDR, RuleType.SRC_POST);
+            return routing(net, RuleType.SRC_CIDR, RuleType.SRC_POST);
         }
 
     }

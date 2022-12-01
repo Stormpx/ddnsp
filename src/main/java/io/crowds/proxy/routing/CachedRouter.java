@@ -23,7 +23,7 @@ public class CachedRouter extends AbstractRouter {
 
 
     @Override
-    protected String routingIp(NetLocation netLocation, RuleType... types) {
+    protected String routing(NetLocation netLocation, RuleType... types) {
         return Arrays.stream(types)
                 .map(it -> this.slotMap.get(it))
                 .filter(Objects::nonNull)

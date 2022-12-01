@@ -21,7 +21,7 @@ public class LinearRouter extends AbstractRouter{
         initRule(rules,it->this.rules.add(it));
     }
 
-    protected String routingIp(NetLocation netLocation, RuleType... types){
+    protected String routing(NetLocation netLocation, RuleType... types){
         Set<RuleType> typeSet=new HashSet<>(Arrays.asList(types));
 
         for (Rule rule : this.rules) {
