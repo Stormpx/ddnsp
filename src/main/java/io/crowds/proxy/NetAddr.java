@@ -20,7 +20,13 @@ public class NetAddr {
         }
     }
 
-
+    public InetSocketAddress getResolvedAddress(){
+        InetSocketAddress addr = getAsInetAddr();
+        if (addr.isUnresolved()){
+            return new InetSocketAddress(addr.getHostString(),addr.getPort());
+        }
+        return addr;
+    }
     public SocketAddress getAddress() {
         return address;
     }

@@ -1,24 +1,26 @@
 package io.crowds.proxy.common;
 
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.handler.timeout.IdleStateHandler;
 
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 public class IdleTimeoutHandler extends IdleStateHandler {
 
-    private Consumer<IdleStateEvent> idleEventHandler;
+    private BiConsumer<Channel,IdleStateEvent> idleEventHandler;
     private boolean closed;
 
-    public IdleTimeoutHandler( int allIdleTimeSeconds,Consumer<IdleStateEvent> idleEventHandler) {
+    public IdleTimeoutHandler( int allIdleTimeSeconds,BiConsumer<Channel,IdleStateEvent> idleEventHandler) {
         super(0, 0, allIdleTimeSeconds);
         this.idleEventHandler=idleEventHandler;
     }
 
-    public IdleTimeoutHandler(long allIdleTime, TimeUnit unit,Consumer<IdleStateEvent> idleEventHandler) {
+    public IdleTimeoutHandler(long allIdleTime, TimeUnit unit,BiConsumer<Channel,IdleStateEvent> idleEventHandler) {
         super(0, 0, allIdleTime, unit);
         this.idleEventHandler=idleEventHandler;
     }
@@ -33,7 +35,7 @@ public class IdleTimeoutHandler extends IdleStateHandler {
     @Override
     protected void channelIdle(ChannelHandlerContext ctx, IdleStateEvent evt) throws Exception {
         if (this.idleEventHandler!=null)
-            this.idleEventHandler.accept(evt);
+            this.idleEventHandler.accept(ctx.channel(),evt);
         else {
             if (!closed){
                 ctx.close();

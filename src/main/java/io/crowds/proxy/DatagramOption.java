@@ -29,5 +29,4 @@ public class DatagramOption {
         this.bindAddr = bindAddr;
         return this;
     }
-
 }

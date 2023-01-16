@@ -151,7 +151,7 @@ public class TransparentServer {
         return tupleMap.computeIfAbsent(address,k->{
             var future= axis.getChannelCreator().createDatagramChannel(
                     new DatagramOption().setBindAddr(address).setIpTransport(true),
-                    new BaseChannelInitializer().connIdle(300)
+                    new BaseChannelInitializer().connIdle(300,(ch,idleStateEvent) -> ch.close())
             );
             future.addListener((FutureListener<DatagramChannel>)f->{
                 if (!f.isSuccess()){

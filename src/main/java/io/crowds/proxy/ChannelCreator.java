@@ -1,6 +1,8 @@
 package io.crowds.proxy;
 
 import io.crowds.Platform;
+import io.crowds.util.Inet;
+import io.crowds.util.Strs;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.*;
 import io.netty.channel.epoll.EpollChannelOption;
@@ -39,13 +41,13 @@ public class ChannelCreator {
         return cf;
     }
 
-    public ChannelFuture createTcpChannel(EventLoop eventLoop,SocketAddress address, ChannelInitializer<Channel> initializer) {
+    public ChannelFuture createTcpChannel(EventLoop eventLoop,SocketAddress local,SocketAddress remote, ChannelInitializer<Channel> initializer) {
         Bootstrap bootstrap = new Bootstrap();
         var cf=bootstrap.group(eventLoop)
                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
                 .channel(Platform.getSocketChannelClass())
                 .handler(initializer)
-                .connect(address);
+                .connect(local,remote);
         return cf;
     }
 

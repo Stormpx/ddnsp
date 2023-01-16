@@ -1,20 +1,11 @@
 package io.crowds.proxy.transport;
 
 import io.crowds.proxy.NetAddr;
-import io.crowds.proxy.transport.EndPoint;
-import io.crowds.proxy.transport.UdpChannel;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.socket.DatagramPacket;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.Future;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.net.InetSocketAddress;
 
 public class UdpEndPoint extends EndPoint {
     private Channel channel;

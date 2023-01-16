@@ -3,9 +3,7 @@ package io.crowds.util;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.util.NetUtil;
 
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
+import java.net.*;
 
 public class Inet {
 
@@ -29,6 +27,18 @@ public class Inet {
             return InetAddress.getByAddress(addr);
         } catch (UnknownHostException e) {
             return null;
+        }
+    }
+
+    public static InetAddress getAddress(String dev,boolean ipv6){
+        try {
+            NetworkInterface networkInterface = NetworkInterface.getByName(dev);
+            return networkInterface.inetAddresses()
+                    .filter(it->ipv6?it instanceof Inet6Address:it instanceof Inet4Address)
+                    .findFirst()
+                    .orElse(null);
+        } catch (SocketException e) {
+            throw new RuntimeException(e);
         }
     }
 

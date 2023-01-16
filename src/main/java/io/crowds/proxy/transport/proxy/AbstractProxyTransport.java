@@ -21,6 +21,13 @@ public abstract class AbstractProxyTransport implements ProxyTransport {
 
     protected abstract Future<Channel> proxy(Channel channel, NetLocation netLocation);
 
+    private Destination resolve(Destination dst){
+        if (dst.addr() instanceof DomainNetAddr domain){
+            return new Destination(domain.resolve(),dst.tp());
+        }
+        return dst;
+    }
+
     protected Future<Channel> createChannel(ProxyContext proxyContext) throws Exception {
 
         NetLocation netLocation = proxyContext.getNetLocation();
@@ -28,6 +35,7 @@ public abstract class AbstractProxyTransport implements ProxyTransport {
         if (destination==null) {
             destination = new Destination(netLocation.getDest(),netLocation.getTp());
         }
+        destination = resolve(destination);
         Promise<Channel> promise = proxyContext.getEventLoop().newPromise();
         transport.createChannel(proxyContext.getEventLoop(),destination)
                 .addListener((FutureListener<Channel>) future -> {

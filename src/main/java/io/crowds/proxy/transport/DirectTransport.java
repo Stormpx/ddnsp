@@ -2,13 +2,17 @@ package io.crowds.proxy.transport;
 
 import io.crowds.proxy.*;
 import io.crowds.proxy.common.BaseChannelInitializer;
+import io.crowds.util.Inet;
 import io.netty.channel.Channel;
 import io.netty.channel.EventLoop;
-import io.netty.handler.logging.LogLevel;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.Promise;
 
 import javax.net.ssl.SSLException;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.SocketException;
 
 public class DirectTransport implements Transport {
 
@@ -20,15 +24,27 @@ public class DirectTransport implements Transport {
         this.channelCreator = channelCreator;
     }
 
-    private Future<Channel> createTcp(EventLoop eventLoop, NetAddr dest, BaseChannelInitializer initializer) throws SSLException {
+    private InetSocketAddress getLocalAddr(boolean ipv6){
+        String dev = protocolOption.getTransport().getDev();
+        if (dev==null)
+            return null;
+
+        InetAddress address = Inet.getAddress(dev, ipv6);
+        if (address==null){
+            throw new IllegalStateException("%s: no such device".formatted(dev));
+        }
+        return new InetSocketAddress(address,0);
+    }
+
+    private Future<Channel> createTcp(EventLoop eventLoop, NetAddr dst, BaseChannelInitializer initializer) throws SSLException {
         Promise<Channel> promise=eventLoop.newPromise();
         TlsOption tlsOption = protocolOption.getTls();
         if (tlsOption!=null&& tlsOption.isEnable()){
             initializer.tls(true,tlsOption.isAllowInsecure(),
-                    tlsOption.getServerName()==null?dest.getHost():tlsOption.getServerName(),
-                    dest.getPort());
+                    tlsOption.getServerName()==null?dst.getHost():tlsOption.getServerName(),
+                    dst.getPort());
         }
-        var cf= channelCreator.createTcpChannel(eventLoop,dest.getAddress(), initializer);
+        var cf= channelCreator.createTcpChannel(eventLoop,getLocalAddr(dst.isIpv6()),dst.getAddress(), initializer);
         cf.addListener(f->{
             if (!f.isSuccess()){
                 promise.tryFailure(f.cause());
@@ -39,9 +55,9 @@ public class DirectTransport implements Transport {
         return promise;
     }
 
-    private Future<Channel> createUdp(EventLoop eventLoop,BaseChannelInitializer initializer) {
+    private Future<Channel> createUdp(EventLoop eventLoop,NetAddr dst,BaseChannelInitializer initializer) {
         Promise<Channel> promise = eventLoop.newPromise();
-        channelCreator.createDatagramChannel(new DatagramOption(),initializer)
+        channelCreator.createDatagramChannel(new DatagramOption().setBindAddr(getLocalAddr(dst.isIpv6())),initializer)
                 .addListener(f->{
                     if (!f.isSuccess()){
                         promise.tryFailure(f.cause());
@@ -64,6 +80,6 @@ public class DirectTransport implements Transport {
             initializer.connIdle(120);
         }
 
-        return tp==TP.TCP?createTcp(eventLoop,addr,initializer):createUdp(eventLoop,initializer);
+        return tp==TP.TCP?createTcp(eventLoop,addr,initializer):createUdp(eventLoop,addr,initializer);
     }
 }

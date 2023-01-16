@@ -14,6 +14,7 @@ import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.handler.timeout.IdleStateHandler;
 
 import javax.net.ssl.SSLException;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 
@@ -24,7 +25,7 @@ public class BaseChannelInitializer extends ChannelInitializer<Channel> {
     private int port;
 
     private Integer connIdle;
-    private Consumer<IdleStateEvent> idleEventHandler;
+    private BiConsumer<Channel,IdleStateEvent> idleEventHandler;
     private ChannelInitializer<Channel> subInitializer;
     private HandlerConfigurer configurer;
 
@@ -55,7 +56,7 @@ public class BaseChannelInitializer extends ChannelInitializer<Channel> {
         return this;
     }
 
-    public BaseChannelInitializer connIdle(int idle,Consumer<IdleStateEvent> idleEventHandler){
+    public BaseChannelInitializer connIdle(int idle, BiConsumer<Channel,IdleStateEvent> idleEventHandler){
         this.connIdle=idle;
         this.idleEventHandler=idleEventHandler;
         return this;

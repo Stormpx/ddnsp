@@ -29,10 +29,6 @@ public class DomainNetAddr  extends NetAddr{
         return new NetAddr(new InetSocketAddress(host,port));
     }
 
-    public SocketAddress getResolveAddress(){
-        return new InetSocketAddress(host,port);
-    }
-
     @Override
     public boolean isIpv4() {
         return false;

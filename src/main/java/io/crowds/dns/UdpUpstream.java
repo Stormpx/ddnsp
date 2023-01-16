@@ -75,9 +75,10 @@ public class UdpUpstream implements DnsUpstream {
 
         channel.writeAndFlush(datagramDnsQuery);
         Promise<DnsResponse> promise = Promise.promise();
-        queryContextMap.put(id,new QueryContext(promise));
+        QueryContext context = new QueryContext(promise);
+        queryContextMap.put(id, context);
 
-        return promise.future();
+        return promise.future().onComplete(ar->queryContextMap.remove(id));
     }
 
     class QueryContext{
