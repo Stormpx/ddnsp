@@ -11,6 +11,8 @@ import io.crowds.proxy.services.socks.SocksOption;
 import io.crowds.proxy.services.transparent.TransparentOption;
 import io.crowds.proxy.transport.ProtocolOption;
 import io.crowds.proxy.transport.proxy.ProtocolOptionFactory;
+import io.crowds.tun.TunOption;
+import io.crowds.tun.TunOptionFactory;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.dns.DefaultDnsPtrRecord;
 import io.netty.handler.codec.dns.DefaultDnsRawRecord;
@@ -188,6 +190,17 @@ public class DDnspOptionLoader {
                     .setPort(transparentJson.getInteger("port",13452));
             proxy.setTransparent(transparentOption);
         }
+        JsonArray tuns = json.getJsonArray("tuns");
+        if (tuns!=null){
+            List<TunOption> options = tuns.stream()
+                    .filter(o -> o instanceof JsonObject)
+                    .map(o -> TunOptionFactory.newTunOption((JsonObject) o))
+                    .toList();
+            if (!options.isEmpty()){
+                proxy.setTuns(options);
+            }
+        }
+
         JsonArray proxiesArray = json.getJsonArray("proxies");
         if (proxiesArray!=null){
             List<ProtocolOption> protocolOptions=new ArrayList<>();

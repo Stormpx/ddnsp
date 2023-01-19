@@ -8,7 +8,7 @@ plugins {
 group 'io.crowds'
 version '1.0-SNAPSHOT'
 
-sourceCompatibility = 17
+sourceCompatibility = 19
 
 
 repositories {
@@ -34,6 +34,11 @@ jar {
     archiveVersion = ''
 }
 
+compileJava{
+    options.compilerArgs = ["--enable-preview"]
+}
+
+
 dependencies {
     OperatingSystem os = DefaultNativePlatform.currentOperatingSystem;
     Architecture arch= DefaultNativePlatform.currentArchitecture;
@@ -47,6 +52,7 @@ dependencies {
     implementation 'ch.qos.logback:logback-core:1.2.11'
     implementation 'ch.qos.logback:logback-classic:1.2.11'
 
+    implementation 'org.drasyl:netty-tun:1.2.1'
     implementation "io.netty:netty-transport-native-epoll:4.1.82.Final:linux-${arch.isAmd64()?'x86_64':'aarch_64'}"
 
     if (os.isWindows()){

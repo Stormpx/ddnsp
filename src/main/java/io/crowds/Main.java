@@ -10,8 +10,7 @@ import io.crowds.proxy.ProxyOption;
 import io.crowds.proxy.ProxyServer;
 import io.crowds.util.Mmdb;
 import io.crowds.util.Strs;
-import io.netty.channel.epoll.Epoll;
-import io.netty.util.ResourceLeakDetector;
+import io.netty.util.concurrent.DefaultPromise;
 import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
@@ -19,14 +18,10 @@ import io.vertx.core.VertxOptions;
 import io.vertx.core.cli.CLI;
 import io.vertx.core.cli.CommandLine;
 import io.vertx.core.cli.Option;
-import io.vertx.core.dns.AddressResolverOptions;
-import io.vertx.core.spi.resolver.ResolverProvider;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
-import java.net.NetworkInterface;
 import java.util.Arrays;
-import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 
@@ -67,7 +62,6 @@ public class Main {
 //                    ddns.startTimer();
 
                     Future<Void> dnsFuture = dnsServer.start(socketAddress);
-
                     ProxyServer proxyServer = new ProxyServer(vertx.nettyEventLoopGroup()).setProxyOption(proxyOption);
                     Future<Void> proxyFuture = proxyServer.start()
                             .onSuccess(v->{

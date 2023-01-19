@@ -20,8 +20,10 @@ public class IPCIDR {
         if (strings.length!=2){
             throw new IllegalArgumentException("invalid cidr "+cidr);
         }
-
         this.address=NetUtil.createInetAddressFromIpAddressString(strings[0]);
+        if (this.address==null){
+            throw new IllegalArgumentException("invalid host "+strings[0]);
+        }
         this.addressBytes =this.address.getAddress();
         this.mask=Integer.parseInt(strings[1]);
         if (this.mask<0||this.mask> addressBytes.length*8){
@@ -44,6 +46,9 @@ public class IPCIDR {
     public boolean isMatch(byte[] bytes){
         if (this.mask==0)
             return true;
+        if (bytes.length!=this.addressBytes.length)
+            return false;
+
         for (int i = 0; i < this.addressBytes.length; i++) {
             if ((this.prefixBytes[i]&bytes[i])!=this.addressBytes[i]){
                 return false;

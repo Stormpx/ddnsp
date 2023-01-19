@@ -1,11 +1,44 @@
 package io.crowds.util;
 
-import io.netty.buffer.ByteBufUtil;
 import io.netty.util.NetUtil;
 
+import java.io.StringReader;
 import java.net.*;
 
 public class Inet {
+
+    public static InetSocketAddress parseInetAddress(String hostAndIp){
+        try {
+            String host=null;
+            if (hostAndIp.startsWith("[")){
+                int index = hostAndIp.lastIndexOf("]");
+                if (index==-1){
+                    throw new IllegalArgumentException("invalid host and ip");
+                }
+                if (index==hostAndIp.length()-1){
+                    throw new IllegalArgumentException("must have port parts");
+                }
+                host = hostAndIp.substring(1, index);
+                if (!NetUtil.isValidIpV6Address(host)){
+                    throw new IllegalArgumentException("invalid ipv6 address");
+                }
+            }
+            int index = hostAndIp.lastIndexOf(":");
+            if (index==-1){
+                throw new IllegalArgumentException("must have port parts");
+            }
+            if (host==null){
+                host = hostAndIp.substring(0,index);
+            }
+            String portStr = hostAndIp.substring(index+1);
+            return createSocketAddress(host,Integer.parseInt(portStr));
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("parse %s failed cause:invalid host and ip".formatted(hostAndIp));
+        } catch (Exception e){
+            throw new IllegalArgumentException("parse %s failed cause:%s".formatted(hostAndIp,e.getMessage()));
+        }
+
+    }
 
     /**
      *
@@ -30,7 +63,7 @@ public class Inet {
         }
     }
 
-    public static InetAddress getAddress(String dev,boolean ipv6){
+    public static InetAddress getDeviceAddress(String dev, boolean ipv6){
         try {
             NetworkInterface networkInterface = NetworkInterface.getByName(dev);
             return networkInterface.inetAddresses()

@@ -44,3 +44,7 @@ build/
 config.yaml
 
 */ProxySverExample.java
+
+*.so
+*.dll
+*.dylib

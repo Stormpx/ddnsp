@@ -47,7 +47,7 @@ public class ChannelCreator {
                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
                 .channel(Platform.getSocketChannelClass())
                 .handler(initializer)
-                .connect(local,remote);
+                .connect(remote,local);
         return cf;
     }
 

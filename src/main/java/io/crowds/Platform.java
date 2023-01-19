@@ -11,9 +11,22 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.util.internal.PlatformDependent;
 
 public class Platform {
 
+    public static boolean isLinux(){
+        String name = PlatformDependent.normalizedOs();
+        return "linux".equals(name);
+    }
+
+    public static boolean isWindows(){
+        return PlatformDependent.isWindows();
+    }
+
+    public static boolean isOsx(){
+        return PlatformDependent.isOsx();
+    }
 
     public static DatagramChannel getDatagramChannel(){
         if (Epoll.isAvailable()){

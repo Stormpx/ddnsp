@@ -42,7 +42,7 @@ public class VmessAesCFBCrypto implements VmessCrypto {
     @Override
     public byte[] decrypt(byte[] bytes) throws Exception{
         byte[] decrypt = Crypto.aes128CFBDecrypt(key, iv, bytes);
-        int remoteFnv1a32=Bufs.getInt(decrypt,0);
+        int remoteFnv1a32=Bufs.readInt(decrypt,0);
 
         int f = Hash.fnv1a32(decrypt, 4,decrypt.length - 4);
         if (f!=remoteFnv1a32){

@@ -5,6 +5,7 @@ import io.crowds.proxy.services.http.HttpOption;
 import io.crowds.proxy.services.socks.SocksOption;
 import io.crowds.proxy.services.transparent.TransparentOption;
 import io.crowds.proxy.transport.ProtocolOption;
+import io.crowds.tun.TunOption;
 import io.vertx.core.json.JsonArray;
 
 import java.util.List;
@@ -16,6 +17,8 @@ public class ProxyOption {
     private SocksOption socks;
 
     private TransparentOption transparent;
+
+    private List<TunOption> tuns;
 
     private List<ProtocolOption> proxies;
 
@@ -85,6 +88,15 @@ public class ProxyOption {
 
     public ProxyOption setHttp(HttpOption http) {
         this.http = http;
+        return this;
+    }
+
+    public List<TunOption> getTuns() {
+        return tuns;
+    }
+
+    public ProxyOption setTuns(List<TunOption> tuns) {
+        this.tuns = tuns;
         return this;
     }
 }

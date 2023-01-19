@@ -1,10 +1,8 @@
 package io.crowds.util;
 
-import io.netty.buffer.ByteBuf;
-
 public class Bufs {
 
-    public static int getInt(byte[] memory, int index){
+    public static int readInt(byte[] memory, int index){
         return  (memory[index]     & 0xff) << 24 |
                 (memory[index + 1] & 0xff) << 16 |
                 (memory[index + 2] & 0xff) <<  8 |

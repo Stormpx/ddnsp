@@ -17,7 +17,7 @@ public class BytesTest {
             Bufs.writeInt(cmdBytes,0,f);
             Assert.assertEquals(Unpooled.wrappedBuffer(cmdBytes).readInt(),f);
 
-            Assert.assertEquals(f,Bufs.getInt(cmdBytes,0));
+            Assert.assertEquals(f,Bufs.readInt(cmdBytes,0));
         }
     }
 

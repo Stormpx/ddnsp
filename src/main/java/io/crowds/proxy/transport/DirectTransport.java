@@ -9,10 +9,8 @@ import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.Promise;
 
 import javax.net.ssl.SSLException;
-import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.SocketException;
 
 public class DirectTransport implements Transport {
 
@@ -25,11 +23,14 @@ public class DirectTransport implements Transport {
     }
 
     private InetSocketAddress getLocalAddr(boolean ipv6){
-        String dev = protocolOption.getTransport().getDev();
+        TransportOption transportOption = protocolOption.getTransport();
+        if (transportOption==null)
+            return null;
+        String dev = transportOption.getDev();
         if (dev==null)
             return null;
 
-        InetAddress address = Inet.getAddress(dev, ipv6);
+        InetAddress address = Inet.getDeviceAddress(dev, ipv6);
         if (address==null){
             throw new IllegalStateException("%s: no such device".formatted(dev));
         }
