@@ -13,7 +13,6 @@ public class DnsOption {
     private Integer port;
     private int ttl;
 
-    private Map<String,RR> recordsMap;
 
     private Map<String,RecordData> rrMap;
 
@@ -63,14 +62,7 @@ public class DnsOption {
     }
 
 
-    public Map<String, RR> getRecordsMap() {
-        return recordsMap;
-    }
 
-    public DnsOption setRecordsMap(Map<String, RR> recordsMap) {
-        this.recordsMap = recordsMap;
-        return this;
-    }
 
     public Map<String, RecordData> getRrMap() {
         return rrMap;

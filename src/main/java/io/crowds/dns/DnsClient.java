@@ -6,6 +6,7 @@ import io.crowds.util.Strs;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.dns.*;
+import io.netty.util.ReferenceCountUtil;
 import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
@@ -60,13 +61,22 @@ public class DnsClient {
     }
 
 
+    private DnsResponse copyResp(DnsResponse response){
+        if (response instanceof SafeDnsResponse){
+            return response;
+        }
+        DefaultDnsResponse dnsResponse = new DefaultDnsResponse(response.id(), response.opCode(), response.code());
+        DnsKit.msgCopy(response,dnsResponse,true);
+        ReferenceCountUtil.safeRelease(response);
+        return dnsResponse;
+    }
 
     public Future<DnsResponse> request(DnsQuery dnsQuery){
 
         return CompositeFuture.any(
                 this.upStreams
                         .stream()
-                        .map(upStreams->upStreams.lookup(dnsQuery))
+                        .map(upStreams->upStreams.lookup(dnsQuery).map(this::copyResp))
                         .collect(Collectors.toList())
         ).compose(cf -> IntStream.range(0,cf.size())
                 .filter(cf::succeeded)
@@ -82,7 +92,6 @@ public class DnsClient {
     public Future<DnsResponse> request(String target,DnsRecordType type){
         if (!target.endsWith("."))
             target+=".";
-
         return request(new DefaultDnsQuery(-1,DnsOpCode.QUERY)
                 .setRecursionDesired(true)
                 .addRecord(DnsSection.QUESTION,new DefaultDnsQuestion(target,type,DnsRecord.CLASS_IN)));
@@ -93,12 +102,7 @@ public class DnsClient {
     public Future<InetAddress> request(String target){
         List<Future> fs=Stream.of(DnsRecordType.A,DnsRecordType.AAAA)
                 .map(type -> request(target, type)
-                        .map(resp-> IntStream.range(0,resp.count(DnsSection.ANSWER))
-                                .mapToObj(i->resp.<DnsRecord>recordAt(DnsSection.ANSWER,i))
-                                .filter(dnsRecord -> dnsRecord.type()==type)
-                                .filter(it -> it instanceof DnsRawRecord)
-                                .map(it->(DnsRawRecord)it)
-                                .map(it -> Inet.address(ByteBufUtil.getBytes(it.content())))
+                        .map(resp-> DnsKit.getInetAddrFromResponse(resp, DnsRecordType.A == type)
                                 .filter(Objects::nonNull)
                                 .findFirst()
                                 .orElse(null))

@@ -2,7 +2,6 @@ package io.crowds.dns;
 
 
 import io.crowds.Platform;
-import io.crowds.util.DnsKit;
 import io.netty.channel.*;
 import io.netty.channel.epoll.Epoll;
 import io.netty.channel.socket.DatagramChannel;

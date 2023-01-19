@@ -1,6 +1,5 @@
 package io.crowds.dns;
 
-import io.crowds.util.DnsKit;
 import io.netty.buffer.*;
 import io.netty.handler.codec.dns.*;
 import io.vertx.core.Future;
@@ -72,7 +71,7 @@ public class DohUpstream implements DnsUpstream {
         if (flags>>15 == 0){
             throw new RuntimeException("body is not valid dns response");
         }
-        var response = new DefaultDnsResponse(id,
+        var response = new SafeDnsResponse(id,
                 DnsOpCode.valueOf((flags>>11) & 0xf),
                 DnsResponseCode.valueOf(flags & 0xf))
                 .setZ((flags>>4) & 0x7)

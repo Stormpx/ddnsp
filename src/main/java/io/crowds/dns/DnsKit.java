@@ -1,5 +1,7 @@
-package io.crowds.util;
+package io.crowds.dns;
 
+import io.crowds.dns.DnsClient;
+import io.crowds.util.Inet;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
@@ -7,9 +9,21 @@ import io.netty.handler.codec.CorruptedFrameException;
 import io.netty.handler.codec.dns.*;
 import io.netty.util.CharsetUtil;
 
+import java.net.InetAddress;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 
 public class DnsKit {
+
+    public static DnsClient DNS_CLIENT=null;
+
+    public static DnsClient client(){
+        return DNS_CLIENT;
+    }
+
 
     private static ByteBuf encodeDomainName(String name, ByteBuf buf) {
 
@@ -180,6 +194,16 @@ public class DnsKit {
     }
 
 
+    public static Stream<InetAddress> getInetAddrFromResponse(DnsResponse response, boolean ipv4){
+        DnsRecordType type = ipv4 ? DnsRecordType.A : DnsRecordType.AAAA;
+        return IntStream.range(0,response.count(DnsSection.ANSWER))
+                .mapToObj(i-> (DnsRecord)response.recordAt(DnsSection.ANSWER,i))
+                .filter(record-> record.type()==type)
+                .filter(it->it instanceof DnsRawRecord)
+                .map(it-> Inet.address(ByteBufUtil.getBytes(((DnsRawRecord) it).content())));
+
+
+    }
 
 }
 

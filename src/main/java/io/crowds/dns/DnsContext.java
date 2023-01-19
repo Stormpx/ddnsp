@@ -1,8 +1,6 @@
 package io.crowds.dns;
 
-import io.crowds.util.DnsKit;
 import io.netty.channel.Channel;
-import io.netty.channel.socket.DatagramChannel;
 import io.netty.handler.codec.dns.*;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;

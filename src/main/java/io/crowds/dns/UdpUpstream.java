@@ -1,7 +1,6 @@
 package io.crowds.dns;
 
 import io.crowds.Platform;
-import io.crowds.util.DnsKit;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -39,7 +38,7 @@ public class UdpUpstream implements DnsUpstream {
         this.channel.pipeline()
                 .addLast(new DatagramDnsQueryEncoder())
                 .addLast(new DatagramDnsResponseDecoder())
-                .addLast(new SimpleChannelInboundHandler<DnsResponse>() {
+                .addLast(new SimpleChannelInboundHandler<DnsResponse>(false) {
                     @Override
                     protected void channelRead0(ChannelHandlerContext ctx, DnsResponse msg) throws Exception {
                         QueryContext context = queryContextMap.get(msg.id());
@@ -100,8 +99,8 @@ public class UdpUpstream implements DnsUpstream {
         }
 
         public void callback(DnsResponse response){
-            this.promise.tryComplete(response);
             cancelSchedule();
+            this.promise.tryComplete(response);
         }
 
     }

@@ -2,7 +2,6 @@ package io.crowds;
 
 import io.crowds.ddns.DDnsOption;
 import io.crowds.dns.DnsOption;
-import io.crowds.dns.RR;
 import io.crowds.dns.RecordData;
 import io.crowds.proxy.ProxyOption;
 import io.crowds.proxy.dns.FakeOption;
