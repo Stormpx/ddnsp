@@ -25,7 +25,7 @@ public class DnsKit {
     }
 
 
-    private static ByteBuf encodeDomainName(String name, ByteBuf buf) {
+    public static ByteBuf encodeDomainName(String name, ByteBuf buf) {
 
         if (".".equals(name)) {
             // Root domain

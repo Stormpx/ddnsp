@@ -1,9 +1,9 @@
 package io.crowds.dns;
 
 
-import io.crowds.util.Inet;
+import io.crowds.dns.cache.CacheKey;
+import io.crowds.dns.cache.DnsCache;
 import io.crowds.util.Strs;
-import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.dns.*;
 import io.netty.util.ReferenceCountUtil;
@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -26,14 +27,18 @@ public class DnsClient {
     private Vertx vertx;
     private EventLoopGroup eventLoopGroup;
 
+    private DnsCache dnsCache;
+
     private DnsOption dnsOption;
     private List<DnsUpstream> upStreams;
+
 
 
     public DnsClient(Vertx vertx,  DnsOption dnsOption) {
         this.vertx=vertx;
         this.dnsOption = dnsOption;
         this.eventLoopGroup= vertx.nettyEventLoopGroup();
+        this.dnsCache=new DnsCache(eventLoopGroup.next());
         newUpStreams(dnsOption);
 
 
@@ -65,13 +70,26 @@ public class DnsClient {
         if (response instanceof SafeDnsResponse){
             return response;
         }
-        DefaultDnsResponse dnsResponse = new DefaultDnsResponse(response.id(), response.opCode(), response.code());
+        DefaultDnsResponse dnsResponse = new SafeDnsResponse(response.id(), response.opCode(), response.code());
         DnsKit.msgCopy(response,dnsResponse,true);
         ReferenceCountUtil.safeRelease(response);
         return dnsResponse;
     }
 
     public Future<DnsResponse> request(DnsQuery dnsQuery){
+
+        DnsRecord record = dnsQuery.recordAt(DnsSection.QUESTION, 0);
+        CacheKey key = new CacheKey(record);
+        var result = new ArrayList<DnsRecord>();
+        if (dnsCache.getAnswer(key, dnsQuery.isRecursionDesired(), result)){
+            SafeDnsResponse response = new SafeDnsResponse(dnsQuery.id(), dnsQuery.opCode(), DnsResponseCode.NOERROR);
+            response.setRecursionDesired(dnsQuery.isRecursionDesired());
+            response.addRecord(DnsSection.QUESTION,DnsKit.clone(record));
+            for (DnsRecord dnsRecord : result) {
+                response.addRecord(DnsSection.ANSWER,dnsRecord);
+            }
+            return Future.succeededFuture(response);
+        }
 
         return CompositeFuture.any(
                 this.upStreams
@@ -84,7 +102,7 @@ public class DnsClient {
                 .findFirst()
                 .map(Future::succeededFuture)
                 .orElseGet(()->Future.failedFuture("no available upstream."))
-        );
+        ).onSuccess(response->dnsCache.cacheMessage(response, eventLoopGroup.next()));
 
     }
 
@@ -92,7 +110,7 @@ public class DnsClient {
     public Future<DnsResponse> request(String target,DnsRecordType type){
         if (!target.endsWith("."))
             target+=".";
-        return request(new DefaultDnsQuery(-1,DnsOpCode.QUERY)
+        return request(new DefaultDnsQuery(-1,DnsOpCode.QUERY).setRecursionDesired(true)
                 .setRecursionDesired(true)
                 .addRecord(DnsSection.QUESTION,new DefaultDnsQuestion(target,type,DnsRecord.CLASS_IN)));
 

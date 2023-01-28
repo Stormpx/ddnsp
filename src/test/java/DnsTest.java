@@ -1,23 +1,23 @@
+import io.crowds.dns.DnsKit;
 import io.crowds.dns.DnsOption;
-import io.netty.handler.codec.dns.DnsMessage;
-import io.netty.handler.codec.dns.DnsRecord;
-import io.netty.handler.codec.dns.DnsRecordType;
-import io.netty.handler.codec.dns.DnsSection;
+import io.netty.handler.codec.dns.*;
 import io.netty.util.internal.StringUtil;
 import io.vertx.core.Vertx;
 import io.vertx.core.dns.DnsClient;
 
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 public class DnsTest {
 
 
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) throws InterruptedException, ExecutionException {
         Vertx vertx = Vertx.vertx();
 
 //        DnsClient dnsClient = vertx.createDnsClient(53,"114.114.114.114");
@@ -34,17 +34,18 @@ public class DnsTest {
 //        InetSocketAddress inetSocketAddress = new InetSocketAddress("114.114.114.114", 53);
         var dc=new io.crowds.dns.DnsClient(vertx,new DnsOption()
                 .setDnsServers(List.of(
-//                        URI.create("dns://114.114.114.114:53")
-                        URI.create("https://doh.pub/dns-query")
+                        URI.create("dns://114.114.114.114:53")
+//                        URI.create("https://doh.pub/dns-query")
                 )));
-        dc.request("www.baidu.com", DnsRecordType.AAAA)
+        dc.request("www.baidu.com", DnsRecordType.A)
                 .onFailure(Throwable::printStackTrace)
                 .onSuccess(message->{
                     System.out.println("question"+appendRecords(message,DnsSection.QUESTION));
                     System.out.println("ANSWER"+appendRecords(message,DnsSection.ANSWER));
                     System.out.println("AUTHORITY"+appendRecords(message,DnsSection.AUTHORITY));
                     System.out.println("ADDITIONAL"+appendRecords(message,DnsSection.ADDITIONAL));
-                });
+
+                }).toCompletionStage().toCompletableFuture().get();
 
         dc.request("www.baidu.com")
             .onSuccess(System.out::println);
@@ -64,9 +65,13 @@ public class DnsTest {
         StringBuilder buf=new StringBuilder();
         final int count = message.count(section);
         for (int i = 0; i < count; i ++) {
+            DnsRecord dnsRecord = message.<DnsRecord>recordAt(section, i);
             buf.append(StringUtil.NEWLINE)
                     .append(StringUtil.TAB)
-                    .append(message.<DnsRecord>recordAt(section, i));
+                    .append(dnsRecord);
+            if (dnsRecord.type() == DnsRecordType.CNAME && dnsRecord instanceof DnsRawRecord raw){
+                buf.append(StringUtil.TAB).append(DnsKit.decodeDomainName(raw.content()));
+            }
         }
         return buf.toString();
     }

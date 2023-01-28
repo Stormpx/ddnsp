@@ -26,14 +26,12 @@ public class DnsServer {
 
     private DnsOption option;
 
-    private DnsCache dnsCache;
 
     private DnsProcessor processor;
 
     public DnsServer(EventLoopGroup eventLoopGroup,DnsClient dnsClient) {
         this.eventLoopGroup = eventLoopGroup;
         this.dnsClient=dnsClient;
-        this.dnsCache=new DnsCache();
         this.channel= Platform.getDatagramChannel();
         this.channel.config().setAllocator(PartialPooledByteBufAllocator.DEFAULT);
         this.channel.config().setOption(ChannelOption.SO_REUSEADDR,true);
@@ -59,7 +57,7 @@ public class DnsServer {
                     }
                 });
 
-        this.processor=new DnsProcessor(channel,dnsClient,dnsCache);
+        this.processor=new DnsProcessor(channel,dnsClient);
 
     }
 

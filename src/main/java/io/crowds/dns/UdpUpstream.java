@@ -16,7 +16,9 @@ import org.slf4j.LoggerFactory;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class UdpUpstream implements DnsUpstream {
     private final static Logger logger= LoggerFactory.getLogger(UdpUpstream.class);
@@ -24,16 +26,16 @@ public class UdpUpstream implements DnsUpstream {
     private EventLoopGroup eventLoopGroup;
     private DatagramChannel channel;
 
-    private InetSocketAddress upAddr;
+    private InetSocketAddress defaultAddr;
     private Map<Integer,QueryContext> queryContextMap;
 
-    private int nextId=0;
+    private AtomicInteger reqId=new AtomicInteger(0);
 
-    public UdpUpstream(EventLoopGroup eventLoopGroup, InetSocketAddress upAddr) {
+    public UdpUpstream(EventLoopGroup eventLoopGroup, InetSocketAddress defaultAddr) {
         this.eventLoopGroup = eventLoopGroup;
         this.channel= Platform.getDatagramChannel();
         this.queryContextMap=new HashMap<>();
-        this.upAddr=upAddr;
+        this.defaultAddr =defaultAddr;
         channel.config().setAllocator(PartialPooledByteBufAllocator.DEFAULT);
         this.channel.pipeline()
                 .addLast(new DatagramDnsQueryEncoder())
@@ -61,15 +63,18 @@ public class UdpUpstream implements DnsUpstream {
     }
 
     private int getNextId(){
-        var id =nextId++;
-        nextId%=65536;
+        int id = reqId.addAndGet(1);
+        if(id>65535){
+            reqId.compareAndSet(id,id%65535);
+            id%=65535;
+        }
         return id;
     }
 
-    @Override
-    public Future<DnsResponse> lookup(DnsQuery query) {
+
+    public Future<DnsResponse> lookup(DnsQuery query,InetSocketAddress remote) {
         int id = getNextId();
-        DatagramDnsQuery datagramDnsQuery = new DatagramDnsQuery(null, upAddr, id, query.opCode());
+        DatagramDnsQuery datagramDnsQuery = new DatagramDnsQuery(null, remote, id, query.opCode());
         DnsKit.msgCopy(query,datagramDnsQuery,true);
 
         channel.writeAndFlush(datagramDnsQuery);
@@ -78,6 +83,12 @@ public class UdpUpstream implements DnsUpstream {
         queryContextMap.put(id, context);
 
         return promise.future().onComplete(ar->queryContextMap.remove(id));
+    }
+
+    @Override
+    public Future<DnsResponse> lookup(DnsQuery query) {
+        Objects.requireNonNull(defaultAddr,"default address is null");
+        return lookup(query, defaultAddr);
     }
 
     class QueryContext{

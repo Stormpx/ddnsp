@@ -13,15 +13,13 @@ public class DnsProcessor {
     private final static Logger logger= LoggerFactory.getLogger(DnsProcessor.class);
     private DatagramChannel channel;
     private DnsClient dnsClient;
-    private DnsCache dnsCache;
     private DnsOption option;
 
     private Handler<DnsContext> contextHandler=ctx->ctx.recursionQuery(ctx::resp);
 
-    public DnsProcessor(DatagramChannel channel, DnsClient dnsClient, DnsCache dnsCache) {
+    public DnsProcessor(DatagramChannel channel, DnsClient dnsClient) {
         this.channel = channel;
         this.dnsClient = dnsClient;
-        this.dnsCache = dnsCache;
     }
 
     public DnsProcessor contextHandler(Handler<DnsContext> contextHandler) {
@@ -114,54 +112,5 @@ public class DnsProcessor {
 
     }
 
-    private String getCachedCname(String name,List<DnsRecord> result){
-        List<DnsRecord> records = dnsCache.get(name, DnsRecordType.CNAME);
-        if (records==null||records.isEmpty()){
-            return null;
-        }
-        DnsRecord record = records.get(0);
-        result.add(((DefaultDnsRawRecord)record).retain());
-        String domainName = DnsKit.decodeDomainName(((DefaultDnsRawRecord) record).content());
-        return domainName;
-    }
-
-     Future<DnsResponse> recursionQueryWithCache(DnsRecord record, List<DnsRecord> result){
-        String name = record.name();
-        DnsRecordType type = record.type();
-        List<DnsRecord> cacheDnsRecords = dnsCache.get(name, type);
-        if (cacheDnsRecords!=null&&!cacheDnsRecords.isEmpty()) {
-            result.addAll(cacheDnsRecords);
-            logger.info("{} {} hit cache",name,type.name());
-            var resp=new DefaultDnsResponse(0,DnsOpCode.QUERY,DnsResponseCode.NOERROR);
-            resp.setRecursionDesired(true);
-            for (DnsRecord dnsRecord : result) {
-                resp.addRecord(DnsSection.ANSWER,dnsRecord);
-            }
-            return Future.succeededFuture(resp);
-        }else if (type!=DnsRecordType.CNAME){
-            String cachedCname = getCachedCname(name,result);
-            if (cachedCname!=null) {
-//                result.add(new DefaultDnsRawRecord())
-                var newQuestion = new DefaultDnsQuestion(cachedCname, type, record.dnsClass());
-                return recursionQueryWithCache(newQuestion, result);
-            }
-        }
-
-        DnsQuery query = new DefaultDnsQuery(-1, DnsOpCode.QUERY);
-        query.setRecursionDesired(true);
-        query.addRecord(DnsSection.QUESTION,new DefaultDnsQuestion(name,type,record.dnsClass()));
-
-        var future = dnsClient.request(query)
-                .onSuccess(resp->{
-                    int count = resp.count(DnsSection.ANSWER);
-                    for (int i = 0; i < count; i++) {
-                        DnsRecord respRecord = resp.recordAt(DnsSection.ANSWER, i);
-                        dnsCache.cache(respRecord.name(),respRecord);
-                        result.add(DnsKit.clone(respRecord));
-                    }
-                });
-        query.release();
-        return future;
-    }
 
 }
