@@ -66,6 +66,9 @@ public class Inet {
     public static InetAddress getDeviceAddress(String dev, boolean ipv6){
         try {
             NetworkInterface networkInterface = NetworkInterface.getByName(dev);
+            if (!networkInterface.isUp()){
+                throw new SocketException("network interface is not up: "+dev);
+            }
             return networkInterface.inetAddresses()
                     .filter(it->ipv6?it instanceof Inet6Address:it instanceof Inet4Address)
                     .findFirst()
