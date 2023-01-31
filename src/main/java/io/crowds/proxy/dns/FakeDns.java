@@ -142,7 +142,7 @@ public class FakeDns implements Handler<DnsContext> {
                 mappingAndResp(ctx,domain,new RealAddr(1200,null),tag);
                 return;
             }
-            ctx.recursionQuery(resp->{
+            ctx.doQuery(resp->{
                 try {
                     if (resp.code()!= DnsResponseCode.NOERROR){
                         ctx.resp(resp);
@@ -177,7 +177,7 @@ public class FakeDns implements Handler<DnsContext> {
 
         }else{
 
-            ctx.recursionQuery(ctx::resp);
+            ctx.doQuery(ctx::resp);
         }
 
     }

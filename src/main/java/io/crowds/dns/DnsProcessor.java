@@ -2,7 +2,6 @@ package io.crowds.dns;
 
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.handler.codec.dns.*;
-import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,7 +14,7 @@ public class DnsProcessor {
     private DnsClient dnsClient;
     private DnsOption option;
 
-    private Handler<DnsContext> contextHandler=ctx->ctx.recursionQuery(ctx::resp);
+    private Handler<DnsContext> contextHandler=ctx->ctx.doQuery(ctx::resp);
 
     public DnsProcessor(DatagramChannel channel, DnsClient dnsClient) {
         this.channel = channel;

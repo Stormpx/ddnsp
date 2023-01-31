@@ -102,7 +102,11 @@ public class DnsClient {
                 .findFirst()
                 .map(Future::succeededFuture)
                 .orElseGet(()->Future.failedFuture("no available upstream."))
-        ).onSuccess(response->dnsCache.cacheMessage(response, eventLoopGroup.next()));
+        ).onSuccess(response->{
+            if (response.code()==DnsResponseCode.NOERROR&&!response.isTruncated()){
+                dnsCache.cacheMessage(response, eventLoopGroup.next());
+            }
+        });
 
     }
 

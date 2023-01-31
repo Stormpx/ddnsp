@@ -1,6 +1,5 @@
 package io.crowds.dns;
 
-import io.crowds.dns.DnsClient;
 import io.crowds.util.Inet;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
@@ -195,6 +194,12 @@ public class DnsKit {
 
 
     public static Stream<InetAddress> getInetAddrFromResponse(DnsResponse response, boolean ipv4){
+        if (DnsResponseCode.NOERROR != response.code()){
+            return Stream.empty();
+        }
+        if (response.isTruncated()){
+            return Stream.empty();
+        }
         DnsRecordType type = ipv4 ? DnsRecordType.A : DnsRecordType.AAAA;
         return IntStream.range(0,response.count(DnsSection.ANSWER))
                 .mapToObj(i-> (DnsRecord)response.recordAt(DnsSection.ANSWER,i))

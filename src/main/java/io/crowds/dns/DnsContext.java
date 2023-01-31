@@ -65,7 +65,7 @@ public class DnsContext {
         this.resp=true;
     }
 
-    public void recursionQuery(Handler<DnsResponse> respHandler){
+    public void doQuery(Handler<DnsResponse> respHandler){
         queryFunction.apply(question)
                 .onFailure(t->logger.error("",t))
                 .onSuccess(resp->{
