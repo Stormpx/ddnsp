@@ -42,7 +42,6 @@ public class CachedRouter extends AbstractRouter {
         private RuleType type;
         private List<SequencedRule> rules;
         private LRUK<Object,?> missCache;
-
         private LRUK<Object,SequencedRule> hitCache;
 
         public Slot(RuleType type,int k,int missSize,int hitSize) {

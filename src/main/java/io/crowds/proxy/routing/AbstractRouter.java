@@ -20,47 +20,17 @@ public abstract class AbstractRouter implements Router{
         return null;
     }
 
-    protected Rule lookupRule(String type, String content, String tag){
-        type=type.trim();
-        RuleType ruleType = RuleType.of(type);
-        if (ruleType==null){
-            return null;
-        }
-        var r=switch (ruleType){
-            case DOMAIN -> new Domain(content,tag);
-            case EQ -> new Equal(content,tag);
-            case EW -> new EndsWith(content,tag);
-            case KW-> new KeyWord(content,tag);
-            case SRC_CIDR-> new Cidr(content,tag,false);
-            case CIDR-> new Cidr(content,tag,true);
-            case SRC_POST-> new Port(content,tag,false);
-            case PORT-> new Port(content,tag,true);
-            case GEOIP -> new GeoIpR(content,tag);
-            case DEFAULT -> setDefaultTag(tag);
-        };
-        return r;
-    }
 
     protected void initRule(List<String> ruleStr, Consumer<Rule> ruleHandler){
         ruleStr.stream()
                 .filter(Objects::nonNull)
                 .filter(Predicate.not(String::isBlank))
                 .forEach(str->{
-                    int index = str.indexOf(';');
-                    int lastIndex = str.lastIndexOf(';');
-                    if (index==lastIndex){
-                        return;
-                    }
-                    var ruleType=str.substring(0,index);
-                    var content=str.substring(index+1,lastIndex);
-                    var tag=str.substring(lastIndex+1);
-                    Rule rule = lookupRule(ruleType, content.trim(), tag.trim());
+                    Rule rule = Rule.of(str);
                     if (rule!=null)
                         ruleHandler.accept(rule);
-
                 });
     }
-
 
 
     protected abstract String routing(NetLocation netLocation, RuleType... types);
