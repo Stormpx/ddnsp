@@ -72,6 +72,7 @@ public class WireGuardTunnel implements Closeable {
         this.resultAllocator = SegmentAllocator.prefixAllocator(memorySession.allocate(wireguard_result.$LAYOUT()));
         this.pendingList=new ArrayList<>();
         this.timerFuture = eventLoop.scheduleAtFixedRate(this::oneTick, 250, 250,TimeUnit.MILLISECONDS);
+        this.allocChannel(peer.endpointAddr());
     }
 
     record DatagramSock(DatagramChannel channel, InetSocketAddress remote){
@@ -118,7 +119,9 @@ public class WireGuardTunnel implements Closeable {
 
     private void writeToNetwork(ByteBuf content){
         if (this.sock==null){
-            allocChannel(peer.endpointAddr());
+            if (this.pendingList.isEmpty()){
+                allocChannel(peer.endpointAddr());
+            }
             this.pendingList.add(content);
             return;
         }

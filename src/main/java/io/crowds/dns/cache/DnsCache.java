@@ -16,7 +16,7 @@ import java.util.stream.Stream;
 public class DnsCache {
 
     private EventLoop eventLoop;
-    public Map<CacheKey, CacheEntries> cache;
+    private Map<CacheKey, CacheEntries> cache;
 
     public DnsCache(EventLoop eventLoop) {
         this.cache =new ConcurrentHashMap<>();
@@ -42,8 +42,7 @@ public class DnsCache {
             var loop =eventLoop==null?this.eventLoop:eventLoop;
             long maxTtl = cacheEntries.maxTtl();
             cacheEntries.withExpiration(
-                    loop.schedule((Runnable) ()-> {
-                        System.out.println("wtf"+ cacheEntries.isTimeout(System.currentTimeMillis()));
+                    loop.schedule(()-> {
                         cache.computeIfPresent(key,(k,v)->v==cacheEntries?null:cacheEntries);
                     }, maxTtl, TimeUnit.SECONDS)
             );
@@ -71,6 +70,10 @@ public class DnsCache {
             v.cancel();
             return null;
         });
+    }
+
+    public void invalidateAll(){
+        cache.clear();
     }
 
 

@@ -57,6 +57,7 @@ public class DnsClient {
                         }
                     };
                 })
+                .filter(Objects::nonNull)
                 .collect(Collectors.toList());;
     }
 
@@ -74,6 +75,10 @@ public class DnsClient {
         DnsKit.msgCopy(response,dnsResponse,true);
         ReferenceCountUtil.safeRelease(response);
         return dnsResponse;
+    }
+
+    public void invalidateCache(){
+        this.dnsCache.invalidateAll();
     }
 
     public Future<DnsResponse> request(DnsQuery dnsQuery){

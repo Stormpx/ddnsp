@@ -10,10 +10,13 @@ import org.drasyl.channel.tun.TunAddress;
 import org.drasyl.channel.tun.TunChannel;
 import org.drasyl.channel.tun.TunChannelOption;
 import org.drasyl.channel.tun.TunPacket;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Objects;
 
 public abstract class AbstractTunService implements TunService{
+    private final static Logger logger= LoggerFactory.getLogger(AbstractTunService.class);
 
     protected TunOption option;
 
@@ -38,9 +41,9 @@ public abstract class AbstractTunService implements TunService{
 
     @Override
     public Future<Void> start() {
-//        if (!Platform.isLinux()){
-//            return Future.failedFuture("currently only supports linux");
-//        }
+        if (!Platform.isLinux()){
+            return Future.failedFuture("currently only supports linux");
+        }
         Promise<Void> promise=Promise.promise();
         Bootstrap b = new Bootstrap()
                 .group(new DefaultEventLoop())
@@ -66,6 +69,7 @@ public abstract class AbstractTunService implements TunService{
             }
             this.channel = cf.channel();
             this.tunRoute.setup();
+            logger.info("setup tun device {}",option.name);
             promise.complete();
         });
         return promise.future();

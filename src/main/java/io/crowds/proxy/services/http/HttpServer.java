@@ -166,7 +166,7 @@ public class HttpServer {
                         address=getTarget(URI.create(host));
                     }else {
                         URI uri = URI.create(req.uri());
-                        if (Strs.isBlank(uri.getHost())) {
+                        if (Strs.isBlank(uri.getHost())||Objects.equals(httpOption.getHost(),uri.getHost())) {
                             ctx.channel().writeAndFlush(new DefaultHttpResponse(req.protocolVersion(), HttpResponseStatus.BAD_REQUEST))
                                     .addListener(ChannelFutureListener.CLOSE);
                             return;

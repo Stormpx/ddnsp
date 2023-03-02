@@ -34,6 +34,7 @@ public class DohUpstream implements DnsUpstream {
             throw new RuntimeException(e);
         }
         this.httpClient = vertx.createHttpClient(new HttpClientOptions()
+                .setDefaultHost(target.getHost())
                 .setShared(true)
                 .setUseAlpn(true)
                 .setProtocolVersion(HttpVersion.HTTP_2)
