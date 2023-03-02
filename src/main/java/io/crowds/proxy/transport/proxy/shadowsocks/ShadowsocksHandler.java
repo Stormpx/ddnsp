@@ -59,7 +59,6 @@ public class ShadowsocksHandler extends ChannelDuplexHandler {
 
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-
         if (netLocation.getTp()== TP.TCP){
             if (!writeAddr){
                 assert msg instanceof ByteBuf;

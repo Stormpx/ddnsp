@@ -27,7 +27,7 @@ public class VmessProxyTransport extends AbstractProxyTransport {
     }
 
     @Override
-    protected Destination getDest(TP tp) {
+    protected Destination getRemote(TP tp) {
         return new Destination(NetAddr.of(vmessOption.getAddress()),TP.TCP);
     }
 

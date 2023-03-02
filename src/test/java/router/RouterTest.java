@@ -23,7 +23,8 @@ public abstract class RouterTest {
                 "kw;domain1;ok",
                 "domain;google.com;ok",
                 "ew;abc;ok",
-                "cidr;170.0.0.0/8;ok"
+                "cidr;170.0.0.0/8;ok",
+                "cidr;91.108.56.0/22;okk"
         );
         Router router = setupRouter(rules);
         InetSocketAddress src = new InetSocketAddress(InetAddress.getLocalHost(), 1);
@@ -54,6 +55,7 @@ public abstract class RouterTest {
             Assert.assertEquals("ok",router.routingIp(NetUtil.createInetAddressFromIpAddressString("170.23.43.12"),true));
             Assert.assertNull(router.routingIp(NetUtil.createInetAddressFromIpAddressString("127.0.0.1"),true));
             Assert.assertNull(router.routingIp(NetUtil.createInetAddressFromIpAddressString("171.0.0.0"),true));
+            Assert.assertEquals("okk",router.routingIp(NetUtil.createInetAddressFromIpAddressString("91.108.57.0"),true));
         }
 
     }

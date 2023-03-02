@@ -17,7 +17,7 @@ public abstract class AbstractProxyTransport implements ProxyTransport {
         this.transport= TransportFactory.newTransport(protocolOption,channelCreator);
     }
 
-    protected Destination getDest(TP tp){return null;}
+    protected Destination getRemote(TP tp){return null;}
 
     protected abstract Future<Channel> proxy(Channel channel, NetLocation netLocation);
 
@@ -31,7 +31,7 @@ public abstract class AbstractProxyTransport implements ProxyTransport {
     protected Future<Channel> createChannel(ProxyContext proxyContext) throws Exception {
 
         NetLocation netLocation = proxyContext.getNetLocation();
-        Destination destination = getDest(netLocation.getTp());
+        Destination destination = getRemote(netLocation.getTp());
         if (destination==null) {
             destination = new Destination(netLocation.getDest(),netLocation.getTp());
         }

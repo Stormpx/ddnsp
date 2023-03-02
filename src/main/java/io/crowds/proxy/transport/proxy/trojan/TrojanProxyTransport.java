@@ -31,7 +31,7 @@ public class TrojanProxyTransport extends FullConeProxyTransport {
     }
 
     @Override
-    protected Destination getDest(TP tp) {
+    protected Destination getRemote(TP tp) {
         return new Destination(NetAddr.of(trojanOption.getAddress()),TP.TCP);
     }
 
