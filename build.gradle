@@ -38,6 +38,19 @@ compileJava{
     options.compilerArgs = ["--enable-preview"]
 }
 
+compileTestJava{
+    options.compilerArgs= ["--enable-preview"]
+}
+
+tasks.withType(JavaCompile) {
+    options.compilerArgs += "--enable-preview"
+}
+tasks.withType(Test) {
+    jvmArgs += "--enable-preview"
+}
+tasks.withType(JavaExec) {
+    jvmArgs += "--enable-preview"
+}
 
 dependencies {
     OperatingSystem os = DefaultNativePlatform.currentOperatingSystem;
@@ -47,6 +60,7 @@ dependencies {
     implementation 'com.maxmind.geoip2:geoip2:3.0.0'
     implementation 'org.bouncycastle:bcprov-jdk15on:1.69'
     implementation 'io.vertx:vertx-core:4.3.4'
+    implementation 'io.vertx:vertx-web:4.3.4'
     implementation 'io.vertx:vertx-config:4.2.6'
     implementation 'io.vertx:vertx-config-yaml:4.2.6'
     implementation 'ch.qos.logback:logback-core:1.2.11'
