@@ -3,7 +3,6 @@ package io.crowds.util;
 import io.netty.util.NetUtil;
 
 import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.Objects;
 
@@ -63,6 +62,10 @@ public class IPCIDR {
 
     public int getMask() {
         return mask;
+    }
+
+    public int getMaximumMask(){
+        return addressBytes.length*8;
     }
 
     public byte[] getFirstAddress(){

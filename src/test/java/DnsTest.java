@@ -32,28 +32,27 @@ public class DnsTest {
 //                .onSuccess(str-> System.out.println(str));
 //        InetSocketAddress inetSocketAddress = new InetSocketAddress("127.0.0.1", 53);
 //        InetSocketAddress inetSocketAddress = new InetSocketAddress("114.114.114.114", 53);
-        var dc=new io.crowds.dns.DnsClient(vertx,new DnsOption()
-                .setDnsServers(List.of(
-                        URI.create("dns://114.114.114.114:53")
-//                        URI.create("https://doh.pub/dns-query")
-                )));
-        dc.request("www.baidu.com", DnsRecordType.A)
-                .onFailure(Throwable::printStackTrace)
-                .onSuccess(message->{
-                    System.out.println("question"+appendRecords(message,DnsSection.QUESTION));
-                    System.out.println("ANSWER"+appendRecords(message,DnsSection.ANSWER));
-                    System.out.println("AUTHORITY"+appendRecords(message,DnsSection.AUTHORITY));
-                    System.out.println("ADDITIONAL"+appendRecords(message,DnsSection.ADDITIONAL));
+        var dc=new io.crowds.dns.DnsClient(vertx,List.of(
+                URI.create("https://1.12.12.12/dns-query"),
+                URI.create("dns://1.2.4.8:53")
+        ));
+        vertx.runOnContext(it->{
+            dc.request("www.google.com", DnsRecordType.A)
+                    .onFailure(Throwable::printStackTrace)
+                    .onSuccess(message->{
+                        //                    System.out.println("question"+appendRecords(message,DnsSection.QUESTION));
+                        //                    System.out.println("ANSWER"+appendRecords(message,DnsSection.ANSWER));
+                        //                    System.out.println("AUTHORITY"+appendRecords(message,DnsSection.AUTHORITY));
+                        //                    System.out.println("ADDITIONAL"+appendRecords(message,DnsSection.ADDITIONAL));
+                        System.out.println(message);
+                        dc.request("www.google.com",DnsRecordType.A)
+                                .onSuccess(System.out::println);
+                    });
+        });
 
-                }).toCompletionStage().toCompletableFuture().get();
 
-        dc.request("www.baidu.com")
-            .onSuccess(System.out::println);
 
-//
-//        dc.request("oss.davco.cn", DnsRecordType.CNAME)
-//                .onFailure(Throwable::printStackTrace)
-//                .onSuccess(str-> System.out.println("dcC"+str));
+
 
         vertx.nettyEventLoopGroup().awaitTermination(6, TimeUnit.SECONDS);
         vertx.close();

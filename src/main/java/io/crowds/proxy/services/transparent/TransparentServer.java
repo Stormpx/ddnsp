@@ -220,16 +220,10 @@ public class TransparentServer {
 
     private class ProxyTcpInitializer extends ChannelInboundHandlerAdapter {
 
-
-        private SocketAddress selectRemoteAddress(Channel channel){
-            return channel.localAddress();
-        }
-
-
         @Override
         public void channelActive(ChannelHandlerContext ctx) throws Exception {
             Channel channel = ctx.channel();
-            SocketAddress remoteAddress = selectRemoteAddress(channel);
+            SocketAddress remoteAddress = channel.localAddress();
             if (logger.isDebugEnabled())
                 logger.debug("tcp remote addr:{}",remoteAddress);
             if (!accept((InetSocketAddress) remoteAddress)){

@@ -7,6 +7,8 @@ import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.CorruptedFrameException;
 import io.netty.handler.codec.dns.*;
 import io.netty.util.CharsetUtil;
+import io.vertx.core.Vertx;
+import io.vertx.core.VertxOptions;
 
 import java.net.InetAddress;
 import java.util.ArrayList;
@@ -16,13 +18,6 @@ import java.util.stream.Stream;
 
 
 public class DnsKit {
-
-    public static DnsClient DNS_CLIENT=null;
-
-    public static DnsClient client(){
-        return DNS_CLIENT;
-    }
-
 
     public static ByteBuf encodeDomainName(String name, ByteBuf buf) {
 

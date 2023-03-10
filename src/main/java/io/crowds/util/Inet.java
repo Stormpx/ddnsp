@@ -2,10 +2,36 @@ package io.crowds.util;
 
 import io.netty.util.NetUtil;
 
-import java.io.StringReader;
 import java.net.*;
+import java.util.Enumeration;
+import java.util.Iterator;
 
 public class Inet {
+    private static Boolean ipv6 = null;
+
+    private static boolean is0SupportsIpV6(){
+        try {
+            final Enumeration<NetworkInterface> e = NetworkInterface.getNetworkInterfaces();
+            while (e.hasMoreElements()) {
+                for (InterfaceAddress interfaceAddress : e.nextElement().getInterfaceAddresses()) {
+                    final InetAddress ip = interfaceAddress.getAddress();
+                    if (ip.isLoopbackAddress() || ip instanceof Inet4Address) {
+                        continue;
+                    }
+                    return true;
+                }
+            }
+            return false;
+        } catch (SocketException ex) {
+            return false;
+        }
+    }
+    public static boolean isSupportsIpV6(){
+        if (ipv6!=null){
+            return ipv6;
+        }
+        return ipv6=is0SupportsIpV6();
+    }
 
     public static InetSocketAddress parseInetAddress(String hostAndIp){
         try {

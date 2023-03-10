@@ -41,14 +41,24 @@ public class ChannelCreator {
         return cf;
     }
 
-    public ChannelFuture createTcpChannel(EventLoop eventLoop,SocketAddress local,SocketAddress remote, ChannelInitializer<Channel> initializer) {
+    public Future<Channel> createTcpChannel(EventLoop eventLoop, SocketAddress local, SocketAddress remote, ChannelInitializer<Channel> initializer) {
         Bootstrap bootstrap = new Bootstrap();
+        Promise<Channel> promise = eventLoop.newPromise();
         var cf=bootstrap.group(eventLoop)
                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
                 .channel(Platform.getSocketChannelClass())
                 .handler(initializer)
                 .connect(remote,local);
-        return cf;
+        cf.addListener(f->{
+            if (cf.isCancelled()){
+                promise.cancel(false);
+            }if (!cf.isSuccess()){
+                promise.tryFailure(cf.cause());
+            }else{
+                promise.trySuccess(cf.channel());
+            }
+        });
+        return promise;
     }
 
 
@@ -66,7 +76,8 @@ public class ChannelCreator {
         if (initializer!=null) {
             udpChannel.pipeline().addLast(initializer);
         }
-        EventLoop eventLoop = eventLoopGroup.next();
+
+        EventLoop eventLoop = option.getEventLoop()!=null? option.getEventLoop():eventLoopGroup.next();
         eventLoop.register(udpChannel);
 
         Promise<DatagramChannel> promise=eventLoop.newPromise();

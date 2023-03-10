@@ -1,8 +1,12 @@
 package io.crowds.tun.wireguard;
 
+import io.crowds.Ddnsp;
 import io.crowds.Platform;
 import io.crowds.lib.boringtun.wireguard_ffi_h;
 import io.crowds.lib.boringtun.wireguard_result;
+import io.crowds.util.Async;
+import io.crowds.util.IPCIDR;
+import io.crowds.util.Inet;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.*;
@@ -39,8 +43,8 @@ import java.util.function.Consumer;
 public class WireGuardTunnel implements Closeable {
     private final static Logger logger = LoggerFactory.getLogger(WireGuardTunnel.class);
     private EventLoop eventLoop;
+    private boolean creatingSock;
     private DatagramSock sock;
-    private Future<DatagramSock> sockFuture;
     private List<ByteBuf> pendingList;
     private PeerOption peer;
     private MemorySession memorySession;
@@ -94,32 +98,47 @@ public class WireGuardTunnel implements Closeable {
     }
 
     private void allocChannel(InetSocketAddress remoteAddress) {
-        var remote  = remoteAddress.isUnresolved()?new InetSocketAddress(remoteAddress.getHostString(),remoteAddress.getPort()):remoteAddress;
-        var local = new InetSocketAddress(remote.getAddress() instanceof Inet4Address?"0.0.0.0":"::",0);
+        if (remoteAddress.isUnresolved()){
+            Async.toCallback(eventLoop,Ddnsp.dnsResolver().resolve(remoteAddress.getHostString(),null))
+                    .addListener(f->{
+                        if (f.isSuccess()){
+                            allocChannel(Inet.createSocketAddress((String) f.resultNow(), remoteAddress.getPort()));
+                        }else{
+                            creatingSock=false;
+                        }
+                    });
+            creatingSock=true;
+            return;
+        }
+        if (creatingSock){
+            return;
+        }
+        var local = new InetSocketAddress(remoteAddress.getAddress() instanceof Inet4Address?"0.0.0.0":"::",0);
         DatagramChannel channel = Platform.getDatagramChannel();
         eventLoop.register(channel).addListener(bf->{
             if (!bf.isSuccess()){
-                allocChannel(remoteAddress);
+                creatingSock=false;
                 return;
             }
             channel.bind(local).addListener(f->{
+                creatingSock=false;
                 if (!f.isSuccess()){
+                    logger.error("bind port failed.",f.cause());
                     channel.close();
-                    allocChannel(remoteAddress);
                 }else{
                     channel.pipeline().addLast(new WgInternalHandler());
-                    this.sock = new DatagramSock(channel,remote);
+                    this.sock = new DatagramSock(channel, remoteAddress);
                     this.sock.write(pendingList);
                     this.pendingList.clear();
                 }
             });
         });
-
+        creatingSock=true;
     }
 
     private void writeToNetwork(ByteBuf content){
         if (this.sock==null){
-            if (this.pendingList.isEmpty()){
+            if (!creatingSock){
                 allocChannel(peer.endpointAddr());
             }
             this.pendingList.add(content);
@@ -160,7 +179,7 @@ public class WireGuardTunnel implements Closeable {
             ByteBuf buf = ByteBufAllocator.DEFAULT.ioBuffer(size,size);
             buf.writeBytes(dst.asSlice(0,size).asByteBuffer());
             switch (op){
-                case 1->writeToNetwork(buf);
+                case 1-> writeToNetwork(buf);
                 case 4->packetHandler.accept(new Tun4Packet(buf));
                 case 6->packetHandler.accept(new Tun6Packet(buf));
             }
@@ -204,6 +223,9 @@ public class WireGuardTunnel implements Closeable {
         return this;
     }
 
+    public PeerOption peer(){
+        return peer;
+    }
     public boolean match(InetAddress address){
         return peer.allowedIp().isMatch(address.getAddress());
     }

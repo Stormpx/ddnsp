@@ -112,9 +112,6 @@ public class FakeDns implements Handler<DnsContext> {
                 if (del)
                     ipPool.release(fakeAddr);
             }, (long) (realAddr.ttl()*1.5), TimeUnit.SECONDS);
-
-//            logger.warn("domain:{} fakeAddr:{}  realAddr: {}",domain,fakeAddr,realAddr);
-
             ctx.resp(DnsOpCode.QUERY,DnsResponseCode.NOERROR,
                     Collections.singletonList(new DefaultDnsRawRecord(domain.name(), ctx.getQuestion().type(), realAddr.ttl(), Unpooled.wrappedBuffer(fakeAddr.getAddress()))));
         }else{

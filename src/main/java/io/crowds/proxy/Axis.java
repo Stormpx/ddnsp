@@ -196,19 +196,17 @@ public class Axis {
         try {
             NetAddr recipient = getNetAddr(packet.recipient());
             NetAddr sender = getNetAddr(packet.sender());
-            NetLocation netLocation = new NetLocation(sender, recipient, TP.UDP);
-            FakeContext fakeContext=getFakeContext(netLocation.getDest());
-            if (fakeContext!=null)
-                netLocation=new NetLocation(netLocation.getSrc(), fakeContext.getNetAddr(netLocation.getDest().getPort()), netLocation.getTp());
-
-            NetLocation finalNetLocation = netLocation;
+            FakeContext fakeContext=getFakeContext(recipient);
+            NetLocation netLocation = new NetLocation(sender,
+                    fakeContext!=null?fakeContext.getNetAddr(recipient.getPort()):recipient,
+                    TP.UDP);
 
             mappings.getOrCreate(netLocation, Lambdas.rethrowSupplier(()->{
-                ProxyContext proxyContext = new ProxyContext(datagramChannel.eventLoop(), finalNetLocation)
+                ProxyContext proxyContext = new ProxyContext(datagramChannel.eventLoop(), netLocation)
                         .fallbackPacketHandler(fallbackPacketHandler)
                         .withFakeContext(fakeContext);
                 Promise<ProxyContext> promise = proxyContext.getEventLoop().newPromise();
-                var src=new UdpEndPoint(datagramChannel,finalNetLocation.getSrc());
+                var src=new UdpEndPoint(datagramChannel,netLocation.getSrc());
                 Transport transport=getTransport(proxyContext);
                 logger.info("udp {} to {} via [{}]",proxyContext.getNetLocation().getSrc(),proxyContext.getNetLocation().getDest(),transport.getChain());
                 ProxyTransport proxy = transport.proxy();

@@ -39,7 +39,7 @@ public class IpPool {
             if (!ipQueue.isEmpty()){
                 return ipQueue.poll();
             }
-            if (ipcidr.getMask()==32){
+            if (ipcidr.getMask()==ipcidr.getMaximumMask()){
                 return null;
             }
             int seqIndex = ipcidr.getMask() / 8;
@@ -64,7 +64,9 @@ public class IpPool {
 
 
     public void release(InetAddress address){
-        ipQueue.add(address);
+        if (isMatch(address)){
+            ipQueue.add(address);
+        }
     }
 
 

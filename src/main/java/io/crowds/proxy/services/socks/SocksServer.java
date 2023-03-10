@@ -229,7 +229,8 @@ public class SocksServer {
         private void handleUdpAssociate(ChannelHandlerContext context){
 //            InetSocketAddress dest = getAddress(request);
             Future<DatagramChannel> future=axis.getChannelCreator().createDatagramChannel(
-                    new DatagramOption().setBindAddr(new InetSocketAddress(socksOption.getHost(), 0)),
+                    new DatagramOption().setEventLoop(context.channel().eventLoop())
+                            .setBindAddr(new InetSocketAddress(socksOption.getHost(), 0)),
                     new ChannelInitializer<>() {
                         @Override
                         protected void initChannel(Channel ch) throws Exception {
@@ -263,10 +264,9 @@ public class SocksServer {
                     datagramChannel.close();
                 });
                 InetSocketAddress bindAddr = datagramChannel.localAddress();
-                writeMessage(context,new DefaultSocks5CommandResponse(Socks5CommandStatus.SUCCESS,Socks5AddressType.IPv4, socksOption.getHost(),bindAddr.getPort()),
-                        v->{
-                            releaseChannel(context);
-                        });
+                writeMessage(context,
+                        new DefaultSocks5CommandResponse(Socks5CommandStatus.SUCCESS,Socks5AddressType.IPv4, socksOption.getHost(),bindAddr.getPort()),
+                        v-> releaseChannel(context));
             });
 
 
@@ -288,7 +288,7 @@ public class SocksServer {
                 byte[] addressBuf;
                 if (address.isUnresolved()){
                     type=3;
-                    addressBuf=address.getHostString().getBytes(StandardCharsets.UTF_8);
+                    addressBuf=address.getHostString().getBytes(StandardCharsets.US_ASCII);
                 }else{
                     InetAddress inetAddress = address.getAddress();
                     addressBuf=inetAddress.getAddress();
@@ -299,6 +299,9 @@ public class SocksServer {
                         .writeByte(0)
                         .writeByte(0)
                         .writeByte(type);
+                if (type==3){
+                    content.writeByte(addressBuf.length);
+                }
                 content.writeBytes(addressBuf);
                 content.writeShort(address.getPort());
                 content.writeBytes(msg.content());

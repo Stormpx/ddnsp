@@ -76,7 +76,7 @@ public class UdpUpstream implements DnsUpstream {
         int id = getNextId();
         DatagramDnsQuery datagramDnsQuery = new DatagramDnsQuery(null, remote, id, query.opCode());
         DnsKit.msgCopy(query,datagramDnsQuery,true);
-
+//            logger.info("send udp query to {}",remote);
         channel.writeAndFlush(datagramDnsQuery);
         Promise<DnsResponse> promise = Promise.promise();
         QueryContext context = new QueryContext(promise);

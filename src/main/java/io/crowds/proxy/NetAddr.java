@@ -1,5 +1,7 @@
 package io.crowds.proxy;
 
+import io.crowds.util.Inet;
+
 import java.net.*;
 import java.util.Objects;
 
@@ -18,6 +20,13 @@ public class NetAddr {
         }else{
             return new NetAddr(address);
         }
+    }
+
+    public static NetAddr of(String host,Integer port){
+        if (port<0 || port>65535){
+            throw new IllegalArgumentException("invalid port");
+        }
+        return of(Inet.createSocketAddress(host,port));
     }
 
     public InetSocketAddress getResolvedAddress(){

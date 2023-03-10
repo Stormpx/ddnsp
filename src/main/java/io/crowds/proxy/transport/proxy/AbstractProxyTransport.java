@@ -2,13 +2,18 @@ package io.crowds.proxy.transport.proxy;
 
 import io.crowds.proxy.*;
 import io.crowds.proxy.transport.*;
+import io.crowds.util.Async;
+import io.crowds.util.Lambdas;
 import io.netty.channel.*;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.FutureListener;
 import io.netty.util.concurrent.Promise;
+import io.netty.util.concurrent.PromiseNotifier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public abstract class AbstractProxyTransport implements ProxyTransport {
-
+    private final static Logger logger= LoggerFactory.getLogger(AbstractProxyTransport.class);
     protected ChannelCreator channelCreator;
     protected Transport transport;
 
@@ -21,13 +26,6 @@ public abstract class AbstractProxyTransport implements ProxyTransport {
 
     protected abstract Future<Channel> proxy(Channel channel, NetLocation netLocation);
 
-    private Destination resolve(Destination dst){
-        if (dst.addr() instanceof DomainNetAddr domain){
-            return new Destination(domain.resolve(),dst.tp());
-        }
-        return dst;
-    }
-
     protected Future<Channel> createChannel(ProxyContext proxyContext) throws Exception {
 
         NetLocation netLocation = proxyContext.getNetLocation();
@@ -35,23 +33,12 @@ public abstract class AbstractProxyTransport implements ProxyTransport {
         if (destination==null) {
             destination = new Destination(netLocation.getDest(),netLocation.getTp());
         }
-        destination = resolve(destination);
         Promise<Channel> promise = proxyContext.getEventLoop().newPromise();
-        transport.createChannel(proxyContext.getEventLoop(),destination)
-                .addListener((FutureListener<Channel>) future -> {
-                    if (!future.isSuccess()){
-                        promise.tryFailure(future.cause());
-                        return;
-                    }
-                    proxy(future.get(),netLocation)
-                            .addListener(f->{
-                                if (f.isSuccess()){
-                                    promise.trySuccess((Channel) f.get());
-                                }else {
-                                    promise.tryFailure(f.cause());
-                                }
-                            });
-                });
+
+        Async.toFuture(transport.createChannel(proxyContext.getEventLoop(),destination))
+                .compose(it->Async.toFuture(proxy(it  ,netLocation)))
+                .onComplete(Async.futureCascadeCallback(promise));
+
         return promise;
     }
 
@@ -60,24 +47,17 @@ public abstract class AbstractProxyTransport implements ProxyTransport {
         NetLocation netLocation = proxyContext.getNetLocation();
 
         Promise<EndPoint> promise = proxyContext.getEventLoop().newPromise();
-        createChannel(proxyContext)
-                .addListener((FutureListener<Channel>)f->{
-                    if (!f.isSuccess()){
-                        promise.tryFailure(f.cause());
-                        return;
-                    }
-                    Channel ch = f.get();
-                    if (netLocation.getTp()==TP.TCP){
-                        promise.trySuccess(new TcpEndPoint(ch));
-                    }else{
-                        UdpChannel udpChannel = new UdpChannel(ch,netLocation.getSrc().getAsInetAddr());
-                        if (proxyContext.fallbackPacketHandler()!=null)
-                            udpChannel.fallbackHandler(proxyContext.fallbackPacketHandler());
-                        promise.trySuccess(new UdpEndPoint(udpChannel,netLocation.getDest()));
-                    }
-
-                });
-
+        Async.cascadeFailure(createChannel(proxyContext),promise,f->{
+            Channel ch = f.get();
+            if (netLocation.getTp()==TP.TCP){
+                promise.trySuccess(new TcpEndPoint(ch));
+            }else{
+                UdpChannel udpChannel = new UdpChannel(ch,netLocation.getSrc().getAsInetAddr());
+                if (proxyContext.fallbackPacketHandler()!=null)
+                    udpChannel.fallbackHandler(proxyContext.fallbackPacketHandler());
+                promise.trySuccess(new UdpEndPoint(udpChannel,netLocation.getDest()));
+            }
+        });
         return promise;
     }
 }

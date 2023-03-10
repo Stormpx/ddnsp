@@ -1,10 +1,16 @@
 package dns.upstream;
 
+import io.crowds.dns.DnsClient;
+import io.crowds.dns.DnsOption;
 import io.crowds.dns.DohUpstream;
+import io.crowds.dns.UdpUpstream;
 import io.netty.handler.codec.dns.*;
+import io.netty.util.NetUtil;
 import io.netty.util.internal.StringUtil;
 import io.vertx.core.Vertx;
 
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.concurrent.TimeUnit;
 
@@ -13,8 +19,8 @@ public class Doh {
         Vertx vertx = Vertx.vertx();
 
         try {
-
-            var upstream = new DohUpstream(vertx, URI.create("https://doh.pub/dns-query"));
+            var client = new DnsClient(vertx, null);
+            var upstream = new DohUpstream(vertx, URI.create("https://doh.pub/dns-query"), client);
 
             upstream.lookup(
                     new DefaultDnsQuery(-1, DnsOpCode.QUERY)

@@ -17,7 +17,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class ProxyServer {
     private final static Logger logger= LoggerFactory.getLogger(ProxyServer.class);
@@ -74,7 +73,7 @@ public class ProxyServer {
                 .map((Void)null);
     }
 
-    public Handler<DnsContext> getFakeDnsHandler(){
+    public Handler<DnsContext> getDnsHandler(){
         return this.axis.getFakeDns();
     }
 

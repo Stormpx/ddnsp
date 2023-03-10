@@ -1,7 +1,7 @@
 package io.crowds.dns;
 
+import io.crowds.Ddnsp;
 import io.netty.handler.codec.dns.DnsRecordType;
-import io.netty.handler.codec.dns.DnsSection;
 import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
 
@@ -46,15 +46,17 @@ public class DnspInetAddressResolver implements InetAddressResolver {
     @Override
     public Stream<InetAddress> lookupByName(String host, LookupPolicy lookupPolicy) throws UnknownHostException {
         try {
-            DnsClient client = DnsKit.client();
-            if (client ==null){
+            InternalDnsResolver resolver = Ddnsp.dnsResolver();
+            if (resolver instanceof DnsClient client){
+                return lookupWithPolicy(client,host,lookupPolicy)
+                        .toCompletionStage()
+                        .toCompletableFuture()
+                        .get(5, TimeUnit.SECONDS)
+                        .list().stream().flatMap(it -> (Stream<InetAddress>) it);
+            }else{
                 return builtInResolver.lookupByName(host,lookupPolicy);
             }
-            return lookupWithPolicy(client,host,lookupPolicy)
-                    .toCompletionStage()
-                    .toCompletableFuture()
-                    .get(5, TimeUnit.SECONDS)
-                    .list().stream().flatMap(it -> (Stream<InetAddress>) it);
+
         } catch (ExecutionException | InterruptedException | TimeoutException e) {
             return builtInResolver.lookupByName(host,lookupPolicy);
         }

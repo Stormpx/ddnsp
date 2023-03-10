@@ -6,15 +6,14 @@ import io.crowds.ddns.Ddns;
 import io.crowds.dns.DnsClient;
 import io.crowds.dns.DnsServer;
 import io.crowds.dns.DnsOption;
+import io.crowds.dns.InternalDnsResolver;
 import io.crowds.proxy.ProxyOption;
 import io.crowds.proxy.ProxyServer;
 import io.crowds.util.Mmdb;
 import io.crowds.util.Strs;
-import io.netty.util.concurrent.DefaultPromise;
 import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
-import io.vertx.core.VertxOptions;
 import io.vertx.core.cli.CLI;
 import io.vertx.core.cli.CommandLine;
 import io.vertx.core.cli.Option;
@@ -32,8 +31,7 @@ public class Main {
     public static void main(String[] args) {
 //        ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.PARANOID);
         System.getProperties().setProperty("vertx.disableDnsResolver","true");
-        Vertx vertx = Vertx.vertx(new VertxOptions()
-                .setPreferNativeTransport(true));
+        Vertx vertx = Ddnsp.VERTX;
         CLI cli = CLI.create("ddnsp")
                 .addOption(new Option().setShortName("c").setLongName("config").setMultiValued(false).setRequired(false));
 
@@ -45,17 +43,13 @@ public class Main {
         if (configFile != null) {
            loader.setFilePath(configFile);
         }
-        Mmdb.initialize(vertx,12, TimeUnit.HOURS);
 
         loader.load()
                 .compose(option->{
-                    if (!Strs.isBlank(option.getMmdb())){
-                        loadMMDB(option.getMmdb());
-                    }
-
                     ProxyOption proxyOption = option.getProxy();
                     DnsOption dnsOption = option.getDns();
-                    var dnsClient=new DnsClient(vertx, dnsOption);
+                    var dnsClient=new DnsClient(vertx, dnsOption.getDnsServers());
+                    Ddnsp.initDnsResolver(dnsClient);
                     InetSocketAddress socketAddress = new InetSocketAddress(dnsOption.getHost(), dnsOption.getPort());
                     DnsServer dnsServer = new DnsServer(vertx.nettyEventLoopGroup(),dnsClient).setOption(dnsOption);
                     Ddns ddns = new Ddns(vertx, option.getDdns());
@@ -65,8 +59,8 @@ public class Main {
                     ProxyServer proxyServer = new ProxyServer(vertx.nettyEventLoopGroup()).setProxyOption(proxyOption);
                     Future<Void> proxyFuture = proxyServer.start()
                             .onSuccess(v->{
-                                if (proxyServer.getFakeDnsHandler()!=null){
-                                    dnsServer.contextHandler(proxyServer.getFakeDnsHandler());
+                                if (proxyServer.getDnsHandler()!=null){
+                                    dnsServer.contextHandler(proxyServer.getDnsHandler());
                                 }
                             });
 
@@ -80,7 +74,6 @@ public class Main {
 
                         DnsOption po = it.getDns();
                         ddns.setOption(it.getDdns());
-                        dnsClient.setDnsOption(po);
 
                         if (dnsFuture.succeeded())
                             dnsServer.setOption(po);
@@ -88,6 +81,12 @@ public class Main {
                         if (proxyFuture.succeeded())
                             proxyServer.setProxyOption(it.getProxy());
                     });
+
+                    Mmdb.initialize(vertx,12, TimeUnit.HOURS);
+
+                    if (!Strs.isBlank(option.getMmdb())){
+                        loadMMDB(option.getMmdb());
+                    }
 
 //                    LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)
                     return CompositeFuture.any(dnsFuture,proxyFuture)

@@ -12,6 +12,8 @@ import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.Promise;
 import org.drasyl.channel.tun.TunPacket;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -20,7 +22,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class WireGuardTunService extends AbstractTunService {
-
+    private final static Logger logger= LoggerFactory.getLogger(WireGuardTunService.class);
     private EventLoopGroup eventLoopGroup;
 
     private List<WireGuardTunnel> tunnels;
@@ -37,7 +39,11 @@ public class WireGuardTunService extends AbstractTunService {
         try {
             this.tunnels = wireGuardOption.getPeers().stream()
                     .map(peer-> new WireGuardTunnel(eventLoopGroup.next(), wireGuardOption.getPrivateKey(), peer, Wg.nextIndex())
-                            .packetHandler(this::writePacket))
+                            .packetHandler(packet -> {
+                                if (logger.isDebugEnabled())
+                                    logger.debug("receive ip packet from {} with src address {}",peer.endpointAddr(),packet.sourceAddress());
+                                writePacket(packet);
+                            }))
                     .collect(Collectors.toList());
             promise.complete();
         } catch (Exception e) {
@@ -57,7 +63,10 @@ public class WireGuardTunService extends AbstractTunService {
         InetAddress address = packet.destinationAddress();
         var optional = tunnels.stream().filter(it -> it.match(address)).max(Comparator.comparingInt(WireGuardTunnel::mask));
         if (optional.isPresent()){
-            optional.get().write(packet.content());
+            WireGuardTunnel tunnel = optional.get();
+            if (logger.isDebugEnabled())
+                logger.info("send ip packet to {} with dst address {}",tunnel.peer().endpointAddr(),address);
+            tunnel.write(packet.content());
         }else{
             ReferenceCountUtil.safeRelease(packet);
         }

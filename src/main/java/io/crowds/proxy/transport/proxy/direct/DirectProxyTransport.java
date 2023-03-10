@@ -1,13 +1,16 @@
 package io.crowds.proxy.transport.proxy.direct;
 
+import io.crowds.Ddnsp;
 import io.crowds.proxy.*;
 import io.crowds.proxy.transport.ProtocolOption;
 import io.crowds.proxy.transport.proxy.FullConeProxyTransport;
+import io.crowds.util.Async;
 import io.netty.channel.*;
 import io.netty.channel.socket.DatagramPacket;
+import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.*;
 
-import java.net.InetSocketAddress;
+import java.net.*;
 import java.util.Optional;
 
 public class DirectProxyTransport extends FullConeProxyTransport {
@@ -44,7 +47,23 @@ public class DirectProxyTransport extends FullConeProxyTransport {
             if (msg instanceof DatagramPacket packet){
                 InetSocketAddress recipient = packet.recipient();
                 if (recipient.isUnresolved()){
-                    msg = new DatagramPacket(packet.content(),new InetSocketAddress(recipient.getHostString(),recipient.getPort()),packet.sender());
+                    if (ctx.channel().localAddress() instanceof InetSocketAddress address){
+                        boolean ipv4 = address.getAddress() instanceof Inet4Address;
+
+                        Async.toCallback(
+                                ctx.channel().eventLoop(),
+                                Ddnsp.dnsResolver().resolve(recipient.getHostString(),ipv4? StandardProtocolFamily.INET:StandardProtocolFamily.INET6)
+                        ).addListener(f->{
+                            if (!f.isSuccess()){
+                                promise.tryFailure(f.cause());
+                                ReferenceCountUtil.safeRelease(packet);
+                                return;
+                            }
+                            var validPacket = new DatagramPacket(packet.content(),new InetSocketAddress((InetAddress) f.get(),recipient.getPort()),packet.sender());
+                            ctx.write(validPacket,promise);
+                        });
+                        return;
+                    }
                 }
             }
             super.write(ctx, msg, promise);

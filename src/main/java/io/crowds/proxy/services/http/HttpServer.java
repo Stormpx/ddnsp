@@ -43,8 +43,7 @@ public class HttpServer {
         ServerBootstrap bootstrap = serverBootstrap.group(axis.getEventLoopGroup(), axis.getEventLoopGroup())
                 .channel(Platform.getServerSocketChannelClass());
         if (Epoll.isAvailable()){
-            bootstrap.option(UnixChannelOption.SO_REUSEPORT,true)
-                    .childOption(UnixChannelOption.SO_REUSEPORT,true);
+            bootstrap.option(UnixChannelOption.SO_REUSEPORT,true);
         }
         bootstrap
                 .option(ChannelOption.SO_REUSEADDR,true)
@@ -111,8 +110,7 @@ public class HttpServer {
             if (port<=0){
                 port= uri.getScheme().startsWith("https") ? 443 : 80;
             }
-            InetSocketAddress address = InetSocketAddress.createUnresolved(host, port);
-            return address;
+            return Inet.createSocketAddress(host,port);
         }
 
         private void tryFireRead(ChannelHandlerContext ctx,Object msg){

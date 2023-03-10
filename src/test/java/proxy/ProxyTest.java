@@ -37,18 +37,10 @@ public abstract class ProxyTest {
     }
 
     public void tcpTest(ProxyTransport proxyTransport) throws Exception {
-        NetLocation location = new NetLocation(null, new DomainNetAddr("www.baidu.com", 80), TP.TCP);
-        EndPoint endPoint = createEndPoint(proxyTransport,location);
-
-        CountDownLatch countDownLatch=new CountDownLatch(1);
-        endPoint.bufferHandler(buf->{
-            System.out.println(((ByteBuf)buf).toString(StandardCharsets.UTF_8));
-            countDownLatch.countDown();
-        });
-
+        NetLocation location = new NetLocation(null, new DomainNetAddr("www.ip.cn", 80), TP.TCP);
         EmbeddedChannel channel = new EmbeddedChannel(new HttpRequestEncoder());
         var header=new DefaultHttpHeaders()
-                .add(HttpHeaderNames.HOST,"www.baidu.com")
+                .add(HttpHeaderNames.HOST,"www.ip.cn")
                 .add(HttpHeaderNames.ACCEPT,"text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
                 .add(HttpHeaderNames.CONNECTION,"close");
 
@@ -59,6 +51,13 @@ public abstract class ProxyTest {
         ByteBuf b=channel.readOutbound();
         System.out.println(b.toString(StandardCharsets.UTF_8));
 
+        EndPoint endPoint = createEndPoint(proxyTransport,location);
+
+        CountDownLatch countDownLatch=new CountDownLatch(1);
+        endPoint.bufferHandler(buf->{
+            System.out.println(((ByteBuf)buf).toString(StandardCharsets.UTF_8));
+            countDownLatch.countDown();
+        });
         endPoint.write(b);
 
         endPoint.closeFuture().addListener(f -> {
@@ -79,6 +78,14 @@ public abstract class ProxyTest {
         EmbeddedChannel channel = new EmbeddedChannel(new DatagramDnsQueryEncoder(),new DatagramDnsResponseDecoder());
         InetSocketAddress address = new InetSocketAddress("114.114.114.114", 53);
         NetLocation location = new NetLocation(new NetAddr(InetSocketAddress.createUnresolved("127.0.0.1",64423)),new NetAddr(address), TP.UDP);
+
+
+        DatagramDnsQuery query = new DatagramDnsQuery(null, address,0, DnsOpCode.QUERY);
+        query.setRecursionDesired(true);
+        query.addRecord(DnsSection.QUESTION,new DefaultDnsQuestion("www.google.com.",DnsRecordType.A));
+        System.out.println(query);
+        channel.writeOutbound(query);
+        DatagramPacket packet=channel.readOutbound();
         EndPoint endPoint = createEndPoint(proxyTransport,location);
         CountDownLatch countDownLatch = new CountDownLatch(2);
         endPoint.bufferHandler(buf->{
@@ -92,24 +99,17 @@ public abstract class ProxyTest {
             }
 
         });
-
-        DatagramDnsQuery query = new DatagramDnsQuery(null, address,0, DnsOpCode.QUERY);
-        query.setRecursionDesired(true);
-        query.addRecord(DnsSection.QUESTION,new DefaultDnsQuestion("www.google.com.",DnsRecordType.A));
-        System.out.println(query);
-        channel.writeOutbound(query);
-        DatagramPacket packet=channel.readOutbound();
         endPoint.write(packet);
 
-        System.out.println();
-
-        query = new DatagramDnsQuery(null, address,1, DnsOpCode.QUERY);
-        query.setRecursionDesired(true);
-        query.addRecord(DnsSection.QUESTION,new DefaultDnsQuestion("www.bilibili.com.",DnsRecordType.A));
-        System.out.println(query);
-        channel.writeOutbound(query);
-        packet=channel.readOutbound();
-        endPoint.write(packet);
+//        System.out.println();
+//
+//        query = new DatagramDnsQuery(null, address,1, DnsOpCode.QUERY);
+//        query.setRecursionDesired(true);
+//        query.addRecord(DnsSection.QUESTION,new DefaultDnsQuestion("www.bilibili.com.",DnsRecordType.A));
+//        System.out.println(query);
+//        channel.writeOutbound(query);
+//        packet=channel.readOutbound();
+//        endPoint.write(packet);
 
         if (!countDownLatch.await(5,TimeUnit.SECONDS)){
             throw new RuntimeException("timeout..");
