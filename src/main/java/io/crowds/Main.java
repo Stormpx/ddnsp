@@ -11,6 +11,7 @@ import io.crowds.proxy.ProxyOption;
 import io.crowds.proxy.ProxyServer;
 import io.crowds.util.Mmdb;
 import io.crowds.util.Strs;
+import io.netty.util.ResourceLeakDetector;
 import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;

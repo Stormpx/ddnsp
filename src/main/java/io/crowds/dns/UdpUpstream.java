@@ -1,11 +1,13 @@
 package io.crowds.dns;
 
+import io.crowds.Ddnsp;
 import io.crowds.Platform;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.handler.codec.dns.*;
+import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.ScheduledFuture;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
@@ -13,6 +15,7 @@ import io.vertx.core.buffer.impl.PartialPooledByteBufAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.Inet6Address;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Map;
@@ -20,7 +23,7 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class UdpUpstream implements DnsUpstream {
+public class UdpUpstream extends AbstractDnsUpstream {
     private final static Logger logger= LoggerFactory.getLogger(UdpUpstream.class);
 
     private EventLoopGroup eventLoopGroup;
@@ -30,13 +33,28 @@ public class UdpUpstream implements DnsUpstream {
     private Map<Integer,QueryContext> queryContextMap;
 
     private AtomicInteger reqId=new AtomicInteger(0);
-
     public UdpUpstream(EventLoopGroup eventLoopGroup, InetSocketAddress defaultAddr) {
+        super(null);
+        if (defaultAddr.isUnresolved()){
+            throw new RuntimeException("unresolved address");
+        }
         this.eventLoopGroup = eventLoopGroup;
         this.channel= Platform.getDatagramChannel();
         this.queryContextMap=new HashMap<>();
-        this.defaultAddr =defaultAddr;
-        channel.config().setAllocator(PartialPooledByteBufAllocator.DEFAULT);
+        init(defaultAddr);
+    }
+
+    public UdpUpstream(EventLoopGroup eventLoopGroup, InetSocketAddress defaultAddr,InternalDnsResolver internalDnsResolver) {
+        super(internalDnsResolver);
+        this.eventLoopGroup = eventLoopGroup;
+        this.channel= Platform.getDatagramChannel();
+        this.queryContextMap=new HashMap<>();
+        bootLookup(defaultAddr).onSuccess(this::init);
+    }
+
+    private void init(InetSocketAddress defaultAddr){
+        boolean ipv6=defaultAddr.getAddress() instanceof Inet6Address;
+        this.defaultAddr=defaultAddr;
         this.channel.pipeline()
                 .addLast(new DatagramDnsQueryEncoder())
                 .addLast(new DatagramDnsResponseDecoder())
@@ -46,6 +64,8 @@ public class UdpUpstream implements DnsUpstream {
                         QueryContext context = queryContextMap.get(msg.id());
                         if (context!=null){
                             context.callback(msg);
+                        }else {
+                            ReferenceCountUtil.safeRelease(msg);
                         }
                     }
 
@@ -59,7 +79,7 @@ public class UdpUpstream implements DnsUpstream {
                     }
                 });
         this.eventLoopGroup.register(channel);
-        this.channel.bind(new InetSocketAddress("0.0.0.0",0));
+        this.channel.bind(new InetSocketAddress(ipv6?"::":"0.0.0.0",0));
     }
 
     private int getNextId(){
@@ -77,10 +97,12 @@ public class UdpUpstream implements DnsUpstream {
         DatagramDnsQuery datagramDnsQuery = new DatagramDnsQuery(null, remote, id, query.opCode());
         DnsKit.msgCopy(query,datagramDnsQuery,true);
 //            logger.info("send udp query to {}",remote);
-        channel.writeAndFlush(datagramDnsQuery);
+
         Promise<DnsResponse> promise = Promise.promise();
         QueryContext context = new QueryContext(promise);
         queryContextMap.put(id, context);
+
+        channel.writeAndFlush(datagramDnsQuery);
 
         return promise.future().onComplete(ar->queryContextMap.remove(id));
     }

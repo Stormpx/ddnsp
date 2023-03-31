@@ -36,7 +36,6 @@ public class DnsProcessor {
         return message.opCode()== DnsOpCode.QUERY&&message.count(DnsSection.QUESTION)==1;
     }
 
-
     public void process(DnsQuery dnsQuery){
         DatagramDnsQuery datagramDnsQuery= (DatagramDnsQuery) dnsQuery;
         if (logger.isDebugEnabled())
@@ -57,9 +56,7 @@ public class DnsProcessor {
                             for (DnsRecord record : records) {
                                 response.addRecord(DnsSection.ANSWER, DnsKit.clone(record,option.getTtl()));
                             }
-                            channel.writeAndFlush(response).addListener(future -> {
-
-                            });
+                            channel.writeAndFlush(response);
                             return;
                         }
 
@@ -85,11 +82,12 @@ public class DnsProcessor {
 //                        });
                 return;
             }
+
             //just proxy
             recursionQuery(datagramDnsQuery);
 
         } catch (Exception e) {
-            logger.info("",e);
+            logger.error("",e);
         }
 
     }
@@ -101,12 +99,7 @@ public class DnsProcessor {
                 .onSuccess(resp->{
                     var datagramDnsResponse=new DatagramDnsResponse(datagramDnsQuery.recipient(),datagramDnsQuery.sender(),id);
                     DnsKit.msgCopy(resp,datagramDnsResponse,true);
-                    channel.writeAndFlush(datagramDnsResponse)
-                            .addListener(future -> {
-
-                            });
-
-
+                    channel.writeAndFlush(datagramDnsResponse);
                 });
 
     }

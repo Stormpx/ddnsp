@@ -1,4 +1,4 @@
-FROM  eclipse-temurin:19.0.1_10-jdk as packager
+FROM  eclipse-temurin:19.0.2_7-jdk as packager
 MAINTAINER crowds
 RUN { \
         java --version ; \

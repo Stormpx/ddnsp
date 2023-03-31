@@ -8,6 +8,6 @@ import io.netty.util.concurrent.Future;
 
 public interface Transport {
 
-    Future<Channel> createChannel(EventLoop eventLoop, Destination dest) throws Exception;
+    Future<Channel> createChannel(EventLoop eventLoop, Destination dest,boolean ipv6) throws Exception;
 
 }

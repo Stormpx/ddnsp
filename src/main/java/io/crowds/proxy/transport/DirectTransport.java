@@ -16,36 +16,53 @@ import javax.net.ssl.SSLException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
+import java.net.StandardProtocolFamily;
+import java.util.AbstractMap;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class DirectTransport implements Transport {
 
     protected ProtocolOption protocolOption;
     protected ChannelCreator channelCreator;
+    private InetAddress localAddr4;
+    private InetAddress localAddr6;
 
     public DirectTransport(ProtocolOption protocolOption, ChannelCreator channelCreator) {
         this.protocolOption = protocolOption;
         this.channelCreator = channelCreator;
     }
 
-    private InetSocketAddress getLocalAddr(boolean ipv6){
+    private InetSocketAddress getLocalAddr(boolean ipv6) throws SocketException {
         TransportOption transportOption = protocolOption.getTransport();
         if (transportOption==null)
             return null;
         String dev = transportOption.getDev();
         if (dev==null)
             return null;
-
-        InetAddress address = Inet.getDeviceAddress(dev, ipv6);
-        if (address==null){
-            throw new IllegalStateException("%s: no such device".formatted(dev));
+        InetAddress devAddr;
+        if (!ipv6) {
+            devAddr = localAddr4;
+            if (devAddr==null){
+                devAddr = Inet.getDeviceAddress(dev, false);
+                this.localAddr4 = devAddr;
+            }
+        } else {
+            devAddr = localAddr6;
+            if (devAddr==null){
+                devAddr = Inet.getDeviceAddress(dev, true);
+                this.localAddr6 = devAddr;
+            }
         }
-        return new InetSocketAddress(address,0);
+        if (devAddr==null){
+            throw new SocketException("network interface %s does not have %s address".formatted(dev,ipv6?"v6":"v4"));
+        }
+        return new InetSocketAddress(devAddr,0);
     }
 
-    private Future<NetAddr> resolve(EventLoop eventLoop,NetAddr addr){
+    private Future<NetAddr> resolve(EventLoop eventLoop,boolean ipv6,NetAddr addr){
         if (addr instanceof DomainNetAddr domain){
             Promise<NetAddr> promise = eventLoop.newPromise();
-            Ddnsp.dnsResolver().resolve(domain.getHost(),null)
+            Ddnsp.dnsResolver().resolve(domain.getHost(),ipv6? StandardProtocolFamily.INET6:StandardProtocolFamily.INET)
                     .map(inetAddr->new NetAddr(new InetSocketAddress(inetAddr, addr.getPort())))
                     .onComplete(Async.futureCascadeCallback(promise));
             return promise;
@@ -53,7 +70,7 @@ public class DirectTransport implements Transport {
         return new SucceededFuture<>(eventLoop,addr);
     }
 
-    private Future<Channel> createTcp(EventLoop eventLoop, NetAddr dst, BaseChannelInitializer initializer) throws SSLException {
+    private Future<Channel> createTcp(EventLoop eventLoop,boolean ipv6, NetAddr dst, BaseChannelInitializer initializer) throws SSLException {
         Promise<Channel> promise=eventLoop.newPromise();
         TlsOption tlsOption = protocolOption.getTls();
         if (tlsOption!=null&& tlsOption.isEnable()){
@@ -61,7 +78,7 @@ public class DirectTransport implements Transport {
                     tlsOption.getServerName()==null?dst.getHost():tlsOption.getServerName(),
                     dst.getPort());
         }
-        Async.cascadeFailure(resolve(eventLoop,dst),promise,resolveFuture->{
+        Async.cascadeFailure(resolve(eventLoop,ipv6,dst),promise,resolveFuture->{
             NetAddr dest = resolveFuture.get();
             var cf= channelCreator.createTcpChannel(eventLoop,getLocalAddr(dest.isIpv6()),dest.getAddress(), initializer);
             PromiseNotifier.cascade(cf,promise);
@@ -69,9 +86,9 @@ public class DirectTransport implements Transport {
         return promise;
     }
 
-    private Future<Channel> createUdp(EventLoop eventLoop,NetAddr dst,BaseChannelInitializer initializer) {
+    private Future<Channel> createUdp(EventLoop eventLoop,boolean ipv6,NetAddr dst,BaseChannelInitializer initializer) {
         Promise<Channel> promise = eventLoop.newPromise();
-        resolve(eventLoop,dst)
+        resolve(eventLoop,ipv6,dst)
                 .addListener(resolveFuture->{
                     if (!resolveFuture.isSuccess()){
                         promise.tryFailure(new SocketException("bind with domain failed",resolveFuture.cause()));
@@ -85,7 +102,7 @@ public class DirectTransport implements Transport {
     }
 
     @Override
-    public Future<Channel> createChannel(EventLoop eventLoop, Destination destination) throws Exception {
+    public Future<Channel> createChannel(EventLoop eventLoop, Destination destination,boolean ipv6) throws Exception {
         NetAddr addr = destination.addr();
         TP tp = destination.tp();
         BaseChannelInitializer initializer = new BaseChannelInitializer();
@@ -96,6 +113,6 @@ public class DirectTransport implements Transport {
             initializer.connIdle(120);
         }
 
-        return tp==TP.TCP?createTcp(eventLoop,addr,initializer):createUdp(eventLoop,addr,initializer);
+        return tp==TP.TCP?createTcp(eventLoop,ipv6,addr,initializer):createUdp(eventLoop,ipv6,addr,initializer);
     }
 }

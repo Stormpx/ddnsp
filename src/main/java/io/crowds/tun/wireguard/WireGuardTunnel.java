@@ -72,7 +72,7 @@ public class WireGuardTunnel implements Closeable {
             }
         }
         this.memorySession=MemorySession.openShared();
-        this.outBuffer = MemorySegment.allocateNative(65535,memorySession);
+        this.outBuffer = MemorySegment.allocateNative(65536,memorySession);
         this.resultAllocator = SegmentAllocator.prefixAllocator(memorySession.allocate(wireguard_result.$LAYOUT()));
         this.pendingList=new ArrayList<>();
         this.timerFuture = eventLoop.scheduleAtFixedRate(this::oneTick, 250, 250,TimeUnit.MILLISECONDS);
@@ -176,7 +176,7 @@ public class WireGuardTunnel implements Closeable {
         }
 
         if (size>0){
-            ByteBuf buf = ByteBufAllocator.DEFAULT.ioBuffer(size,size);
+            ByteBuf buf = ByteBufAllocator.DEFAULT.buffer(size);
             buf.writeBytes(dst.asSlice(0,size).asByteBuffer());
             switch (op){
                 case 1-> writeToNetwork(buf);

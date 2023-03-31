@@ -21,10 +21,9 @@ import java.util.Base64;
 import java.util.Objects;
 
 
-public class DohUpstream implements DnsUpstream {
+public class DohUpstream extends AbstractDnsUpstream {
     private final static Logger logger= LoggerFactory.getLogger(DohUpstream.class);
     private final static String CONTENT_TYPE="application/dns-message";
-    private InternalDnsResolver resolver;
     private URL target;
     private java.net.InetSocketAddress remoteAddr;
     private HttpClient httpClient;
@@ -33,7 +32,7 @@ public class DohUpstream implements DnsUpstream {
     private DnsRecordDecoder decoder=DnsRecordDecoder.DEFAULT;
 
     public DohUpstream(Vertx vertx,URI target,InternalDnsResolver resolver) {
-        this.resolver=resolver;
+        super(resolver);
         try {
             this.target=target.toURL();
             this.remoteAddr = Inet.createSocketAddress(
@@ -52,12 +51,7 @@ public class DohUpstream implements DnsUpstream {
     }
 
     private Future<SocketAddress> getServerAddress(){
-        if (!remoteAddr.isUnresolved()){
-            return Future.succeededFuture(SocketAddress.inetSocketAddress(remoteAddr));
-        }
-        return resolver.bootResolve(target.getHost(),null)
-                .map(addr->new InetSocketAddress(addr, target.getPort()!=-1 ? target.getPort() : target.getDefaultPort()))
-                .map(SocketAddress::inetSocketAddress);
+        return bootLookup(remoteAddr).map(SocketAddress::inetSocketAddress);
     }
 
     private ByteBuf encodeQuery(DnsQuery query, ByteBufAllocator allocator) throws Exception {

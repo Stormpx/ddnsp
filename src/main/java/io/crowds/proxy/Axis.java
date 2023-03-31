@@ -120,9 +120,7 @@ public class Axis {
 
     private NetAddr getNetAddr(SocketAddress address){
         if (address instanceof InetSocketAddress inetAddr){
-            if (inetAddr.isUnresolved()){
-                return new DomainNetAddr(inetAddr);
-            }
+            return NetAddr.of(inetAddr);
         }
         return new NetAddr(address);
     }

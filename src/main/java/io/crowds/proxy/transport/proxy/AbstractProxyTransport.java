@@ -35,8 +35,8 @@ public abstract class AbstractProxyTransport implements ProxyTransport {
         }
         Promise<Channel> promise = proxyContext.getEventLoop().newPromise();
 
-        Async.toFuture(transport.createChannel(proxyContext.getEventLoop(),destination))
-                .compose(it->Async.toFuture(proxy(it  ,netLocation)))
+        Async.toFuture(transport.createChannel(proxyContext.getEventLoop(),destination,netLocation.getSrc().isIpv6()))
+                .compose(it->Async.toFuture(proxy(it,netLocation)))
                 .onComplete(Async.futureCascadeCallback(promise));
 
         return promise;

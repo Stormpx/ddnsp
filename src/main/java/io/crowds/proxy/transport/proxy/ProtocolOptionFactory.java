@@ -10,6 +10,7 @@ import io.crowds.proxy.transport.proxy.vmess.Security;
 import io.crowds.proxy.transport.proxy.vmess.User;
 import io.crowds.proxy.transport.proxy.vmess.VmessOption;
 import io.crowds.proxy.transport.ws.WsOption;
+import io.crowds.util.Inet;
 import io.crowds.util.Strs;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.HttpHeaders;
@@ -58,7 +59,7 @@ public class ProtocolOptionFactory {
         VmessOption vmessOption = new VmessOption();
         var host=json.getString("host");
         var port=json.getInteger("port");
-        vmessOption.setAddress(InetSocketAddress.createUnresolved(host, port));
+        vmessOption.setAddress(Inet.createSocketAddress(host,port));
         String uuid = json.getString("uid");
         Integer alterId = json.getInteger("alterId",0);
         if (Strs.isBlank(uuid)) {
@@ -78,7 +79,7 @@ public class ProtocolOptionFactory {
         ShadowsocksOption shadowsocksOption = new ShadowsocksOption();
         var host=json.getString("host");
         var port=json.getInteger("port");
-        InetSocketAddress address = InetSocketAddress.createUnresolved(host, port);
+        InetSocketAddress address = Inet.createSocketAddress(host, port);
         String cipherStr = json.getString("cipher");
         CipherAlgo cipher = CipherAlgo.of(cipherStr);
         if (cipher==null){
@@ -100,7 +101,7 @@ public class ProtocolOptionFactory {
         var host=json.getString("host");
         var port=json.getInteger("port");
 
-        InetSocketAddress address = InetSocketAddress.createUnresolved(host,port);
+        InetSocketAddress address = Inet.createSocketAddress(host,port);
         String password = json.getString("password");
         if (Strs.isBlank(password)){
             throw new IllegalArgumentException("password is required");
@@ -140,6 +141,8 @@ public class ProtocolOptionFactory {
                 }
                 if (transportJson!=null){
                     TransportOption transportOption = new TransportOption();
+
+                    transportOption.setDev(transportJson.getString("dev"));
                     transportOption.setWs(parseWs(transportJson.getJsonObject("ws")));
 
                     protocolOption.setTransport(transportOption);

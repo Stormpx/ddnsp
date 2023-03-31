@@ -25,18 +25,16 @@ public class DnspInetAddressResolver implements InetAddressResolver {
     private CompositeFuture lookupWithPolicy(DnsClient dnsClient,String host, LookupPolicy lookupPolicy){
         List<Future> r=new ArrayList<>(2);
         if ((lookupPolicy.characteristics()&LookupPolicy.IPV4_FIRST)!=0){
-            r.add(dnsClient.request(host, DnsRecordType.A).map(it->DnsKit.getInetAddrFromResponse(it,true)));
+            r.add(dnsClient.requestAll(host, DnsRecordType.A,false).map(List::stream));
             if ((lookupPolicy.characteristics()&LookupPolicy.IPV6)!=0){
-                r.add(dnsClient.request(host, DnsRecordType.AAAA)
-                        .map(it->DnsKit.getInetAddrFromResponse(it,false)));
+                r.add(dnsClient.requestAll(host, DnsRecordType.AAAA,false).map(List::stream));
             }
         }else{
-            r.add(dnsClient.request(host, DnsRecordType.AAAA).map(it->DnsKit.getInetAddrFromResponse(it,false)));
+            r.add(dnsClient.requestAll(host, DnsRecordType.AAAA,false).map(List::stream));
             if ((lookupPolicy.characteristics()&LookupPolicy.IPV4)!=0){
-                r.add(dnsClient.request(host, DnsRecordType.A).map(it->DnsKit.getInetAddrFromResponse(it,true)));
+                r.add(dnsClient.requestAll(host, DnsRecordType.A,false).map(List::stream));
             }
         }
-
         return CompositeFuture.all(r);
     }
 

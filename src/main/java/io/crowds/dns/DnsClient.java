@@ -63,7 +63,7 @@ public class DnsClient implements InternalDnsResolver{
                 .map(uri->{
                     String scheme = uri.getScheme();
                     return switch (Strs.isBlank(scheme)?"dns":scheme) {
-                        case "dns", "udp" -> new UdpUpstream(eventLoopGroup, new InetSocketAddress(uri.getHost(), uri.getPort()));
+                        case "dns", "udp" -> new UdpUpstream(eventLoopGroup, Inet.createSocketAddress(uri.getHost(), uri.getPort()));
                         case "http", "https" -> new DohUpstream(vertx, uri,this);
                         default -> {
                             logger.error("unsupported dns server {}",uri);
@@ -118,7 +118,7 @@ public class DnsClient implements InternalDnsResolver{
         CacheKey key = new CacheKey(record);
         var result = new ArrayList<DnsRecord>();
         if (dnsCache.getAnswer(key, dnsQuery.isRecursionDesired(), result)){
-            logger.info("query {} hit cache",key);
+//            logger.info("query {} hit cache",key);
             SafeDnsResponse response = new SafeDnsResponse(dnsQuery.id(), dnsQuery.opCode(), DnsResponseCode.NOERROR);
             response.setRecursionDesired(dnsQuery.isRecursionDesired());
             response.addRecord(DnsSection.QUESTION,DnsKit.clone(record));
@@ -132,7 +132,7 @@ public class DnsClient implements InternalDnsResolver{
             useDefault=true;
         }
 
-        var future =useDefault?this.defaultStream.lookup(dnsQuery):scheduleUpStreams(dnsQuery);
+        var future =useDefault?this.defaultStream.lookup(dnsQuery).map(this::copyResp):scheduleUpStreams(dnsQuery);
 
         return future.onSuccess(response->{
             if (response.code()==DnsResponseCode.NOERROR&&!response.isTruncated()){
@@ -142,14 +142,26 @@ public class DnsClient implements InternalDnsResolver{
 
     }
 
-
     public Future<DnsResponse> request(DnsQuery dnsQuery){
         return request(dnsQuery,false);
     }
 
-
-    public Future<DnsResponse> request(String target,DnsRecordType type){
-        return request(newQuery(target,type));
+    public Future<List<InetAddress>> requestAll(String target, DnsRecordType type, boolean useDefault){
+        return request(newQuery(target,type),useDefault)
+                .map(resp-> DnsKit.getInetAddrFromResponse(resp, DnsRecordType.A == type)
+                        .filter(Objects::nonNull)
+                        .toList())
+                .compose(it->it==null?Future.failedFuture(new UnknownHostException("resolve %s type %s failed".formatted(target,type.name()))):Future.succeededFuture(it));
+    }
+    public Future<List<InetAddress>> requestAll(String target, boolean useDefault){
+        List<Future> fs=(Inet.isSupportsIpV6()?Stream.of(DnsRecordType.A,DnsRecordType.AAAA):Stream.of(DnsRecordType.A))
+                .map(type -> requestIp(target,type,useDefault))
+                .collect(Collectors.toList());
+        return CompositeFuture.any(fs)
+                .map(cf-> IntStream.range(0,cf.size())
+                        .filter(cf::succeeded)
+                        .mapToObj(cf::<InetAddress>resultAt)
+                        .toList());
     }
 
     public Future<InetAddress> requestIp(String target, DnsRecordType type, boolean useDefault){
@@ -158,7 +170,7 @@ public class DnsClient implements InternalDnsResolver{
                         .filter(Objects::nonNull)
                         .findFirst()
                         .orElse(null))
-                .compose(it->it==null?Future.failedFuture(new UnknownHostException(target+" "+type.name())):Future.succeededFuture(it));
+                .compose(it->it==null?Future.failedFuture(new UnknownHostException("resolve %s type %s failed".formatted(target,type.name()))):Future.succeededFuture(it));
 
     }
 
@@ -172,8 +184,7 @@ public class DnsClient implements InternalDnsResolver{
                         .mapToObj(cf::<InetAddress>resultAt)
                         .findFirst()
                         .map(Future::succeededFuture)
-                        .orElseGet(()->Future.failedFuture("no available upstream.")));
-
+                        .orElseGet(()->Future.failedFuture("upstream all failed.")));
     }
 
     @Override
