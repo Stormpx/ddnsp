@@ -3,6 +3,7 @@ package io.crowds.dns;
 
 import io.crowds.dns.cache.CacheKey;
 import io.crowds.dns.cache.DnsCache;
+import io.crowds.util.AddrType;
 import io.crowds.util.Inet;
 import io.crowds.util.Strs;
 import io.netty.channel.EventLoopGroup;
@@ -15,10 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -142,34 +140,50 @@ public class DnsClient implements InternalDnsResolver{
 
     }
 
+    private Future<List<InetAddress>> request(String target,DnsRecordType type,boolean useDefault){
+        CacheKey key = new CacheKey(target,type);
+        List<InetAddress> inetAddresses = dnsCache.lightWeightGet(key, true);
+        if (!inetAddresses.isEmpty()){
+            return Future.succeededFuture(inetAddresses);
+        }
+        if (this.upStreams.isEmpty()){
+            useDefault=true;
+        }
+        DnsQuery dnsQuery = newQuery(target, type);
+        var future =useDefault?this.defaultStream.lookup(dnsQuery).map(this::copyResp):scheduleUpStreams(dnsQuery);
+
+        return future.onSuccess(response->{
+            if (response.code()==DnsResponseCode.NOERROR&&!response.isTruncated()){
+                dnsCache.cacheMessage(response, eventLoopGroup.next());
+            }
+        }).map(resp->DnsKit.getInetAddrFromResponse(resp,type==DnsRecordType.A).toList());
+    }
+
+
     public Future<DnsResponse> request(DnsQuery dnsQuery){
         return request(dnsQuery,false);
     }
 
     public Future<List<InetAddress>> requestAll(String target, DnsRecordType type, boolean useDefault){
-        return request(newQuery(target,type),useDefault)
-                .map(resp-> DnsKit.getInetAddrFromResponse(resp, DnsRecordType.A == type)
-                        .filter(Objects::nonNull)
-                        .toList())
+        return request(target,type,useDefault)
                 .compose(it->it==null?Future.failedFuture(new UnknownHostException("resolve %s type %s failed".formatted(target,type.name()))):Future.succeededFuture(it));
     }
     public Future<List<InetAddress>> requestAll(String target, boolean useDefault){
         List<Future> fs=(Inet.isSupportsIpV6()?Stream.of(DnsRecordType.A,DnsRecordType.AAAA):Stream.of(DnsRecordType.A))
-                .map(type -> requestIp(target,type,useDefault))
+                .map(type -> requestAll(target,type,useDefault))
                 .collect(Collectors.toList());
         return CompositeFuture.any(fs)
                 .map(cf-> IntStream.range(0,cf.size())
-                        .filter(cf::succeeded)
-                        .mapToObj(cf::<InetAddress>resultAt)
-                        .toList());
+                                   .filter(cf::succeeded)
+                                   .mapToObj(cf::<List<InetAddress>>resultAt)
+                                   .flatMap(Collection::stream)
+                                   .toList()
+                );
     }
 
     public Future<InetAddress> requestIp(String target, DnsRecordType type, boolean useDefault){
-        return request(newQuery(target,type),useDefault)
-                .map(resp-> DnsKit.getInetAddrFromResponse(resp, DnsRecordType.A == type)
-                        .filter(Objects::nonNull)
-                        .findFirst()
-                        .orElse(null))
+        return request(target,type,useDefault)
+                .map(list->list.isEmpty()?null:list.get(0))
                 .compose(it->it==null?Future.failedFuture(new UnknownHostException("resolve %s type %s failed".formatted(target,type.name()))):Future.succeededFuture(it));
 
     }
@@ -188,24 +202,22 @@ public class DnsClient implements InternalDnsResolver{
     }
 
     @Override
-    public Future<InetAddress> bootResolve(String host,StandardProtocolFamily targetFamily) {
-        if (targetFamily==null)
+    public Future<InetAddress> bootResolve(String host,AddrType addrType) {
+        if (addrType==null)
             return requestIp(host,true);
-        return switch (targetFamily){
-            case INET -> requestIp(host,DnsRecordType.A,true);
-            case INET6 -> requestIp(host,DnsRecordType.AAAA,true);
-            case UNIX -> Future.failedFuture(new UnsupportedOperationException("unsupported protocolFamily "+targetFamily));
+        return switch (addrType){
+            case IPV4 -> requestIp(host,DnsRecordType.A,true);
+            case IPV6 -> requestIp(host,DnsRecordType.AAAA,true);
         };
     }
 
     @Override
-    public Future<InetAddress> resolve(String host,StandardProtocolFamily targetFamily) {
-        if (targetFamily==null)
+    public Future<InetAddress> resolve(String host, AddrType addrType) {
+        if (addrType==null)
             return requestIp(host,false);
-        return switch (targetFamily){
-            case INET -> requestIp(host,DnsRecordType.A,false);
-            case INET6 -> requestIp(host,DnsRecordType.AAAA,false);
-            case UNIX -> Future.failedFuture(new UnsupportedOperationException("unsupported protocolFamily "+targetFamily));
+        return switch (addrType){
+            case IPV4 -> requestIp(host,DnsRecordType.A,false);
+            case IPV6 -> requestIp(host,DnsRecordType.AAAA,false);
         };
     }
 }

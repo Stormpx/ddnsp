@@ -27,8 +27,7 @@ public abstract class FullConeProxyTransport extends AbstractProxyTransport {
 
     private Future<UdpChannel> createUdpChannel(ProxyContext proxyContext) throws Exception {
         Promise<UdpChannel> promise = proxyContext.getEventLoop().newPromise();
-        NetLocation netLocation = proxyContext.getNetLocation();
-        createChannel(proxyContext)
+        createChannel(proxyContext.getEventLoop(),proxyContext.getNetLocation())
                 .addListener((FutureListener<Channel>) f->{
                     if (!f.isSuccess()){
                         return;

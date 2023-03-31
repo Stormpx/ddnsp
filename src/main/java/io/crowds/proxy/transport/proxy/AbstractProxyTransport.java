@@ -2,6 +2,7 @@ package io.crowds.proxy.transport.proxy;
 
 import io.crowds.proxy.*;
 import io.crowds.proxy.transport.*;
+import io.crowds.util.AddrType;
 import io.crowds.util.Async;
 import io.crowds.util.Lambdas;
 import io.netty.channel.*;
@@ -26,16 +27,15 @@ public abstract class AbstractProxyTransport implements ProxyTransport {
 
     protected abstract Future<Channel> proxy(Channel channel, NetLocation netLocation);
 
-    protected Future<Channel> createChannel(ProxyContext proxyContext) throws Exception {
+    protected Future<Channel> createChannel(EventLoop eventLoop,NetLocation netLocation) throws Exception {
 
-        NetLocation netLocation = proxyContext.getNetLocation();
         Destination destination = getRemote(netLocation.getTp());
         if (destination==null) {
             destination = new Destination(netLocation.getDest(),netLocation.getTp());
         }
-        Promise<Channel> promise = proxyContext.getEventLoop().newPromise();
+        Promise<Channel> promise = eventLoop.newPromise();
 
-        Async.toFuture(transport.createChannel(proxyContext.getEventLoop(),destination,netLocation.getSrc().isIpv6()))
+        Async.toFuture(transport.createChannel(eventLoop,destination,netLocation.getSrc().isIpv4()? AddrType.IPV4:AddrType.IPV6))
                 .compose(it->Async.toFuture(proxy(it,netLocation)))
                 .onComplete(Async.futureCascadeCallback(promise));
 
@@ -47,7 +47,7 @@ public abstract class AbstractProxyTransport implements ProxyTransport {
         NetLocation netLocation = proxyContext.getNetLocation();
 
         Promise<EndPoint> promise = proxyContext.getEventLoop().newPromise();
-        Async.cascadeFailure(createChannel(proxyContext),promise,f->{
+        Async.cascadeFailure(createChannel(proxyContext.getEventLoop(),proxyContext.getNetLocation()),promise,f->{
             Channel ch = f.get();
             if (netLocation.getTp()==TP.TCP){
                 promise.trySuccess(new TcpEndPoint(ch));

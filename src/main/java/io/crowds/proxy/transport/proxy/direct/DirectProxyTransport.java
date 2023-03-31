@@ -4,6 +4,7 @@ import io.crowds.Ddnsp;
 import io.crowds.proxy.*;
 import io.crowds.proxy.transport.ProtocolOption;
 import io.crowds.proxy.transport.proxy.FullConeProxyTransport;
+import io.crowds.util.AddrType;
 import io.crowds.util.Async;
 import io.netty.channel.*;
 import io.netty.channel.socket.DatagramPacket;
@@ -52,7 +53,7 @@ public class DirectProxyTransport extends FullConeProxyTransport {
 
                         Async.toCallback(
                                 ctx.channel().eventLoop(),
-                                Ddnsp.dnsResolver().resolve(recipient.getHostString(),ipv4? StandardProtocolFamily.INET:StandardProtocolFamily.INET6)
+                                Ddnsp.dnsResolver().resolve(recipient.getHostString(),ipv4? AddrType.IPV4:AddrType.IPV6)
                         ).addListener(f->{
                             if (!f.isSuccess()){
                                 promise.tryFailure(f.cause());

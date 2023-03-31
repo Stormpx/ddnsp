@@ -1,9 +1,14 @@
 package io.crowds.dns.cache;
 
 import io.crowds.dns.DnsKit;
+import io.crowds.util.Lambdas;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.EventLoop;
 import io.netty.handler.codec.dns.*;
+import io.netty.util.NetUtil;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -135,5 +140,35 @@ public class DnsCache {
     }
 
 
+    public List<InetAddress> lightWeightGet(CacheKey key, boolean recursive){
+        if (key.type()!=DnsRecordType.A&&key.type()!=DnsRecordType.AAAA){
+            throw new UnsupportedOperationException("light-weight get cache only support A or AAAA type");
+        }
+        CacheEntries entries = cache.get(key);
+        long ts = System.currentTimeMillis();
+        if (entries==null){
+            if (recursive){
+                CacheEntries cacheEntries = cache.get(new CacheKey(key.name(), DnsRecordType.CNAME));
+                if (cacheEntries instanceof CnameEntries cnameEntries && !cacheEntries.isTimeout(ts)){
+                    return lightWeightGet(new CacheKey(cnameEntries.cname(), key.type()),true);
+                }
+            }
+            return List.of();
+        }
+        if (entries.isTimeout(ts)){
+            return List.of();
+        }
+        try {
+            return entries.records().stream()
+                          .filter(ttlRecord -> !ttlRecord.isTimeout(ts))
+                          .map(TtlRecord::record)
+                          .map(record->(DnsRawRecord) record)
+                          .map(Lambdas.rethrowFunction(record-> InetAddress.getByAddress(ByteBufUtil.getBytes(record.content()))))
+                          .toList();
+        } catch (UnknownHostException e) {
+            // Should never happen!
+            throw new IllegalStateException(e);
+        }
+    }
 
 }

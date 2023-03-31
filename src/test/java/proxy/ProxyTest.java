@@ -37,7 +37,7 @@ public abstract class ProxyTest {
     }
 
     public void tcpTest(ProxyTransport proxyTransport) throws Exception {
-        NetLocation location = new NetLocation(null, new DomainNetAddr("www.ip.cn", 80), TP.TCP);
+        NetLocation location = new NetLocation(new NetAddr(new InetSocketAddress("127.0.0.1",0)), new DomainNetAddr("www.ip.cn", 80), TP.TCP);
         EmbeddedChannel channel = new EmbeddedChannel(new HttpRequestEncoder());
         var header=new DefaultHttpHeaders()
                 .add(HttpHeaderNames.HOST,"www.ip.cn")
@@ -101,15 +101,15 @@ public abstract class ProxyTest {
         });
         endPoint.write(packet);
 
-//        System.out.println();
-//
-//        query = new DatagramDnsQuery(null, address,1, DnsOpCode.QUERY);
-//        query.setRecursionDesired(true);
-//        query.addRecord(DnsSection.QUESTION,new DefaultDnsQuestion("www.bilibili.com.",DnsRecordType.A));
-//        System.out.println(query);
-//        channel.writeOutbound(query);
-//        packet=channel.readOutbound();
-//        endPoint.write(packet);
+        System.out.println();
+
+        query = new DatagramDnsQuery(null, address,1, DnsOpCode.QUERY);
+        query.setRecursionDesired(true);
+        query.addRecord(DnsSection.QUESTION,new DefaultDnsQuestion("www.bilibili.com.",DnsRecordType.A));
+        System.out.println(query);
+        channel.writeOutbound(query);
+        packet=channel.readOutbound();
+        endPoint.write(packet);
 
         if (!countDownLatch.await(5,TimeUnit.SECONDS)){
             throw new RuntimeException("timeout..");

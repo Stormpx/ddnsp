@@ -3,6 +3,7 @@ package io.crowds.proxy.transport;
 import io.crowds.Ddnsp;
 import io.crowds.proxy.*;
 import io.crowds.proxy.common.BaseChannelInitializer;
+import io.crowds.util.AddrType;
 import io.crowds.util.Async;
 import io.crowds.util.Inet;
 import io.netty.channel.Channel;
@@ -59,18 +60,19 @@ public class DirectTransport implements Transport {
         return new InetSocketAddress(devAddr,0);
     }
 
-    private Future<NetAddr> resolve(EventLoop eventLoop,boolean ipv6,NetAddr addr){
+    private Future<NetAddr> resolve(EventLoop eventLoop,AddrType preferType,NetAddr addr){
         if (addr instanceof DomainNetAddr domain){
             Promise<NetAddr> promise = eventLoop.newPromise();
-            Ddnsp.dnsResolver().resolve(domain.getHost(),ipv6? StandardProtocolFamily.INET6:StandardProtocolFamily.INET)
-                    .map(inetAddr->new NetAddr(new InetSocketAddress(inetAddr, addr.getPort())))
-                    .onComplete(Async.futureCascadeCallback(promise));
+            Ddnsp.dnsResolver().resolve(domain.getHost(),preferType)
+                 .recover(e->Ddnsp.dnsResolver().resolve(domain.getHost(),preferType==AddrType.IPV4?AddrType.IPV6:AddrType.IPV4))
+                 .map(inetAddr->new NetAddr(new InetSocketAddress(inetAddr, addr.getPort())))
+                 .onComplete(Async.futureCascadeCallback(promise));
             return promise;
         }
         return new SucceededFuture<>(eventLoop,addr);
     }
 
-    private Future<Channel> createTcp(EventLoop eventLoop,boolean ipv6, NetAddr dst, BaseChannelInitializer initializer) throws SSLException {
+    private Future<Channel> createTcp(EventLoop eventLoop,AddrType preferType, NetAddr dst, BaseChannelInitializer initializer) throws SSLException {
         Promise<Channel> promise=eventLoop.newPromise();
         TlsOption tlsOption = protocolOption.getTls();
         if (tlsOption!=null&& tlsOption.isEnable()){
@@ -78,7 +80,7 @@ public class DirectTransport implements Transport {
                     tlsOption.getServerName()==null?dst.getHost():tlsOption.getServerName(),
                     dst.getPort());
         }
-        Async.cascadeFailure(resolve(eventLoop,ipv6,dst),promise,resolveFuture->{
+        Async.cascadeFailure(resolve(eventLoop,preferType,dst),promise,resolveFuture->{
             NetAddr dest = resolveFuture.get();
             var cf= channelCreator.createTcpChannel(eventLoop,getLocalAddr(dest.isIpv6()),dest.getAddress(), initializer);
             PromiseNotifier.cascade(cf,promise);
@@ -86,9 +88,9 @@ public class DirectTransport implements Transport {
         return promise;
     }
 
-    private Future<Channel> createUdp(EventLoop eventLoop,boolean ipv6,NetAddr dst,BaseChannelInitializer initializer) {
+    private Future<Channel> createUdp(EventLoop eventLoop,AddrType preferType,NetAddr dst,BaseChannelInitializer initializer) {
         Promise<Channel> promise = eventLoop.newPromise();
-        resolve(eventLoop,ipv6,dst)
+        resolve(eventLoop,preferType,dst)
                 .addListener(resolveFuture->{
                     if (!resolveFuture.isSuccess()){
                         promise.tryFailure(new SocketException("bind with domain failed",resolveFuture.cause()));
@@ -102,7 +104,7 @@ public class DirectTransport implements Transport {
     }
 
     @Override
-    public Future<Channel> createChannel(EventLoop eventLoop, Destination destination,boolean ipv6) throws Exception {
+    public Future<Channel> createChannel(EventLoop eventLoop, Destination destination,AddrType preferType) throws Exception {
         NetAddr addr = destination.addr();
         TP tp = destination.tp();
         BaseChannelInitializer initializer = new BaseChannelInitializer();
@@ -113,6 +115,6 @@ public class DirectTransport implements Transport {
             initializer.connIdle(120);
         }
 
-        return tp==TP.TCP?createTcp(eventLoop,ipv6,addr,initializer):createUdp(eventLoop,ipv6,addr,initializer);
+        return tp==TP.TCP?createTcp(eventLoop,preferType,addr,initializer):createUdp(eventLoop,preferType,addr,initializer);
     }
 }

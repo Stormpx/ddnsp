@@ -6,6 +6,7 @@ import io.crowds.proxy.TP;
 import io.crowds.proxy.transport.Destination;
 import io.crowds.proxy.transport.ProtocolOption;
 import io.crowds.proxy.transport.DirectTransport;
+import io.crowds.util.AddrType;
 import io.netty.channel.Channel;
 import io.netty.channel.EventLoop;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
@@ -40,8 +41,8 @@ public class WebsocketTransport extends DirectTransport {
     }
 
     @Override
-    public Future<Channel> createChannel(EventLoop eventLoop, Destination dest,boolean ipv6) throws Exception {
-        Future<Channel> future = super.createChannel(eventLoop, dest,ipv6);
+    public Future<Channel> createChannel(EventLoop eventLoop, Destination dest, AddrType preferType) throws Exception {
+        Future<Channel> future = super.createChannel(eventLoop, dest,preferType);
         if (dest.tp()==TP.UDP)
             return future;
 
