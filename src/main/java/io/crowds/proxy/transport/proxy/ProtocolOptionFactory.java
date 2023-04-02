@@ -139,6 +139,8 @@ public class ProtocolOptionFactory {
                 protocolOption=parseTrojan(json);
             }else if ("socks".equalsIgnoreCase(protocol)){
                 protocolOption=parseSocks(json);
+            }else if ("direct".equalsIgnoreCase(protocol)){
+                protocolOption=new ProtocolOption();
             }
             if (protocolOption!=null){
                 protocolOption.setProtocol(protocol)
@@ -153,7 +155,6 @@ public class ProtocolOptionFactory {
                 }
                 if (transportJson!=null){
                     TransportOption transportOption = new TransportOption();
-
                     transportOption.setDev(transportJson.getString("dev"));
                     transportOption.setWs(parseWs(transportJson.getJsonObject("ws")));
 

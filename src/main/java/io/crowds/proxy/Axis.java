@@ -1,10 +1,10 @@
 package io.crowds.proxy;
 
+import io.crowds.Ddnsp;
 import io.crowds.proxy.dns.FakeContext;
 import io.crowds.proxy.dns.FakeDns;
 import io.crowds.proxy.dns.FakeOption;
 import io.crowds.proxy.routing.CachedRouter;
-import io.crowds.proxy.routing.LinearRouter;
 import io.crowds.proxy.routing.Router;
 import io.crowds.proxy.select.TransportProvider;
 import io.crowds.proxy.select.Transport;
@@ -240,6 +240,10 @@ public class Axis {
             ReferenceCountUtil.safeRelease(packet);
             logger.error("",e);
         }
+    }
+
+    public EventLoopGroup getAcceptor() {
+        return Ddnsp.acceptor();
     }
 
     public EventLoopGroup getEventLoopGroup() {

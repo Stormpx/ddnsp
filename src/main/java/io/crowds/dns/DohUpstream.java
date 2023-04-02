@@ -4,6 +4,7 @@ import io.crowds.proxy.NetAddr;
 import io.crowds.util.Inet;
 import io.netty.buffer.*;
 import io.netty.handler.codec.dns.*;
+import io.netty.util.ReferenceCountUtil;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -107,42 +108,48 @@ public class DohUpstream extends AbstractDnsUpstream {
 
     @Override
     public Future<DnsResponse> lookup(DnsQuery query) {
-        return getServerAddress()
-                .compose(server->{
-                    try {
-                        var buf = encodeQuery(query, UnpooledByteBufAllocator.DEFAULT);
-                        return httpClient.request(new RequestOptions()
-                                        .setServer(server)
-                                        .setURI(target.getPath())
-                                        .setSsl(target.getProtocol().equals("https"))
-                                        .setMethod(HttpMethod.POST)
-                                        .addHeader("accept",CONTENT_TYPE)
-                                        .addHeader("content-type",CONTENT_TYPE)
-                                        .setTimeout(5000)
-                                        .setFollowRedirects(true)
-                                )
-                                .compose(req->req.send(Buffer.buffer(buf)))
-                                .compose(resp->{
-                                    if (resp.statusCode()!=200){
-                                        return Future.failedFuture("http status code = "+ resp.statusCode());
-                                    }
-                                    String contentType = resp.getHeader("content-type");
-                                    if (!Objects.equals(contentType,CONTENT_TYPE)){
-                                        return Future.failedFuture("unrecognized content type: "+ contentType);
-                                    }
-                                    return resp.body();
-                                })
-                                .compose(buffer->{
-                                    try {
-                                        return Future.succeededFuture(decodeResponse(buffer.getByteBuf()));
-                                    } catch (Exception e) {
-                                        return Future.failedFuture(e);
-                                    }
-                                });
-                    } catch (Exception e) {
-                        return Future.failedFuture(e);
-                    }
-                });
+        try {
+            var buf = encodeQuery(query, UnpooledByteBufAllocator.DEFAULT);
+            return getServerAddress()
+                    .compose(server-> httpClient.request(new RequestOptions()
+                                    .setServer(server)
+                                    .setURI(target.getPath())
+                                    .setSsl(target.getProtocol().equals("https"))
+                                    .setMethod(HttpMethod.POST)
+                                    .addHeader("accept",CONTENT_TYPE)
+                                    .addHeader("content-type",CONTENT_TYPE)
+                                    .setTimeout(5000)
+                                    .setFollowRedirects(true)
+                    ))
+                    .onFailure(t-> ReferenceCountUtil.safeRelease(buf))
+                    .compose(req->req.send(Buffer.buffer(buf)))
+                    .compose(resp->{
+                        if (resp.statusCode()!=200){
+                            if (logger.isDebugEnabled()){
+                                resp.body().onSuccess(b-> logger.debug(b.toString(StandardCharsets.US_ASCII)));
+                            }
+                            return Future.failedFuture("http status code = "+ resp.statusCode());
+                        }
+
+                        String contentType = resp.getHeader("content-type");
+                        if (!Objects.equals(contentType,CONTENT_TYPE)){
+                            return Future.failedFuture("unrecognized content type: "+ contentType);
+                        }
+                        return resp.body();
+                    })
+                    .compose(buffer->{
+                        try {
+                            return Future.succeededFuture(decodeResponse(buffer.getByteBuf()));
+                        } catch (Exception e) {
+                            if (logger.isDebugEnabled()){
+                                logger.error("",e);
+                            }
+                            return Future.failedFuture(e);
+                        }
+                    });
+        } catch (Exception e) {
+            return Future.failedFuture(e);
+        }
     }
 
 }

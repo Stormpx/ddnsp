@@ -40,7 +40,7 @@ public class HttpServer {
         Promise<Void> promise=Promise.promise();
         InetSocketAddress socketAddress = new InetSocketAddress(httpOption.getHost(), httpOption.getPort());
         ServerBootstrap serverBootstrap = new ServerBootstrap();
-        ServerBootstrap bootstrap = serverBootstrap.group(axis.getEventLoopGroup(), axis.getEventLoopGroup())
+        ServerBootstrap bootstrap = serverBootstrap.group(axis.getAcceptor(), axis.getEventLoopGroup())
                 .channel(Platform.getServerSocketChannelClass());
         if (Epoll.isAvailable()){
             bootstrap.option(UnixChannelOption.SO_REUSEPORT,true);

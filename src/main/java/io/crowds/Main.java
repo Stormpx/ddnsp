@@ -49,7 +49,7 @@ public class Main {
                 .compose(option->{
                     ProxyOption proxyOption = option.getProxy();
                     DnsOption dnsOption = option.getDns();
-                    var dnsClient=new DnsClient(vertx, dnsOption.getDnsServers());
+                    var dnsClient=new DnsClient(vertx, dnsOption.genClientOption());
                     Ddnsp.initDnsResolver(dnsClient);
                     InetSocketAddress socketAddress = new InetSocketAddress(dnsOption.getHost(), dnsOption.getPort());
                     DnsServer dnsServer = new DnsServer(vertx.nettyEventLoopGroup(),dnsClient).setOption(dnsOption);

@@ -49,7 +49,7 @@ public class SocksServer {
         Promise<Void> promise=Promise.promise();
         InetSocketAddress socketAddress = new InetSocketAddress(socksOption.getHost(), socksOption.getPort());
         ServerBootstrap serverBootstrap = new ServerBootstrap();
-        ServerBootstrap bootstrap = serverBootstrap.group(axis.getEventLoopGroup(), axis.getEventLoopGroup()).channel(Platform.getServerSocketChannelClass());
+        ServerBootstrap bootstrap = serverBootstrap.group(axis.getAcceptor(), axis.getEventLoopGroup()).channel(Platform.getServerSocketChannelClass());
         if (Epoll.isAvailable()){
             bootstrap.option(UnixChannelOption.SO_REUSEPORT,true);
         }

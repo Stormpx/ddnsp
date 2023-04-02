@@ -9,12 +9,20 @@ public class DnsOption {
     private boolean enable=true;
 
     private List<URI> dnsServers;
+
+    private boolean ipv6;
     private String host;
     private Integer port;
     private int ttl;
 
 
     private Map<String,RecordData> rrMap;
+
+    public ClientOption genClientOption(){
+        return new ClientOption()
+                .setUpstreams(dnsServers)
+                .setTryIpv6(ipv6);
+    }
 
     public boolean isEnable() {
         return enable;
@@ -70,6 +78,15 @@ public class DnsOption {
 
     public DnsOption setRrMap(Map<String, RecordData> rrMap) {
         this.rrMap = rrMap;
+        return this;
+    }
+
+    public boolean isIpv6() {
+        return ipv6;
+    }
+
+    public DnsOption setIpv6(boolean ipv6) {
+        this.ipv6 = ipv6;
         return this;
     }
 }

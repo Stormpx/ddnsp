@@ -1,5 +1,6 @@
 package io.crowds.proxy.services.transparent;
 
+import io.crowds.Ddnsp;
 import io.crowds.Platform;
 import io.crowds.proxy.Axis;
 import io.crowds.proxy.DatagramOption;
@@ -79,7 +80,7 @@ public class TransparentServer {
         ;
 
         serverBootstrap
-                .group(axis.getEventLoopGroup(),axis.getEventLoopGroup())
+                .group(axis.getAcceptor(),axis.getEventLoopGroup())
                 .childHandler(new ChannelInitializer<SocketChannel>(){
 
                     @Override

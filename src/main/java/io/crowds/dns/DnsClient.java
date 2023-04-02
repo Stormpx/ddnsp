@@ -25,22 +25,21 @@ public class DnsClient implements InternalDnsResolver{
     private final Logger logger= LoggerFactory.getLogger(DnsClient.class);
     private Vertx vertx;
     private EventLoopGroup eventLoopGroup;
-
+    private boolean tryIpv6;
     private DnsCache dnsCache;
 
     private DnsUpstream defaultStream;
     private List<DnsUpstream> upStreams;
 
 
-
-    public DnsClient(Vertx vertx,  List<URI> dnsServers) {
+    public DnsClient(Vertx vertx, ClientOption option) {
         this.vertx=vertx;
         this.eventLoopGroup= vertx.nettyEventLoopGroup();
+        this.tryIpv6= option.isTryIpv6();
         this.dnsCache=new DnsCache(eventLoopGroup.next());
         newDefaultStream();
-        newUpStreams(dnsServers);
+        newUpStreams(option.getUpstreams());
     }
-
 
     private void newDefaultStream(){
         String server = System.getProperty("ddnsp.dns.default.server");
@@ -100,7 +99,12 @@ public class DnsClient implements InternalDnsResolver{
         return CompositeFuture.any(
                 this.upStreams
                         .stream()
-                        .map(upStreams->upStreams.lookup(dnsQuery).map(this::copyResp))
+                        .map(upStreams->upStreams.lookup(dnsQuery).map(this::copyResp)
+                                                 .onFailure(e->{
+                                                     if (logger.isDebugEnabled()){
+                                                         logger.error("{}",e.getMessage(),e);
+                                                     }
+                                                 }))
                         .collect(Collectors.toList())
         ).compose(cf -> IntStream.range(0,cf.size())
                 .filter(cf::succeeded)
@@ -203,8 +207,13 @@ public class DnsClient implements InternalDnsResolver{
 
     @Override
     public Future<InetAddress> bootResolve(String host,AddrType addrType) {
-        if (addrType==null)
-            return requestIp(host,true);
+        if (addrType==null){
+            if (tryIpv6){
+                return requestIp(host,true);
+            }
+            addrType=AddrType.IPV4;
+        }
+
         return switch (addrType){
             case IPV4 -> requestIp(host,DnsRecordType.A,true);
             case IPV6 -> requestIp(host,DnsRecordType.AAAA,true);
@@ -213,8 +222,12 @@ public class DnsClient implements InternalDnsResolver{
 
     @Override
     public Future<InetAddress> resolve(String host, AddrType addrType) {
-        if (addrType==null)
-            return requestIp(host,false);
+        if (addrType==null){
+            if (tryIpv6){
+                return requestIp(host,false);
+            }
+            addrType=AddrType.IPV4;
+        }
         return switch (addrType){
             case IPV4 -> requestIp(host,DnsRecordType.A,false);
             case IPV6 -> requestIp(host,DnsRecordType.AAAA,false);

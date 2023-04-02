@@ -1,7 +1,9 @@
 package io.crowds;
 
+import io.crowds.dns.ClientOption;
 import io.crowds.dns.DnsClient;
 import io.crowds.dns.InternalDnsResolver;
+import io.netty.channel.EventLoopGroup;
 import io.netty.resolver.AddressResolverGroup;
 import io.netty.resolver.DefaultNameResolver;
 import io.netty.util.concurrent.EventExecutor;
@@ -41,6 +43,10 @@ public class Ddnsp {
 //            logger.error("hook vertx AddressResolver failed",e);
 //        }
 //    }
+    public static EventLoopGroup acceptor(){
+        return ((VertxImpl)VERTX).getAcceptorEventLoopGroup();
+    }
+
     public static void initDnsResolver(InternalDnsResolver dnsClient){
         INTERNAL_DNS_RESOLVER.set(dnsClient);
     }
@@ -48,7 +54,7 @@ public class Ddnsp {
     public static InternalDnsResolver dnsResolver(){
         InternalDnsResolver client = INTERNAL_DNS_RESOLVER.get();
         if (client==null){
-            INTERNAL_DNS_RESOLVER.compareAndSet(null,new DnsClient(VERTX,null));
+            INTERNAL_DNS_RESOLVER.compareAndSet(null,new DnsClient(VERTX,new ClientOption()));
             client=INTERNAL_DNS_RESOLVER.get();
         }
         return client;

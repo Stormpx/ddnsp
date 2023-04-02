@@ -42,10 +42,7 @@ public class DnsContext {
                 response.addRecord(DnsSection.ANSWER, record);
             }
         }
-        channel.writeAndFlush(response)
-                .addListener(future -> {
-
-                });
+        channel.writeAndFlush(response);
         resp=true;
     }
 

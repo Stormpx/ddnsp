@@ -143,6 +143,7 @@ public class DDnspOptionLoader {
                 .setHost(Optional.ofNullable(json.getString("host")).orElse("0.0.0.0"))
                 .setPort(Optional.ofNullable(json.getInteger("port")).filter(p->p>0&&p<=65535).orElse(53))
                 .setDnsServers(convert(json.getJsonArray("dnsServers")))
+                .setIpv6(json.getBoolean("ipv6",false))
 //                .setRecordsMap(getHosts(json.getJsonArray("records").getList()))
                 .setRrMap(getStaticRecord(json.getJsonArray("records").getList()))
         ;

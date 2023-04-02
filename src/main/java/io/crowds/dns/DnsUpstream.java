@@ -9,4 +9,5 @@ public interface DnsUpstream {
 
     Future<DnsResponse> lookup(DnsQuery query);
 
+
 }
