@@ -5,13 +5,13 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.handler.timeout.IdleStateHandler;
+import io.netty.util.AttributeKey;
 
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 
 public class IdleTimeoutHandler extends IdleStateHandler {
-
+    public final static AttributeKey<Void> IGNORE_IDLE_FLAG =AttributeKey.valueOf("ignore_idle_flag");
     private BiConsumer<Channel,IdleStateEvent> idleEventHandler;
     private boolean closed;
 
@@ -34,6 +34,9 @@ public class IdleTimeoutHandler extends IdleStateHandler {
 
     @Override
     protected void channelIdle(ChannelHandlerContext ctx, IdleStateEvent evt) throws Exception {
+        if (ctx.channel().hasAttr(IGNORE_IDLE_FLAG)){
+            return;
+        }
         if (this.idleEventHandler!=null)
             this.idleEventHandler.accept(ctx.channel(),evt);
         else {

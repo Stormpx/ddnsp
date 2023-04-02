@@ -7,6 +7,7 @@ import io.crowds.proxy.common.Socks;
 import io.crowds.util.Inet;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.channel.epoll.Epoll;
 import io.netty.channel.socket.DatagramChannel;
@@ -20,6 +21,7 @@ import io.netty.handler.codec.socksx.SocksVersion;
 import io.netty.handler.codec.socksx.v4.DefaultSocks4CommandResponse;
 import io.netty.handler.codec.socksx.v4.Socks4CommandRequest;
 import io.netty.handler.codec.socksx.v4.Socks4CommandStatus;
+import io.netty.handler.codec.socksx.v4.Socks4CommandType;
 import io.netty.handler.codec.socksx.v5.*;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.Future;
@@ -141,6 +143,11 @@ public class SocksServer {
                     return;
                 }
                 Socks4CommandRequest request= (Socks4CommandRequest) msg;
+                if (request.type()== Socks4CommandType.BIND){
+                    writeMessage(ctx,new DefaultSocks4CommandResponse(Socks4CommandStatus.REJECTED_OR_FAILED),
+                            v->ctx.channel().close());
+                    return;
+                }
                 writeMessage(ctx,new DefaultSocks4CommandResponse(Socks4CommandStatus.SUCCESS,request.dstAddr(),request.dstPort()),
                         v->{
                             axis.handleTcp(ctx.channel(),ctx.channel().remoteAddress(),new InetSocketAddress(request.dstAddr(),request.dstPort()));
@@ -207,7 +214,7 @@ public class SocksServer {
             if (request.type()==Socks5CommandType.UDP_ASSOCIATE){
                 //udp
                 handleUdpAssociate(ctx);
-            }else{
+            }else if (request.type()==Socks5CommandType.CONNECT){
                 //tcp
                 InetSocketAddress dest = getAddress(request);
                 axis.handleTcp(ctx.channel(),ctx.channel().remoteAddress(), dest)
@@ -219,8 +226,10 @@ public class SocksServer {
                                         v->releaseChannel(ctx));
                             }
                         });
-
-
+            }else{
+                writeMessage(ctx,
+                        new DefaultSocks5CommandResponse(Socks5CommandStatus.COMMAND_UNSUPPORTED,request.dstAddrType()),
+                        v->ctx.channel().close());
             }
         }
 
@@ -265,7 +274,9 @@ public class SocksServer {
                 });
                 InetSocketAddress bindAddr = datagramChannel.localAddress();
                 writeMessage(context,
-                        new DefaultSocks5CommandResponse(Socks5CommandStatus.SUCCESS,Socks5AddressType.IPv4, socksOption.getHost(),bindAddr.getPort()),
+                        new DefaultSocks5CommandResponse(Socks5CommandStatus.SUCCESS,
+                                bindAddr.getAddress() instanceof Inet4Address?Socks5AddressType.IPv4:Socks5AddressType.IPv6,
+                                bindAddr.getHostString(), bindAddr.getPort()),
                         v-> releaseChannel(context));
             });
 
@@ -284,30 +295,12 @@ public class SocksServer {
 //                    out.add(msg.retain());
                     return;
                 }
-                byte type=0;
-                byte[] addressBuf;
-                if (address.isUnresolved()){
-                    type=3;
-                    addressBuf=address.getHostString().getBytes(StandardCharsets.US_ASCII);
-                }else{
-                    InetAddress inetAddress = address.getAddress();
-                    addressBuf=inetAddress.getAddress();
-                    type= (byte) ((inetAddress instanceof Inet4Address)?1:4);
-                }
-                ByteBuf content=ctx.alloc().buffer(4+ addressBuf.length+2+msg.content().readableBytes());
-                content.writeByte(0)
-                        .writeByte(0)
-                        .writeByte(0)
-                        .writeByte(type);
-                if (type==3){
-                    content.writeByte(addressBuf.length);
-                }
-                content.writeBytes(addressBuf);
-                content.writeShort(address.getPort());
+
+                ByteBuf content=ctx.alloc().buffer();
+                content.writeByte(0).writeByte(0).writeByte(0);
+                Socks.encodeAddr(address,content);
                 content.writeBytes(msg.content());
-
                 out.add(new DatagramPacket(content,msg.recipient()));
-
 
             }
         }

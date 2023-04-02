@@ -1,11 +1,14 @@
 package io.crowds.proxy.services.socks;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.crowds.util.Inet;
 import io.crowds.util.Strs;
+
+import java.net.InetSocketAddress;
 
 public class SocksOption {
     private boolean enable;
-
+    private InetSocketAddress address;
     private String host;
     private Integer port;
     private String username;
@@ -23,6 +26,13 @@ public class SocksOption {
     public SocksOption setEnable(boolean enable) {
         this.enable = enable;
         return this;
+    }
+
+    public InetSocketAddress getAddress(){
+        if (this.address==null){
+            this.address=Inet.createSocketAddress(host,port);
+        }
+        return address;
     }
 
     public String getHost() {

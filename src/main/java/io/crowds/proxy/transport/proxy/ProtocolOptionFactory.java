@@ -5,6 +5,7 @@ import io.crowds.proxy.transport.TlsOption;
 import io.crowds.proxy.transport.TransportOption;
 import io.crowds.proxy.transport.proxy.shadowsocks.CipherAlgo;
 import io.crowds.proxy.transport.proxy.shadowsocks.ShadowsocksOption;
+import io.crowds.proxy.transport.proxy.socks.SocksOption;
 import io.crowds.proxy.transport.proxy.trojan.TrojanOption;
 import io.crowds.proxy.transport.proxy.vmess.Security;
 import io.crowds.proxy.transport.proxy.vmess.User;
@@ -111,6 +112,15 @@ public class ProtocolOptionFactory {
         return trojanOption;
     }
 
+    private static SocksOption parseSocks(JsonObject json){
+        SocksOption socksOption = new SocksOption();
+        var host=json.getString("host");
+        var port=json.getInteger("port");
+
+        InetSocketAddress remote = Inet.createSocketAddress(host,port);
+        socksOption.setRemote(remote);
+        return socksOption;
+    }
 
     public static ProtocolOption newOption(JsonObject json){
         var protocol = json.getString("protocol");
@@ -127,6 +137,8 @@ public class ProtocolOptionFactory {
                 protocolOption=parseSs(json);
             }else if ("trojan".equalsIgnoreCase(protocol)){
                 protocolOption=parseTrojan(json);
+            }else if ("socks".equalsIgnoreCase(protocol)){
+                protocolOption=parseSocks(json);
             }
             if (protocolOption!=null){
                 protocolOption.setProtocol(protocol)

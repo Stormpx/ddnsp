@@ -4,6 +4,7 @@ import io.crowds.proxy.NetAddr;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.DecoderException;
 
+import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
@@ -33,14 +34,42 @@ public class Socks {
         }
     }
 
+    public static void encodeAddr(InetSocketAddress addr,ByteBuf out){
+        if (addr.isUnresolved()){
+            String host = addr.getHostString();
+            out.ensureWritable(1+1+host.length());
+            out.writeByte(0x03);
+            if (host.length()>256){
+                throw new IllegalArgumentException("dest domain "+ host +" to long");
+            }
+            out.writeByte(host.length());
+            out.writeBytes(host.getBytes(StandardCharsets.US_ASCII));
+        } else {
+            if (addr.getAddress() instanceof Inet4Address){
+                out.ensureWritable(1+4+2);
+                out.writeByte(0x01);
+            }else{
+                out.ensureWritable(1+16+2);
+                out.writeByte(0x04);
+            }
+            out.writeBytes(addr.getAddress().getAddress());
+        }
+
+        out.writeShort(addr.getPort());
+
+    }
+
     public static void encodeAddr(NetAddr addr,ByteBuf out){
         if (addr.isIpv4()){
+            out.ensureWritable(1+4+2);
             out.writeByte(0x01);
         }else if (addr.isIpv6()){
+            out.ensureWritable(1+16+2);
             out.writeByte(0x04);
         }else{
-            out.writeByte(0x03);
             String host = addr.getHost();
+            out.ensureWritable(1+1+host.length());
+            out.writeByte(0x03);
             if (host.length()>256){
                 throw new IllegalArgumentException("dest domain "+ host +" to long");
             }
