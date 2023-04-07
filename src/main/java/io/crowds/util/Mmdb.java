@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.URI;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
@@ -141,6 +142,12 @@ public class Mmdb {
 
     public void load(Path path){
         try {
+            if (!Files.exists(path)){
+                throw new RuntimeException(path+" not exists");
+            }
+            if (!Files.isRegularFile(path)){
+                throw new RuntimeException(path+" is not a regular file");
+            }
             DatabaseReader reader = new DatabaseReader.Builder(path.toFile()).build();
             replaceDatabase(reader);
         } catch (IOException e) {

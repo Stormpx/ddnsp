@@ -6,8 +6,6 @@ import io.crowds.proxy.routing.rule.RuleType;
 import io.crowds.util.LRUK;
 
 import java.util.*;
-import java.util.function.Consumer;
-import java.util.stream.Stream;
 
 public class CachedRouter extends AbstractRouter {
     private Map<RuleType,Slot> slotMap;

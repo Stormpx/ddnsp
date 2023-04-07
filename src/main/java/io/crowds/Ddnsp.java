@@ -14,6 +14,7 @@ import io.vertx.core.impl.AddressResolver;
 import io.vertx.core.impl.VertxImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import sun.misc.Unsafe;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
@@ -25,24 +26,56 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class Ddnsp {
     private final static Logger logger= LoggerFactory.getLogger(Ddnsp.class);
-    public final static Vertx VERTX =Vertx.vertx(new VertxOptions()
-                    .setWorkerPoolSize(Runtime.getRuntime().availableProcessors()/2)
-                    .setInternalBlockingPoolSize(Runtime.getRuntime().availableProcessors())
-            .setPreferNativeTransport(true));
+
+    public final static Vertx VERTX;
     private final static AtomicReference<InternalDnsResolver> INTERNAL_DNS_RESOLVER =new AtomicReference<>();
+
+    static {
+        VERTX =Vertx.vertx(new VertxOptions()
+                .setBlockedThreadCheckInterval(5000)
+                .setWorkerPoolSize(Runtime.getRuntime().availableProcessors()/2)
+                .setInternalBlockingPoolSize(Runtime.getRuntime().availableProcessors())
+                .setPreferNativeTransport(true));
+
+    }
 
 //    static {
 //        try {
+//            var varhandle = fetchUnsafeHandler().findVarHandle(AddressResolver.class,"resolverGroup",AddressResolverGroup.class);
 //            if (VERTX instanceof VertxImpl impl){
 //                AddressResolver resolver = impl.addressResolver();
-//                Field field = AddressResolver.class.getDeclaredField("resolverGroup");
-//                field.setAccessible(true);
-//                field.set(new DdnspAddressResolverGroup(),resolver);
+//                varhandle.set(resolver,new DdnspAddressResolverGroup());
 //            }
 //        } catch (Exception e) {
 //            logger.error("hook vertx AddressResolver failed",e);
 //        }
 //    }
+//
+//    private static Unsafe getUnsafe() {
+//        Class<Unsafe> aClass = Unsafe.class;
+//        try {
+//            Field unsafe = aClass.getDeclaredField("theUnsafe");
+//            unsafe.setAccessible(true);
+//            return ((Unsafe) unsafe.get(null));
+//        } catch (Exception e) {
+//            throw new RuntimeException(e);
+//        }
+//
+//    }
+//
+//    private static MethodHandles.Lookup fetchUnsafeHandler() {
+//        Class<MethodHandles.Lookup> lookupClass = MethodHandles.Lookup.class;
+//        try {
+//            Field implLookupField = lookupClass.getDeclaredField("IMPL_LOOKUP");
+//            implLookupField.setAccessible(true);
+//            var unsafe = getUnsafe();
+//            long offset = unsafe.staticFieldOffset(implLookupField);
+//            return (MethodHandles.Lookup) unsafe.getObject(unsafe.staticFieldBase(implLookupField), offset);
+//        } catch (Exception e) {
+//            throw new RuntimeException(e);
+//        }
+//    }
+
     public static EventLoopGroup acceptor(){
         return ((VertxImpl)VERTX).getAcceptorEventLoopGroup();
     }

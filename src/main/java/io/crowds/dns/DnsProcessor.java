@@ -67,19 +67,6 @@ public class DnsProcessor {
                         question, channel, q->dnsClient.request(datagramDnsQuery));
 
                 contextHandler.handle(context);
-                //cache query
-//                recursionQueryWithCache(question,new ArrayList<>())
-//                        .onFailure(t->logger.error("",t))
-//                        .onSuccess(resp->{
-//                            var response = new DatagramDnsResponse(datagramDnsQuery.recipient(), datagramDnsQuery.sender(), datagramDnsQuery.id(),
-//                                    datagramDnsQuery.opCode(),resp.code());
-//                            response.addRecord(DnsSection.QUESTION, question);
-//                            DnsKit.msgCopy(resp,response,true);
-//                            channel.writeAndFlush(response)
-//                                    .addListener(future -> {
-//
-//                                    });
-//                        });
                 return;
             }
 
