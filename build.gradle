@@ -3,6 +3,7 @@ import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform
 plugins {
     id 'java'
     id "com.github.johnrengelman.shadow" version "6.1.0"
+    id 'me.champeau.jmh' version '0.6.8'
 }
 
 group 'io.crowds'
@@ -52,6 +53,11 @@ tasks.withType(JavaExec) {
     jvmArgs += "--enable-preview"
 }
 
+jmh{
+    jvmArgs = ['--enable-preview']
+}
+
+
 dependencies {
     OperatingSystem os = DefaultNativePlatform.currentOperatingSystem;
     Architecture arch= DefaultNativePlatform.currentArchitecture;
@@ -77,5 +83,10 @@ dependencies {
 
 
     testImplementation group: 'junit', name: 'junit', version: '4.12'
-    testImplementation "org.openjdk.jol:jol-core:0.16"
+    testImplementation 'org.openjdk.jol:jol-core:0.16'
+
+    testImplementation 'org.openjdk.jmh:jmh-core:1.36'
+    testImplementation 'org.openjdk.jmh:jmh-generator-annprocess:1.36'
+    testAnnotationProcessor 'org.openjdk.jmh:jmh-generator-annprocess:1.36'
+
 }
