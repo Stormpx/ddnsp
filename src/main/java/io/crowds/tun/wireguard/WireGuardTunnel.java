@@ -40,6 +40,8 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
+import static io.crowds.lib.boringtun.wireguard_ffi_h.*;
+
 public class WireGuardTunnel implements Closeable {
     private final static Logger logger = LoggerFactory.getLogger(WireGuardTunnel.class);
     private EventLoop eventLoop;
@@ -60,10 +62,10 @@ public class WireGuardTunnel implements Closeable {
         this.eventLoop=eventLoop;
         this.peer=peer;
         try (MemorySession session = MemorySession.openConfined()){
-            this.tunnel = wireguard_ffi_h.new_tunnel(
-                    session.allocateArray(wireguard_ffi_h.C_CHAR,privateKey.getBytes(StandardCharsets.US_ASCII)).address(),
-                    session.allocateArray(wireguard_ffi_h.C_CHAR,peer.publicKey().getBytes(StandardCharsets.US_ASCII)).address(),
-                    session.allocateArray(wireguard_ffi_h.C_CHAR,peer.perSharedKey().getBytes(StandardCharsets.US_ASCII)).address(),
+            this.tunnel = new_tunnel(
+                    session.allocateArray(C_CHAR,privateKey.getBytes(StandardCharsets.US_ASCII)).address(),
+                    session.allocateArray(C_CHAR,peer.publicKey().getBytes(StandardCharsets.US_ASCII)).address(),
+                    session.allocateArray(C_CHAR,peer.perSharedKey().getBytes(StandardCharsets.US_ASCII)).address(),
                     peer.keepAlive(),
                     index
             );
@@ -170,7 +172,6 @@ public class WireGuardTunnel implements Closeable {
                 handleConnectionExpired();
             }else{
                 logger.error("wireGuard tunnel {} error occur",error);
-
             }
             return;
         }
@@ -191,7 +192,7 @@ public class WireGuardTunnel implements Closeable {
         if (tunnel==null){
             return;
         }
-        var result = wireguard_ffi_h.wireguard_tick(
+        var result = wireguard_tick(
                 resultAllocator,
                 tunnel,
                 outBuffer, (int) outBuffer.byteSize());
@@ -202,7 +203,7 @@ public class WireGuardTunnel implements Closeable {
         if (eventLoop.inEventLoop()){
             MemorySegment in = MemorySegment.ofBuffer(src.nioBuffer());
             try {
-                var result = wireguard_ffi_h.wireguard_write(
+                var result = wireguard_write(
                         resultAllocator,
                         tunnel,
                         in, (int)in.byteSize(),
@@ -240,7 +241,7 @@ public class WireGuardTunnel implements Closeable {
             this.timerFuture.cancel(false);
         }
         if (this.tunnel!=null){
-            wireguard_ffi_h.tunnel_free(this.tunnel);
+            tunnel_free(this.tunnel);
         }
 
         memorySession.close();
@@ -258,13 +259,13 @@ public class WireGuardTunnel implements Closeable {
 
                 try {
                     MemorySegment in = MemorySegment.ofBuffer(buf.nioBuffer());
-                    var result = wireguard_ffi_h.wireguard_read(resultAllocator,
+                    var result = wireguard_read(resultAllocator,
                             tunnel,
                             in, (int)in.byteSize(),
                             outBuffer, (int) outBuffer.byteSize());
                     handleWireGuardResult(result,outBuffer);
                     while (isWriteToNetWork(result)){
-                        result = wireguard_ffi_h.wireguard_read(resultAllocator,
+                        result = wireguard_read(resultAllocator,
                                 tunnel,
                                 in, 0,
                                 outBuffer, (int) outBuffer.byteSize());
