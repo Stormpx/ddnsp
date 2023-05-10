@@ -5,8 +5,10 @@ import io.crowds.util.Inet;
 import io.crowds.util.Strs;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.*;
+import io.netty.channel.epoll.Epoll;
 import io.netty.channel.epoll.EpollChannelOption;
 import io.netty.channel.epoll.EpollDatagramChannel;
+import io.netty.channel.epoll.EpollMode;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.Promise;
@@ -44,6 +46,9 @@ public class ChannelCreator {
     public Future<Channel> createTcpChannel(EventLoop eventLoop, SocketAddress local, SocketAddress remote, ChannelInitializer<Channel> initializer) {
         Bootstrap bootstrap = new Bootstrap();
         Promise<Channel> promise = eventLoop.newPromise();
+        if (Epoll.isAvailable()){
+            bootstrap.option(EpollChannelOption.EPOLL_MODE, EpollMode.LEVEL_TRIGGERED);
+        }
         var cf=bootstrap.group(eventLoop)
                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
                 .channel(Platform.getSocketChannelClass())

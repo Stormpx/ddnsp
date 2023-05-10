@@ -22,7 +22,7 @@ public class LinearRouter extends AbstractRouter{
     }
 
     protected String routing(NetLocation netLocation, RuleType... types){
-        Set<RuleType> typeSet=new HashSet<>(Arrays.asList(types));
+        Set<RuleType> typeSet=Set.of(types);
 
         for (Rule rule : this.rules) {
             if (typeSet.contains(rule.type())&&rule.match(netLocation)){

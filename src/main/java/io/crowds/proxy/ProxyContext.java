@@ -2,16 +2,23 @@ package io.crowds.proxy;
 
 import io.crowds.proxy.dns.FakeContext;
 import io.crowds.proxy.transport.EndPoint;
+import io.crowds.proxy.transport.TcpEndPoint;
+import io.crowds.proxy.transport.proxy.direct.DirectProxyTransport;
+import io.crowds.util.Exceptions;
 import io.netty.channel.EventLoop;
+import io.netty.channel.epoll.EpollMode;
+import io.netty.channel.epoll.EpollSocketChannel;
 import io.netty.channel.socket.DatagramPacket;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.net.InetSocketAddress;
 import java.util.function.Consumer;
 
 public class ProxyContext {
+    private final static Logger logger= LoggerFactory.getLogger(ProxyContext.class);
     private EventLoop eventLoop;
     private EndPoint src;
-    private EndPoint dest;
+    private EndPoint dst;
     private NetLocation netLocation;
 
     private String tag;
@@ -31,28 +38,60 @@ public class ProxyContext {
         this.netLocation=netLocation;
     }
 
-    public void bridging(EndPoint src,EndPoint dest){
-        dest.bufferHandler(src::write);
-        src.bufferHandler(dest::write);
-        src.writabilityHandler(dest::setAutoRead);
-        dest.writabilityHandler(src::setAutoRead);
-        src.closeFuture().addListener(closeFuture->{
-            fireClose();
-            dest.close();
-        });
-        dest.closeFuture().addListener(closeFuture->{
-            fireClose();
-            src.close();
-        });
+    private boolean isSpliceAvailable(EndPoint src,EndPoint dst){
+        return src instanceof TcpEndPoint && dst instanceof TcpEndPoint
+                && src.channel() instanceof EpollSocketChannel srcSocket
+                && dst.channel() instanceof EpollSocketChannel dstSocket
+                && dstSocket.hasAttr(DirectProxyTransport.DIRECT_FLAG)
+                && srcSocket.eventLoop()==dstSocket.eventLoop()
+                && srcSocket.config().getEpollMode()== EpollMode.LEVEL_TRIGGERED
+                && dstSocket.config().getEpollMode()== EpollMode.LEVEL_TRIGGERED;
+    }
+
+    public void bridging(EndPoint src,EndPoint dst){
+        dst.bufferHandler(src::write);
+        src.bufferHandler(dst::write);
+        src.writabilityHandler(dst::setAutoRead);
+        dst.writabilityHandler(src::setAutoRead);
+
+        if (isSpliceAvailable(src,dst)){
+            var srcSocket = (EpollSocketChannel)src.channel();
+            var dstSocket = (EpollSocketChannel)dst.channel();
+            var srcSpliceFuture = srcSocket.spliceTo(dstSocket,Integer.MAX_VALUE);
+            var dstSpliceFuture = dstSocket.spliceTo(srcSocket,Integer.MAX_VALUE);
+            srcSpliceFuture.addListener(f->{
+                if (!f.isSuccess()&&dstSocket.isActive()&&!Exceptions.isExpected(f.cause())){
+                    logger.error("{}",f.cause().getMessage());
+                }
+                fireClose();
+                src.close();
+            });
+            dstSpliceFuture.addListener(f->{
+                if (!f.isSuccess()&&srcSocket.isActive()&&!Exceptions.isExpected(f.cause())){
+                    logger.error("{}",f.cause().getMessage());
+                }
+                fireClose();
+                dst.close();
+            });
+        }else{
+            src.closeFuture().addListener(closeFuture->{
+                fireClose();
+                dst.close();
+            });
+            dst.closeFuture().addListener(closeFuture->{
+                fireClose();
+                src.close();
+            });
+        }
 
         this.src=src;
-        this.dest=dest;
+        this.dst =dst;
 
     }
 
     public void setAutoRead(){
         src.setAutoRead(true);
-        dest.setAutoRead(true);
+        dst.setAutoRead(true);
     }
 
     private void fireClose(){
@@ -86,8 +125,8 @@ public class ProxyContext {
         return src;
     }
 
-    public EndPoint getDest() {
-        return dest;
+    public EndPoint getDst() {
+        return dst;
     }
 
     public EventLoop getEventLoop() {

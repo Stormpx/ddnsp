@@ -12,6 +12,7 @@ import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
 import io.netty.channel.epoll.Epoll;
 import io.netty.channel.epoll.EpollChannelOption;
+import io.netty.channel.epoll.EpollMode;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.DatagramPacket;
 import io.netty.channel.socket.SocketChannel;
@@ -73,10 +74,11 @@ public class TransparentServer {
 
         ServerBootstrap serverBootstrap = new ServerBootstrap();
         serverBootstrap.channel(Platform.getServerSocketChannelClass())
-                .option(ChannelOption.SO_REUSEADDR,true)
-                .option(UnixChannelOption.SO_REUSEPORT,true)
-                .option(EpollChannelOption.IP_TRANSPARENT,true)
-                .childOption(EpollChannelOption.IP_TRANSPARENT,true)
+                       .option(ChannelOption.SO_REUSEADDR,true)
+                       .option(UnixChannelOption.SO_REUSEPORT,true)
+                       .option(EpollChannelOption.IP_TRANSPARENT,true)
+                       .childOption(EpollChannelOption.IP_TRANSPARENT,true)
+                       .childOption(EpollChannelOption.EPOLL_MODE, EpollMode.LEVEL_TRIGGERED);
         ;
 
         serverBootstrap

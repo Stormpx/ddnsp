@@ -145,7 +145,7 @@ public class DDnspOptionLoader {
                 .setDnsServers(convert(json.getJsonArray("dnsServers")))
                 .setIpv6(json.getBoolean("ipv6",false))
 //                .setRecordsMap(getHosts(json.getJsonArray("records").getList()))
-                .setRrMap(getStaticRecord(json.getJsonArray("records").getList()))
+                .setRrMap(getStaticRecord(json.getJsonArray("records",JsonArray.of()).getList()))
         ;
         return dnsOption;
     }

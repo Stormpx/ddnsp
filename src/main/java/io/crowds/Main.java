@@ -18,6 +18,7 @@ import io.vertx.core.Vertx;
 import io.vertx.core.cli.CLI;
 import io.vertx.core.cli.CommandLine;
 import io.vertx.core.cli.Option;
+import io.vertx.core.impl.VertxImpl;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
@@ -57,7 +58,8 @@ public class Main {
 //                    ddns.startTimer();
 
                     Future<Void> dnsFuture = dnsServer.start(socketAddress);
-                    ProxyServer proxyServer = new ProxyServer(vertx.nettyEventLoopGroup()).setProxyOption(proxyOption);
+                    ProxyServer proxyServer = new ProxyServer(((VertxImpl)vertx).getAcceptorEventLoopGroup(),vertx.nettyEventLoopGroup())
+                            .setProxyOption(proxyOption);
                     Future<Void> proxyFuture = proxyServer.start()
                             .onSuccess(v->{
                                 if (proxyServer.getDnsHandler()!=null){

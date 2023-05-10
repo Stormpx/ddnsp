@@ -95,8 +95,11 @@ public class TransportProvider {
         List<String> refs = new RingDetector(this.selectorMap).searchCircularRef();
         if (!refs.isEmpty()){
             String refsStr = String.join("-", refs);
-            logger.error("circular reference is not allowed. |-->{}-->|",refsStr);
-            logger.error("                                   |---{}---|","-".repeat(refsStr.length()));
+            logger.error("""
+                    circular reference is not allowed.
+                    |-->{}-->|
+                    |---{}---|
+                    """,refsStr,"-".repeat(refsStr.length()));
             throw new IllegalStateException("circular reference detected. ");
         }
     }

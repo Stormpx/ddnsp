@@ -34,8 +34,11 @@ public class ProxyServer {
     private List<TunService> tunServices;
 
     public ProxyServer(EventLoopGroup eventLoopGroup) {
+        this(eventLoopGroup,eventLoopGroup);
+    }
+    public ProxyServer(EventLoopGroup acceptor,EventLoopGroup eventLoopGroup) {
         this.eventLoopGroup = eventLoopGroup;
-        this.axis=new Axis(eventLoopGroup);
+        this.axis=new Axis(acceptor,eventLoopGroup);
     }
 
     public ProxyServer setProxyOption(ProxyOption proxyOption) {
@@ -69,7 +72,7 @@ public class ProxyServer {
             proxyOption.getTuns().stream().map(this::startTun).forEach(futures::add);
         }
 
-        return CompositeFuture.any(futures)
+        return CompositeFuture.all(futures)
                 .map((Void)null);
     }
 

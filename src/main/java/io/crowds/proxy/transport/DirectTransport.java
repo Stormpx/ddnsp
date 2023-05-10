@@ -64,7 +64,7 @@ public class DirectTransport implements Transport {
         if (addr instanceof DomainNetAddr domain){
             Promise<NetAddr> promise = eventLoop.newPromise();
             Ddnsp.dnsResolver().resolve(domain.getHost(),preferType)
-                 .recover(e->Ddnsp.dnsResolver().resolve(domain.getHost(),preferType==AddrType.IPV4?AddrType.IPV6:AddrType.IPV4))
+//                 .recover(e->Ddnsp.dnsResolver().resolve(domain.getHost(),preferType==AddrType.IPV4?AddrType.IPV6:AddrType.IPV4))
                  .map(inetAddr->new NetAddr(new InetSocketAddress(inetAddr, addr.getPort())))
                  .onComplete(Async.futureCascadeCallback(promise));
             return promise;

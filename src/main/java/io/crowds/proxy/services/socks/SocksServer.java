@@ -4,12 +4,15 @@ import io.crowds.Platform;
 import io.crowds.proxy.Axis;
 import io.crowds.proxy.DatagramOption;
 import io.crowds.proxy.common.Socks;
+import io.crowds.util.Exceptions;
 import io.crowds.util.Inet;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.channel.epoll.Epoll;
+import io.netty.channel.epoll.EpollChannelOption;
+import io.netty.channel.epoll.EpollMode;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.DatagramPacket;
 import io.netty.channel.socket.SocketChannel;
@@ -51,7 +54,8 @@ public class SocksServer {
         ServerBootstrap serverBootstrap = new ServerBootstrap();
         ServerBootstrap bootstrap = serverBootstrap.group(axis.getAcceptor(), axis.getEventLoopGroup()).channel(Platform.getServerSocketChannelClass());
         if (Epoll.isAvailable()){
-            bootstrap.option(UnixChannelOption.SO_REUSEPORT,true);
+            bootstrap.option(UnixChannelOption.SO_REUSEPORT,true)
+                    .childOption(EpollChannelOption.EPOLL_MODE, EpollMode.LEVEL_TRIGGERED);
         }
         bootstrap
                 .option(ChannelOption.SO_REUSEADDR,true)
@@ -105,8 +109,9 @@ public class SocksServer {
             ctx.writeAndFlush(msg)
                     .addListener(future -> {
                         if (!future.isSuccess()){
-                            future.cause().printStackTrace();
-                            logger.warn("write message failed cause:{}",future.cause().getMessage());
+                            if (!Exceptions.isExpected(future.cause())){
+                                logger.warn("write message failed cause:{}",future.cause().getMessage());
+                            }
                             return;
                         }
                         if (onSuccess!=null)

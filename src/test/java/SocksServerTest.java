@@ -14,7 +14,7 @@ public class SocksServerTest {
                 .setEnable(true)
                 .setHost("127.0.0.1")
                 .setPort(12350);
-        new SocksServer(option,new Axis(group))
+        new SocksServer(option,new Axis(group,group))
                 .start();
     }
 }

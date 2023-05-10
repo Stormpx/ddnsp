@@ -4,6 +4,8 @@ import io.crowds.proxy.DomainNetAddr;
 import io.crowds.proxy.NetAddr;
 import io.crowds.proxy.NetLocation;
 import io.crowds.proxy.routing.rule.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -12,6 +14,7 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 public abstract class AbstractRouter implements Router{
+    private final static Logger logger= LoggerFactory.getLogger(AbstractRouter.class);
     protected String defaultTag;
     private Rule setDefaultTag(String tag){
         if (tag!=null)
@@ -27,8 +30,12 @@ public abstract class AbstractRouter implements Router{
                 .filter(Predicate.not(String::isBlank))
                 .forEach(str->{
                     Rule rule = Rule.of(str);
-                    if (rule!=null)
+                    if (rule!=null){
                         ruleHandler.accept(rule);
+                    }else{
+                        logger.error("unrecognized rule: {}",str);
+                    }
+
                 });
     }
 

@@ -35,6 +35,7 @@ public class Axis {
     private final static Logger logger= LoggerFactory.getLogger(Axis.class);
     private final static String DEFAULT_TRANSPORT="direct";
     private final static String BLOCK_TRANSPORT="block";
+    private EventLoopGroup acceptor;
     private EventLoopGroup eventLoopGroup;
     private ChannelCreator channelCreator;
     private ProxyOption proxyOption;
@@ -47,8 +48,9 @@ public class Axis {
 
     private UdpMappings mappings;
 
-    public Axis(EventLoopGroup eventLoopGroup) {
+    public Axis(EventLoopGroup acceptor,EventLoopGroup eventLoopGroup) {
         this.eventLoopGroup = eventLoopGroup;
+        this.acceptor=acceptor;
         this.channelCreator = new ChannelCreator(eventLoopGroup);
         this.mappings=new UdpMappings();
     }
@@ -231,7 +233,7 @@ public class Axis {
                 }
 
                 ProxyContext proxyContext= (ProxyContext) f.get();
-                proxyContext.getDest().write(packet);
+                proxyContext.getDst().write(packet);
 
             })
             ;
@@ -243,7 +245,7 @@ public class Axis {
     }
 
     public EventLoopGroup getAcceptor() {
-        return Ddnsp.acceptor();
+        return acceptor;
     }
 
     public EventLoopGroup getEventLoopGroup() {

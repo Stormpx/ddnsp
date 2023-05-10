@@ -3,7 +3,6 @@ package io.crowds;
 import io.crowds.dns.ClientOption;
 import io.crowds.dns.DnsClient;
 import io.crowds.dns.InternalDnsResolver;
-import io.netty.channel.EventLoopGroup;
 import io.netty.resolver.AddressResolverGroup;
 import io.netty.resolver.DefaultNameResolver;
 import io.netty.util.concurrent.EventExecutor;
@@ -14,10 +13,8 @@ import io.vertx.core.impl.AddressResolver;
 import io.vertx.core.impl.VertxImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import sun.misc.Unsafe;
 
 import java.lang.invoke.MethodHandles;
-import java.lang.invoke.VarHandle;
 import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -33,24 +30,23 @@ public class Ddnsp {
     static {
         VERTX =Vertx.vertx(new VertxOptions()
                 .setBlockedThreadCheckInterval(5000)
-                .setWorkerPoolSize(Runtime.getRuntime().availableProcessors()/2)
+                .setWorkerPoolSize(Math.max(Runtime.getRuntime().availableProcessors()/2,1))
                 .setInternalBlockingPoolSize(Runtime.getRuntime().availableProcessors())
                 .setPreferNativeTransport(true));
-
     }
 
-//    static {
-//        try {
-//            var varhandle = fetchUnsafeHandler().findVarHandle(AddressResolver.class,"resolverGroup",AddressResolverGroup.class);
-//            if (VERTX instanceof VertxImpl impl){
-//                AddressResolver resolver = impl.addressResolver();
-//                varhandle.set(resolver,new DdnspAddressResolverGroup());
-//            }
-//        } catch (Exception e) {
-//            logger.error("hook vertx AddressResolver failed",e);
-//        }
-//    }
-//
+    static {
+        try {
+            var varhandle = fetchMethodHandlesLookup().findVarHandle(AddressResolver.class,"resolverGroup",AddressResolverGroup.class);
+            if (VERTX instanceof VertxImpl impl){
+                AddressResolver resolver = impl.addressResolver();
+                varhandle.set(resolver,new DdnspAddressResolverGroup());
+            }
+        } catch (Exception e) {
+            logger.error("hook vertx AddressResolver failed. {}",e.getMessage());
+        }
+    }
+
 //    private static Unsafe getUnsafe() {
 //        Class<Unsafe> aClass = Unsafe.class;
 //        try {
@@ -62,22 +58,16 @@ public class Ddnsp {
 //        }
 //
 //    }
-//
-//    private static MethodHandles.Lookup fetchUnsafeHandler() {
-//        Class<MethodHandles.Lookup> lookupClass = MethodHandles.Lookup.class;
-//        try {
-//            Field implLookupField = lookupClass.getDeclaredField("IMPL_LOOKUP");
-//            implLookupField.setAccessible(true);
-//            var unsafe = getUnsafe();
-//            long offset = unsafe.staticFieldOffset(implLookupField);
-//            return (MethodHandles.Lookup) unsafe.getObject(unsafe.staticFieldBase(implLookupField), offset);
-//        } catch (Exception e) {
-//            throw new RuntimeException(e);
-//        }
-//    }
 
-    public static EventLoopGroup acceptor(){
-        return ((VertxImpl)VERTX).getAcceptorEventLoopGroup();
+    private static MethodHandles.Lookup fetchMethodHandlesLookup() {
+        Class<MethodHandles.Lookup> lookupClass = MethodHandles.Lookup.class;
+        try {
+            Field implLookupField = lookupClass.getDeclaredField("IMPL_LOOKUP");
+            implLookupField.setAccessible(true);
+            return (MethodHandles.Lookup) implLookupField.get(null);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public static void initDnsResolver(InternalDnsResolver dnsClient){

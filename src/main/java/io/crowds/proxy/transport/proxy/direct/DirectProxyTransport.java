@@ -8,6 +8,7 @@ import io.crowds.util.AddrType;
 import io.crowds.util.Async;
 import io.netty.channel.*;
 import io.netty.channel.socket.DatagramPacket;
+import io.netty.util.AttributeKey;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.*;
 
@@ -15,7 +16,7 @@ import java.net.*;
 import java.util.Optional;
 
 public class DirectProxyTransport extends FullConeProxyTransport {
-
+    public final static AttributeKey<Void> DIRECT_FLAG =AttributeKey.valueOf("direct_flag");
     private ProtocolOption protocolOption;
 
     public DirectProxyTransport(ChannelCreator channelCreator) {
@@ -37,7 +38,12 @@ public class DirectProxyTransport extends FullConeProxyTransport {
 
     @Override
     protected Future<Channel> proxy(Channel channel, NetLocation netLocation) {
-        channel.pipeline().addLast(new DirectOutboundHandler());
+
+        if (netLocation.getTp()==TP.UDP){
+            channel.pipeline().addLast(new DirectOutboundHandler());
+        }else{
+            channel.attr(DIRECT_FLAG);
+        }
         return channel.eventLoop().newSucceededFuture(channel);
     }
 

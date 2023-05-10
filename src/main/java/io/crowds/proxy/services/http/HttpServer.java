@@ -8,6 +8,8 @@ import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.*;
 import io.netty.channel.epoll.Epoll;
+import io.netty.channel.epoll.EpollChannelOption;
+import io.netty.channel.epoll.EpollMode;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.unix.UnixChannelOption;
 import io.netty.handler.codec.http.*;
@@ -43,7 +45,8 @@ public class HttpServer {
         ServerBootstrap bootstrap = serverBootstrap.group(axis.getAcceptor(), axis.getEventLoopGroup())
                 .channel(Platform.getServerSocketChannelClass());
         if (Epoll.isAvailable()){
-            bootstrap.option(UnixChannelOption.SO_REUSEPORT,true);
+            bootstrap.option(UnixChannelOption.SO_REUSEPORT,true)
+                     .childOption(EpollChannelOption.EPOLL_MODE, EpollMode.LEVEL_TRIGGERED);
         }
         bootstrap
                 .option(ChannelOption.SO_REUSEADDR,true)
