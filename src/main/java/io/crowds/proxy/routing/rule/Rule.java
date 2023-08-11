@@ -32,7 +32,7 @@ public interface Rule {
             case SRC_POST-> new Port(content,tag,false);
             case PORT-> new Port(content,tag,true);
             case GEOIP -> new GeoIpR(content,tag);
-            case DEFAULT -> null;
+            case DEFAULT -> new Default(tag);
         };
     }
 

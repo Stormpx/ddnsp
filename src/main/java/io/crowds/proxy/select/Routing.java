@@ -26,6 +26,7 @@ public class Routing extends TransportSelector{
 
     @Override
     public String nextTag(ProxyContext proxyContext) {
-        return router.routing(proxyContext.getNetLocation());
+        var target = router.routing(proxyContext.getNetLocation());
+        return target==null?router.getDefaultTag():target;
     }
 }

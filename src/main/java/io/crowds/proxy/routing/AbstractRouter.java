@@ -23,6 +23,9 @@ public abstract class AbstractRouter implements Router{
         return null;
     }
 
+    public String getDefaultTag() {
+        return defaultTag;
+    }
 
     protected void initRule(List<String> ruleStr, Consumer<Rule> ruleHandler){
         ruleStr.stream()
@@ -31,7 +34,11 @@ public abstract class AbstractRouter implements Router{
                 .forEach(str->{
                     Rule rule = Rule.of(str);
                     if (rule!=null){
-                        ruleHandler.accept(rule);
+                        if (rule.type()==RuleType.DEFAULT){
+                            setDefaultTag(rule.getTag());
+                        }else{
+                            ruleHandler.accept(rule);
+                        }
                     }else{
                         logger.error("unrecognized rule: {}",str);
                     }
