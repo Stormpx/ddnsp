@@ -69,7 +69,7 @@ public class DnsClient implements InternalDnsResolver{
                     };
                 })
                 .filter(Objects::nonNull)
-                .collect(Collectors.toList());;
+                .collect(Collectors.toList());
     }
 
     public void invalidateCache(){

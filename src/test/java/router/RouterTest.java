@@ -18,6 +18,7 @@ public abstract class RouterTest {
     @Test
     public void test1() throws UnknownHostException {
         var rules = List.of(
+                "src-cidr;192.168.21.113/32;ko",
                 "eq;www.abc.domain.com;ok",
                 "domain;abc.domain.com;oo",
                 "kw;domain1;ok",
@@ -27,7 +28,9 @@ public abstract class RouterTest {
                 "cidr;91.108.56.0/22;okk"
         );
         Router router = setupRouter(rules);
-        InetSocketAddress src = new InetSocketAddress(InetAddress.getLocalHost(), 1);
+        InetSocketAddress src = new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 1);
+
+        Assert.assertEquals("ko",router.routing(new InetSocketAddress(InetAddress.getByName("192.168.21.113"),35454),"gaga.com"));
         for (int i = 0; i < 5; i++) {
             Assert.assertEquals("ok",router.routing(src,"www.abc.domain.com"));
             Assert.assertEquals("oo",router.routing(src,"abc.domain.com"));

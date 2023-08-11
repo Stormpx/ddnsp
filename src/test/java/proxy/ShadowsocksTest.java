@@ -7,6 +7,7 @@ import io.crowds.proxy.transport.proxy.shadowsocks.CipherAlgo;
 import io.crowds.proxy.transport.proxy.shadowsocks.ShadowsocksOption;
 import io.crowds.proxy.transport.proxy.shadowsocks.ShadowsocksTransport;
 import io.crowds.proxy.transport.ws.WsOption;
+import io.crowds.util.Inet;
 import org.junit.Test;
 
 import java.net.InetSocketAddress;
@@ -14,7 +15,7 @@ import java.net.InetSocketAddress;
 public class ShadowsocksTest extends ProxyTest {
 
     protected ProxyTransport createProxy(ChannelCreator channelCreator) {
-        InetSocketAddress dest = new InetSocketAddress("127.0.0.1", 16827);
+        InetSocketAddress dest = Inet.createSocketAddress("127.0.0.1", 16827);
         ShadowsocksOption option=new ShadowsocksOption()
                 .setAddress(dest)
                 .setCipher(CipherAlgo.CHACHA20_IETF_POLY1305)

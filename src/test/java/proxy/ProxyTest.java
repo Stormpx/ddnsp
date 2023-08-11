@@ -3,6 +3,7 @@ package proxy;
 import io.crowds.proxy.*;
 import io.crowds.proxy.transport.EndPoint;
 import io.crowds.proxy.transport.ProxyTransport;
+import io.crowds.util.Inet;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.embedded.EmbeddedChannel;
@@ -77,7 +78,7 @@ public abstract class ProxyTest {
     public void udpTest(ProxyTransport proxyTransport) throws Exception {
         EmbeddedChannel channel = new EmbeddedChannel(new DatagramDnsQueryEncoder(),new DatagramDnsResponseDecoder());
         InetSocketAddress address = new InetSocketAddress("114.114.114.114", 53);
-        NetLocation location = new NetLocation(new NetAddr(InetSocketAddress.createUnresolved("127.0.0.1",64423)),new NetAddr(address), TP.UDP);
+        NetLocation location = new NetLocation(new NetAddr(Inet.createSocketAddress("127.0.0.1",64423)),new NetAddr(address), TP.UDP);
 
 
         DatagramDnsQuery query = new DatagramDnsQuery(null, address,0, DnsOpCode.QUERY);

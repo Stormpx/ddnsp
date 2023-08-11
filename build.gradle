@@ -2,6 +2,7 @@ import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform
 
 plugins {
     id 'java'
+    id 'application'
     id "com.github.johnrengelman.shadow" version "6.1.0"
     id 'me.champeau.jmh' version '0.6.8'
 }
@@ -11,28 +12,14 @@ version '1.0-SNAPSHOT'
 
 sourceCompatibility = 19
 
-
 repositories {
     mavenCentral()
 }
-task copyDependencies(type: Copy) {
-    from configurations.runtimeClasspath
-    into "$buildDir/libs"
-}
 
-shadowJar {
-    archiveBaseName.set('ddnsp')
-    archiveClassifier.set('')
-    archiveVersion.set('')
-}
+application{
+    mainClass = 'io.crowds.Main'
 
-jar {
-    manifest {
-        attributes 'Main-Class': 'io.crowds.Main'
-//        attributes "Class-Path": configurations.runtimeClasspath.collect { 'libs/' + it.getName() }.join(' ')
-    }
-    archiveBaseName = 'ddnsp-base'
-    archiveVersion = ''
+    applicationDefaultJvmArgs = ["--add-opens=java.base/java.lang.invoke=ALL-UNNAMED","--enable-preview"]
 }
 
 compileJava{
@@ -51,6 +38,21 @@ tasks.withType(Test) {
 }
 tasks.withType(JavaExec) {
     jvmArgs += "--enable-preview"
+}
+
+shadowJar {
+    mainClassName = 'io.crowds.Main'
+    archiveBaseName.set('ddnsp')
+    archiveClassifier.set('')
+    archiveVersion.set('')
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'io.crowds.Main'
+    }
+    archiveBaseName = 'ddnsp-base'
+    archiveVersion = ''
 }
 
 jmh{
