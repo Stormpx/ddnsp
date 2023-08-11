@@ -4,6 +4,7 @@ import io.netty.channel.ChannelException;
 
 import javax.net.ssl.SSLException;
 import java.io.IOException;
+import java.net.UnknownHostException;
 import java.nio.channels.ClosedChannelException;
 import java.util.Objects;
 import java.util.regex.Pattern;
@@ -25,6 +26,10 @@ public class Exceptions {
             return true;
         }
 
+        if (cause instanceof UnknownHostException){
+            return true;
+        }
+
         final String msg = cause.getMessage();
         if (msg != null) {
             if ((cause instanceof IOException || cause instanceof ChannelException) &&
@@ -39,6 +44,13 @@ public class Exceptions {
             }
         }
 
+        return false;
+    }
+
+    public static boolean shouldLogMessage(Throwable cause){
+        if (cause instanceof UnknownHostException){
+            return true;
+        }
         return false;
     }
 }

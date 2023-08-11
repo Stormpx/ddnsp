@@ -191,7 +191,7 @@ public class TransportProvider {
     public Transport getTransport(ProxyContext proxyContext){
 
 
-        String tag = proxyContext.getFakeContext()!=null?proxyContext.getFakeContext().getTag():proxyContext.getTag();
+        String tag = proxyContext.getTag();
 
         if (tag==null)
             return direct();

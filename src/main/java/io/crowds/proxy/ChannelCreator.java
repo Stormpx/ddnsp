@@ -86,7 +86,7 @@ public class ChannelCreator {
         eventLoop.register(udpChannel);
 
         Promise<DatagramChannel> promise=eventLoop.newPromise();
-        udpChannel.bind(bindAddr!=null?bindAddr:new InetSocketAddress(0))
+        udpChannel.bind(bindAddr!=null?bindAddr:new InetSocketAddress("0.0.0.0",0))
             .addListener(future -> {
                 if (!future.isSuccess()){
                     promise.tryFailure(future.cause());

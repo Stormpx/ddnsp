@@ -14,7 +14,9 @@ import java.util.function.Consumer;
 public abstract class EndPoint  {
     private final static Logger logger= LoggerFactory.getLogger(EndPoint.class);
     private final static Consumer<Throwable> DEFAULT_EXCEPTION_HANDLER=t->{
-          logger.error("",t);
+        if (!Exceptions.isExpected(t)){
+            logger.error("",t);
+        }
     };
 
     private Consumer<Boolean> writabilityHandler;
@@ -51,7 +53,7 @@ public abstract class EndPoint  {
     }
 
     protected void fireException(Throwable cause){
-        if (this.exceptionHandler!=null&&!Exceptions.isExpected(cause))
+        if (this.exceptionHandler!=null)
             this.exceptionHandler.accept(cause);
     }
 

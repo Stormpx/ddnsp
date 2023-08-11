@@ -12,6 +12,7 @@ import io.crowds.proxy.transport.EndPoint;
 import io.crowds.proxy.transport.ProxyTransport;
 import io.crowds.proxy.transport.TcpEndPoint;
 import io.crowds.proxy.transport.UdpEndPoint;
+import io.crowds.util.Exceptions;
 import io.crowds.util.IPCIDR;
 import io.crowds.util.Lambdas;
 import io.netty.channel.Channel;
@@ -107,9 +108,9 @@ public class Axis {
         if (this.router==null){
             return transportProvider.direct();
         }
-        if (proxyContext.getFakeContext()!=null){
-            return transportProvider.getTransport(proxyContext);
-        }
+//        if (proxyContext.getFakeContext()!=null){
+//            return transportProvider.getTransport(proxyContext);
+//        }
 
         NetLocation netLocation = proxyContext.getNetLocation();
         String tag = this.router.routing(netLocation);
@@ -153,15 +154,25 @@ public class Axis {
         return proxyContext;
     }
 
-    public Promise<Void> handleTcp(Channel channel,SocketAddress srcAddr,SocketAddress destAddr){
+    private void logException(SocketAddress srcAddr,SocketAddress dstAddr,Throwable t,boolean src){
+        if (Exceptions.isExpected(t)){
+            if (Exceptions.shouldLogMessage(t)) {
+                logger.error("{}->{} caught exception from {}: {}",srcAddr,dstAddr,src?"src":"dst",t.getMessage());
+            }
+        }else{
+            logger.error("{}->{} caught exception from {}",srcAddr,dstAddr,src?"src":"dst",t);
+        }
+    }
+
+    public Promise<Void> handleTcp(Channel channel,SocketAddress srcAddr,SocketAddress dstAddr){
         Promise<Void> promise = channel.eventLoop().newPromise();
         try {
 
             TcpEndPoint src = new TcpEndPoint(channel);
-            src.exceptionHandler(e->logger.info("src {} caught exception :{}",channel.remoteAddress(),e.getMessage()));
+            src.exceptionHandler(t->logException(srcAddr,dstAddr,t,true));
 
 
-            NetLocation netLocation = new NetLocation(getNetAddr(srcAddr),getNetAddr(destAddr), TP.TCP);
+            NetLocation netLocation = new NetLocation(getNetAddr(srcAddr),getNetAddr(dstAddr), TP.TCP);
 
             ProxyContext proxyContext = createContext(channel.eventLoop(),netLocation);
 
@@ -178,8 +189,9 @@ public class Axis {
                             src.close();
                             return;
                         }
-                        EndPoint dest= (EndPoint) future.get();
-                        proxyContext.bridging(src,dest);
+                        EndPoint dst= (EndPoint) future.get();
+                        dst.exceptionHandler(t->logException(srcAddr,dstAddr,t,false));
+                        proxyContext.bridging(src,dst);
                         promise.trySuccess(null);
                         proxyContext.setAutoRead();
                     });
@@ -207,6 +219,7 @@ public class Axis {
                         .withFakeContext(fakeContext);
                 Promise<ProxyContext> promise = proxyContext.getEventLoop().newPromise();
                 var src=new UdpEndPoint(datagramChannel,netLocation.getSrc());
+                src.exceptionHandler(t->logException(sender.getAddress(),recipient.getAddress(),t,true));
                 Transport transport=getTransport(proxyContext);
                 logger.info("udp {} to {} via [{}]",proxyContext.getNetLocation().getSrc(),proxyContext.getNetLocation().getDest(),transport.getChain());
                 ProxyTransport proxy = transport.proxy();
@@ -216,9 +229,9 @@ public class Axis {
                                 promise.tryFailure(future.cause());
                                 return;
                             }
-                            EndPoint dest= (EndPoint) future.get();
-
-                            proxyContext.bridging(src,dest);
+                            EndPoint dst= (EndPoint) future.get();
+                            dst.exceptionHandler(t->logException(sender.getAddress(),recipient.getAddress(),t,false));
+                            proxyContext.bridging(src,dst);
                             promise.trySuccess(proxyContext);
                             proxyContext.setAutoRead();
 
