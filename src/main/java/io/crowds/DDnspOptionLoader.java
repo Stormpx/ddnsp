@@ -102,7 +102,14 @@ public class DDnspOptionLoader {
                     .setTtl(300)
                     .setDnsServers(provider.nameServerAddresses()
                             .stream()
-                            .map(inet->URI.create("dns://"+inet.getHostName()+":"+(inet.getPort()<0?53:inet.getPort())))
+                            .map(inet->{
+                                int port = inet.getPort()==0?53:inet.getPort();
+                                String host = inet.getAddress().getHostAddress();
+                                if (inet.getAddress() instanceof Inet6Address){
+                                    host="[" + host +"]";
+                                }
+                                return URI.create("dns://"+host+":"+port);
+                            })
                             .collect(Collectors.toList())
                     );
 
