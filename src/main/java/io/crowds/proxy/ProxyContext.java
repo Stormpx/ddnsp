@@ -39,13 +39,14 @@ public class ProxyContext {
     }
 
     private boolean isSpliceAvailable(EndPoint src,EndPoint dst){
-        return src instanceof TcpEndPoint && dst instanceof TcpEndPoint
-                && src.channel() instanceof EpollSocketChannel srcSocket
-                && dst.channel() instanceof EpollSocketChannel dstSocket
-                && dstSocket.hasAttr(DirectProxyTransport.DIRECT_FLAG)
-                && srcSocket.eventLoop()==dstSocket.eventLoop()
-                && srcSocket.config().getEpollMode()== EpollMode.LEVEL_TRIGGERED
-                && dstSocket.config().getEpollMode()== EpollMode.LEVEL_TRIGGERED;
+        return false;
+//        return src instanceof TcpEndPoint && dst instanceof TcpEndPoint
+//                && src.channel() instanceof EpollSocketChannel srcSocket
+//                && dst.channel() instanceof EpollSocketChannel dstSocket
+//                && dstSocket.hasAttr(DirectProxyTransport.DIRECT_FLAG)
+//                && srcSocket.eventLoop()==dstSocket.eventLoop()
+//                && srcSocket.config().getEpollMode()== EpollMode.LEVEL_TRIGGERED
+//                && dstSocket.config().getEpollMode()== EpollMode.LEVEL_TRIGGERED;
     }
 
     public void bridging(EndPoint src,EndPoint dst){

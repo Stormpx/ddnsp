@@ -7,6 +7,8 @@ import io.crowds.proxy.transport.proxy.shadowsocks.CipherAlgo;
 import io.crowds.proxy.transport.proxy.shadowsocks.ShadowsocksOption;
 import io.crowds.proxy.transport.proxy.socks.SocksOption;
 import io.crowds.proxy.transport.proxy.trojan.TrojanOption;
+import io.crowds.proxy.transport.proxy.vless.VlessOption;
+import io.crowds.proxy.transport.proxy.vless.VlessUUID;
 import io.crowds.proxy.transport.proxy.vmess.Security;
 import io.crowds.proxy.transport.proxy.vmess.User;
 import io.crowds.proxy.transport.proxy.vmess.VmessOption;
@@ -122,6 +124,18 @@ public class ProtocolOptionFactory {
         return socksOption;
     }
 
+    private static VlessOption parseVless(JsonObject json){
+        VlessOption vlessOption = new VlessOption();
+        var host=json.getString("host");
+        var port=json.getInteger("port");
+        InetSocketAddress address = Inet.createSocketAddress(host,port);
+        String id = json.getString("id");
+
+        vlessOption.setAddress(address)
+                .setId(VlessUUID.of(id));
+        return vlessOption;
+    }
+
     public static ProtocolOption newOption(JsonObject json){
         var protocol = json.getString("protocol");
         try {
@@ -139,6 +153,8 @@ public class ProtocolOptionFactory {
                 protocolOption=parseTrojan(json);
             }else if ("socks".equalsIgnoreCase(protocol)){
                 protocolOption=parseSocks(json);
+            }else if ("vless".equalsIgnoreCase(protocol)) {
+                protocolOption=parseVless(json);
             }else if ("direct".equalsIgnoreCase(protocol)){
                 protocolOption=new ProtocolOption();
             }

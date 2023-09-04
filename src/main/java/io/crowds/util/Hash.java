@@ -50,19 +50,13 @@ public class Hash {
         }
     }
 
-    public static String sha1(byte[] bytes){
+    public static byte[] sha1(byte[] bytes){
         try {
             MessageDigest sha1 = MessageDigest.getInstance("SHA1");
-            byte[] digest = sha1.digest(bytes);
-            StringBuilder sb = new StringBuilder();
-            for (int i=0; i < digest.length; i++) {
-                sb.append(Integer.toString(( digest[i] & 0xff ) + 0x100, 16).substring( 1 ));
-            }
-            return sb.toString();
+            return sha1.digest(bytes);
         } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
-        return null;
     }
 
     public static String sha256AsHex(byte[] bytes){
