@@ -51,7 +51,7 @@ public class HttpIpProvider implements IpProvider {
     }
 
     @Override
-    public Future<String> getCurIpv4() {
+    public Future<String> getIpv4() {
 
         return nextApi(urls.iterator());
     }

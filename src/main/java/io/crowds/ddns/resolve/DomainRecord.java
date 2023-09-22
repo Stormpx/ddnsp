@@ -1,5 +1,10 @@
 package io.crowds.ddns.resolve;
 
+import io.netty.util.NetUtil;
+
+import java.net.InetAddress;
+import java.util.Objects;
+
 public class DomainRecord {
     private String id;
     private String name;
@@ -7,7 +12,17 @@ public class DomainRecord {
     private String type;
     private String content;
 
+    public boolean isIpv4Record(){
+        return Objects.equals("A",type);
+    }
 
+    public boolean isIpv6Record(){
+        return Objects.equals("AAAA",type);
+    }
+
+    public InetAddress getInetAddress(){
+        return NetUtil.createInetAddressFromIpAddressString(content);
+    }
 
     public String getId() {
         return id;

@@ -3,7 +3,9 @@ package io.crowds.ddns;
 import io.crowds.ddns.resolve.CloudFlareDnsResolver;
 import io.crowds.ddns.resolve.DnsResolver;
 import io.crowds.ddns.resolve.DomainRecord;
+import io.crowds.util.Inet;
 import io.crowds.util.Strs;
+import io.netty.util.NetUtil;
 import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
 import io.vertx.core.TimeoutStream;
@@ -15,6 +17,8 @@ import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.Inet6Address;
+import java.net.InetAddress;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -72,8 +76,13 @@ public class Ddns {
             }else if ("nic".equalsIgnoreCase(src)){
                 ipProvider =new InterfaceIpProvider(json);
             } else if ("static".equalsIgnoreCase(src)){
-                String ip = json.getString("ip");
-                ipProvider=new StaticIpProvider(ip);
+                String ipv4 = json.getString("ipv4",json.getString("ip"));
+                String ipv6 = json.getString("ipv6");
+                if (ipv4==null||ipv6==null){
+                    logger.warn("iphelper {} both ipv4 and ipv6 is set to null. so skipped.",name);
+                    continue;
+                }
+                ipProvider=new StaticIpProvider(ipv4,ipv6);
             }else{
                 throw new IllegalArgumentException("src "+src+" not supported");
             }
@@ -111,8 +120,10 @@ public class Ddns {
             var resolver = json.getString("resolver");
             var provider = json.getString("provider");
             var refreshInterval = json.getInteger("interval");
+            var mode = json.getString("model", "ip");
             Objects.requireNonNull(domain,"domain name is required");
             Objects.requireNonNull(resolver,"domain resolver is required");
+            Objects.requireNonNull(mode,"mode is required");
             if (domain.length()>255){
                 throw new IllegalArgumentException("domain length > 255");
             }
@@ -123,7 +134,11 @@ public class Ddns {
             if (refreshInterval==null)
                 refreshInterval= 86400;
 
-            Context context = new Context(domain, ttl, refreshInterval, provider, resolver);
+            boolean ipv4= mode.equals("ipv4")||mode.equals("ip");
+            boolean ipv6= mode.equals("ipv6")||mode.equals("ip");
+
+            Context context = new Context(domain, ttl, refreshInterval, provider,
+                    resolver,ipv4,ipv6);
             context.start();
             this.contexts.add(context);
 
@@ -247,15 +262,74 @@ public class Ddns {
         private String provider;
         private String resolver;
 
-        public Context(String domain, Integer ttl, long refreshInterval, String provider, String resolver) {
+        private boolean ipv4;
+        private boolean ipv6;
+
+        public Context(String domain, Integer ttl, long refreshInterval, String provider, String resolver,boolean ipv4,boolean ipv6) {
             this.domain = domain;
             this.ttl = ttl;
             this.refreshInterval = refreshInterval;
             this.provider = provider;
             this.resolver = resolver;
+            this.ipv4=ipv4;
+            this.ipv6=ipv6;
+        }
+
+        private Future<Void> updateIpv4(IpProvider ipProvider,DnsResolver resolver,List<DomainRecord> records){
+            return ipProvider.getIpv4()
+                             .map(NetUtil::createInetAddressFromIpAddressString)
+                             .compose(ip->{
+                                var r=records.stream()
+                                             .filter(it->it.getName().equals(domain))
+                                             .filter(DomainRecord::isIpv4Record)
+                                             .findFirst()
+                                             .orElse(null);
+                                if (r==null){
+                                    r=new DomainRecord()
+                                            .setName(domain)
+                                            .setType("A");
+                                    logger.info("context {} > A record not exists. create with ip:{}",domain,ip);
+                                }else{
+                                    InetAddress oldIp = r.getInetAddress();
+                                    if (Objects.equals(ip,oldIp)){
+                                        return Future.succeededFuture();
+                                    }
+                                    logger.info("context {} > ip has been changed old:{} new:{}",domain,r.getContent(),ip);
+                                }
+                                r.setTtl(ttl).setContent(ip.toString());
+                                return resolver.updateDnsResolve(r);
+                            });
+        }
+
+        private Future<Void> updateIpv6(IpProvider ipProvider,DnsResolver resolver,List<DomainRecord> records){
+            return ipProvider.getIpv6()
+                             .map(NetUtil::createInetAddressFromIpAddressString)
+                             .compose(ip->{
+                                 var r=records.stream()
+                                              .filter(it->it.getName().equals(domain))
+                                              .filter(DomainRecord::isIpv6Record)
+                                              .findFirst()
+                                              .orElse(null);
+                                 if (r==null){
+                                     r=new DomainRecord()
+                                             .setName(domain)
+                                             .setType("AAAA");
+                                     logger.info("context {} > AAAA record not exists. create with ip:{}",domain,ip);
+                                 }else{
+                                     InetAddress oldIp = r.getInetAddress();
+                                     if (Objects.equals(ip,oldIp)){
+                                         return Future.succeededFuture();
+                                     }
+                                     logger.info("context {} > ip has been changed old:{} new:{}",domain,r.getContent(),ip);
+                                 }
+                                 r.setTtl(ttl).setContent(ip.toString());
+                                 return resolver.updateDnsResolve(r);
+                             });
         }
 
         private void resolve(){
+            if (!ipv4&&!ipv6)
+                return;
             logger.info("context {} > start refresh resolve",domain);
             IpProvider ipProvider = Ddns.this.ipProviders.get(provider);
             if (ipProvider ==null){
@@ -267,33 +341,20 @@ public class Ddns {
                 logger.error("context {} > refresh resolve failed cause: resolver {} not found",domain,this.resolver);
                 return;
             }
-            CompositeFuture.all(ipProvider.getCurIpv4(),resolver.getRecord(domain))
-                    .compose(cf->{
-                        String ip=cf.resultAt(0);
-                        List<DomainRecord> records=cf.resultAt(1);
-//                        logger.info("context {} > dns record size:{}",domain,records.size());
-                        var r=records.stream()
-                                .filter(it->it.getName().equals(domain))
-                                //only check type A
-                                .filter(it->it.getType().equals("A"))
-                                .findFirst()
-                                .orElse(null);
-                        if (r==null){
-                            r=new DomainRecord()
-                                    .setName(domain)
-                                    .setType("A");
-                            logger.info("context {} > record not exists. create with ip:{}",domain,ip);
-                        }else{
-                            if (Objects.equals(ip,r.getContent())){
-                                return Future.succeededFuture();
-                            }
-                            logger.info("context {} > ip has been changed old:{} new:{}",domain,r.getContent(),ip);
+            resolver.getRecord(domain)
+                    .onFailure(e->logger.error("context {} > get exists records failed because: {}",domain,e.getMessage()))
+                    .onSuccess(records->{
+                        if (ipv4){
+                            updateIpv4(ipProvider,resolver,records)
+                                    .onFailure(t->logger.error("context {} > refresh ipv4 resolve failed cause: {}",domain,t.getMessage()))
+                                    .onSuccess(v->logger.info("context {} > refresh ipv4 resolve completed.",domain));
                         }
-                        r.setTtl(ttl).setContent(ip);
-                        return resolver.updateDnsResolve(r);
-                    })
-                    .onSuccess(v->logger.info("context {} > refresh resolve completed.",domain))
-                    .onFailure(e->logger.error("context {} > refresh resolve failed cause: {}",domain,e.getMessage()));
+                        if (ipv6){
+                            updateIpv6(ipProvider,resolver,records)
+                                    .onFailure(t->logger.error("context {} > refresh ipv6 resolve failed cause: {}",domain,t.getMessage()))
+                                    .onSuccess(v->logger.info("context {} > refresh ipv6 resolve completed.",domain));
+                        }
+                    });
         }
 
         public void start(){
