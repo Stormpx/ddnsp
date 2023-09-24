@@ -32,15 +32,36 @@ public class DnsProcessor {
         return this;
     }
 
+    private boolean isQuery(DnsMessage message){
+        return message.opCode()==DnsOpCode.QUERY;
+    }
     private boolean isLocal(DnsMessage message){
-        return message.opCode()== DnsOpCode.QUERY&&message.count(DnsSection.QUESTION)==1;
+        return isQuery(message)&&message.count(DnsSection.QUESTION)==1;
+    }
+
+    private boolean isContainsV6Question(DnsMessage message){
+        if (isQuery(message)){
+            int count = message.count(DnsSection.QUESTION);
+            for (int i = 0; i < count; i++) {
+                DnsQuestion question=message.recordAt(DnsSection.QUESTION,count);
+                if (Objects.equals(question.type(),DnsRecordType.AAAA)){
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     public void process(DnsQuery dnsQuery){
         DatagramDnsQuery datagramDnsQuery= (DatagramDnsQuery) dnsQuery;
         if (logger.isDebugEnabled())
             logger.debug("query :{}" ,datagramDnsQuery);
+
+
         try {
+            if (!option.isIpv6()&&isContainsV6Question(datagramDnsQuery)){
+                return;
+            }
             if (isLocal(datagramDnsQuery)) {
                 DnsQuestion question=datagramDnsQuery.recordAt(DnsSection.QUESTION);
                 DnsRecordType questionRType = question.type();
