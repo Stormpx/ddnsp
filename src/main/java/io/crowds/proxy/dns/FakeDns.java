@@ -70,7 +70,7 @@ public class FakeDns implements Handler<DnsContext> {
 //        logger.warn("fakedns hit cache domain: {} fakeAddr:{} realAddr: {}",domain,context.getFakeAddr(),context.getRealAddr());
         InetAddress fakeAddr = context.getFakeAddr();
         ctx.resp(DnsOpCode.QUERY,DnsResponseCode.NOERROR,
-                Collections.singletonList(new DefaultDnsRawRecord(domain.name(), ctx.getQuestion().type(), context.remainTimeMillis()/1000, Unpooled.wrappedBuffer(fakeAddr.getAddress()))));
+                Collections.singletonList(new DefaultDnsRawRecord(domain.name(), ctx.getQuestion().type(), 60, Unpooled.wrappedBuffer(fakeAddr.getAddress()))));
 
         return true;
     }
@@ -113,7 +113,7 @@ public class FakeDns implements Handler<DnsContext> {
                     ipPool.release(fakeAddr);
             }, (long) (realAddr.ttl()*1.5), TimeUnit.SECONDS);
             ctx.resp(DnsOpCode.QUERY,DnsResponseCode.NOERROR,
-                    Collections.singletonList(new DefaultDnsRawRecord(domain.name(), ctx.getQuestion().type(), realAddr.ttl(), Unpooled.wrappedBuffer(fakeAddr.getAddress()))));
+                    Collections.singletonList(new DefaultDnsRawRecord(domain.name(), ctx.getQuestion().type(), 60, Unpooled.wrappedBuffer(fakeAddr.getAddress()))));
         }else{
             executors.execute(()->mappingAndResp(ctx, domain, realAddr, tag));
         }
