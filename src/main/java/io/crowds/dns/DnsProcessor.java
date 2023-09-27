@@ -43,7 +43,7 @@ public class DnsProcessor {
         if (isQuery(message)){
             int count = message.count(DnsSection.QUESTION);
             for (int i = 0; i < count; i++) {
-                DnsQuestion question=message.recordAt(DnsSection.QUESTION,count);
+                DnsQuestion question=message.recordAt(DnsSection.QUESTION,i);
                 if (Objects.equals(question.type(),DnsRecordType.AAAA)){
                     return true;
                 }
@@ -60,6 +60,8 @@ public class DnsProcessor {
 
         try {
             if (!option.isIpv6()&&isContainsV6Question(datagramDnsQuery)){
+                channel.writeAndFlush(new DatagramDnsResponse(datagramDnsQuery.recipient(),datagramDnsQuery.sender(),
+                        datagramDnsQuery.id(),DnsOpCode.QUERY,DnsResponseCode.NXDOMAIN));
                 return;
             }
             if (isLocal(datagramDnsQuery)) {
