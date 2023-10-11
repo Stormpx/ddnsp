@@ -2,51 +2,32 @@
 
 package io.crowds.lib.boringtun;
 
-import java.lang.foreign.FunctionDescriptor;
-import java.lang.foreign.MemoryLayout;
-import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.VarHandle;
+import java.nio.ByteOrder;
+import java.lang.foreign.*;
+import static java.lang.foreign.ValueLayout.*;
+final class constants$0 {
 
-import static java.lang.foreign.ValueLayout.OfLong;
-class constants$0 {
-
-    static final FunctionDescriptor __va_start$FUNC = FunctionDescriptor.ofVoid(
-        Constants$root.C_POINTER$LAYOUT
-    );
-    static final MethodHandle __va_start$MH = RuntimeHelper.downcallHandleVariadic(
-        "__va_start",
-        constants$0.__va_start$FUNC
-    );
-    static final FunctionDescriptor __security_init_cookie$FUNC = FunctionDescriptor.ofVoid();
-    static final MethodHandle __security_init_cookie$MH = RuntimeHelper.downcallHandle(
-        "__security_init_cookie",
-        constants$0.__security_init_cookie$FUNC
-    );
-    static final FunctionDescriptor __security_check_cookie$FUNC = FunctionDescriptor.ofVoid(
-        Constants$root.C_LONG_LONG$LAYOUT
-    );
-    static final MethodHandle __security_check_cookie$MH = RuntimeHelper.downcallHandle(
-        "__security_check_cookie",
-        constants$0.__security_check_cookie$FUNC
-    );
-    static final FunctionDescriptor __report_gsfailure$FUNC = FunctionDescriptor.ofVoid(
-        Constants$root.C_LONG_LONG$LAYOUT
-    );
-    static final MethodHandle __report_gsfailure$MH = RuntimeHelper.downcallHandle(
-        "__report_gsfailure",
-        constants$0.__report_gsfailure$FUNC
-    );
-    static final  OfLong __security_cookie$LAYOUT = Constants$root.C_LONG_LONG$LAYOUT;
-    static final VarHandle __security_cookie$VH = constants$0.__security_cookie$LAYOUT.varHandle();
-    static final MemorySegment __security_cookie$SEGMENT = RuntimeHelper.lookupGlobalVariable("__security_cookie", constants$0.__security_cookie$LAYOUT);
-    static final FunctionDescriptor x25519_secret_key$FUNC = FunctionDescriptor.of(MemoryLayout.structLayout(
-        MemoryLayout.sequenceLayout(32, Constants$root.C_CHAR$LAYOUT).withName("key")
-    ).withName("x25519_key"));
-    static final MethodHandle x25519_secret_key$MH = RuntimeHelper.downcallHandleVariadic(
-        "x25519_secret_key",
-        constants$0.x25519_secret_key$FUNC
-    );
+    // Suppresses default constructor, ensuring non-instantiability.
+    private constants$0() {}
+    static final StructLayout const$0 = MemoryLayout.structLayout(
+        JAVA_INT.withName("op"),
+        MemoryLayout.paddingLayout(4),
+        JAVA_LONG.withName("size")
+    ).withName("wireguard_result");
+    static final VarHandle const$1 = constants$0.const$0.varHandle(PathElement.groupElement("op"));
+    static final VarHandle const$2 = constants$0.const$0.varHandle(PathElement.groupElement("size"));
+    static final StructLayout const$3 = MemoryLayout.structLayout(
+        JAVA_LONG.withName("time_since_last_handshake"),
+        JAVA_LONG.withName("tx_bytes"),
+        JAVA_LONG.withName("rx_bytes"),
+        JAVA_FLOAT.withName("estimated_loss"),
+        JAVA_INT.withName("estimated_rtt"),
+        MemoryLayout.sequenceLayout(56, JAVA_BYTE).withName("reserved")
+    ).withName("stats");
+    static final VarHandle const$4 = constants$0.const$3.varHandle(PathElement.groupElement("time_since_last_handshake"));
+    static final VarHandle const$5 = constants$0.const$3.varHandle(PathElement.groupElement("tx_bytes"));
 }
 
 

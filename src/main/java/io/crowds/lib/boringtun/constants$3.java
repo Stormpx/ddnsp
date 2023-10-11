@@ -2,11 +2,50 @@
 
 package io.crowds.lib.boringtun;
 
-import java.lang.foreign.MemoryAddress;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.VarHandle;
+import java.nio.ByteOrder;
+import java.lang.foreign.*;
+import static java.lang.foreign.ValueLayout.*;
+final class constants$3 {
 
-class constants$3 {
-
-    static final MemoryAddress NULL$ADDR = MemoryAddress.ofLong(0L);
+    // Suppresses default constructor, ensuring non-instantiability.
+    private constants$3() {}
+    static final MethodHandle const$0 = RuntimeHelper.downcallHandle(
+        "wireguard_read",
+        constants$2.const$5
+    );
+    static final FunctionDescriptor const$1 = FunctionDescriptor.of(MemoryLayout.structLayout(
+        JAVA_INT.withName("op"),
+        MemoryLayout.paddingLayout(4),
+        JAVA_LONG.withName("size")
+    ).withName("wireguard_result"),
+        RuntimeHelper.POINTER,
+        RuntimeHelper.POINTER,
+        JAVA_INT
+    );
+    static final MethodHandle const$2 = RuntimeHelper.downcallHandle(
+        "wireguard_tick",
+        constants$3.const$1
+    );
+    static final MethodHandle const$3 = RuntimeHelper.downcallHandle(
+        "wireguard_force_handshake",
+        constants$3.const$1
+    );
+    static final FunctionDescriptor const$4 = FunctionDescriptor.of(MemoryLayout.structLayout(
+        JAVA_LONG.withName("time_since_last_handshake"),
+        JAVA_LONG.withName("tx_bytes"),
+        JAVA_LONG.withName("rx_bytes"),
+        JAVA_FLOAT.withName("estimated_loss"),
+        JAVA_INT.withName("estimated_rtt"),
+        MemoryLayout.sequenceLayout(56, JAVA_BYTE).withName("reserved")
+    ).withName("stats"),
+        RuntimeHelper.POINTER
+    );
+    static final MethodHandle const$5 = RuntimeHelper.downcallHandle(
+        "wireguard_stats",
+        constants$3.const$4
+    );
 }
 
 

@@ -2,88 +2,51 @@
 
 package io.crowds.lib.boringtun;
 
-import java.lang.foreign.FunctionDescriptor;
-import java.lang.foreign.MemoryLayout;
 import java.lang.invoke.MethodHandle;
+import java.lang.invoke.VarHandle;
+import java.nio.ByteOrder;
+import java.lang.foreign.*;
+import static java.lang.foreign.ValueLayout.*;
+final class constants$2 {
 
-class constants$2 {
-
-    static final FunctionDescriptor tunnel_free$FUNC = FunctionDescriptor.ofVoid(
-        Constants$root.C_POINTER$LAYOUT
+    // Suppresses default constructor, ensuring non-instantiability.
+    private constants$2() {}
+    static final FunctionDescriptor const$0 = FunctionDescriptor.of(JAVA_BOOLEAN,
+        RuntimeHelper.POINTER
     );
-    static final MethodHandle tunnel_free$MH = RuntimeHelper.downcallHandle(
+    static final MethodHandle const$1 = RuntimeHelper.downcallHandle(
+        "set_logging_function",
+        constants$2.const$0
+    );
+    static final FunctionDescriptor const$2 = FunctionDescriptor.of(RuntimeHelper.POINTER,
+        RuntimeHelper.POINTER,
+        RuntimeHelper.POINTER,
+        RuntimeHelper.POINTER,
+        JAVA_SHORT,
+        JAVA_INT
+    );
+    static final MethodHandle const$3 = RuntimeHelper.downcallHandle(
+        "new_tunnel",
+        constants$2.const$2
+    );
+    static final MethodHandle const$4 = RuntimeHelper.downcallHandle(
         "tunnel_free",
-        constants$2.tunnel_free$FUNC
+        constants$1.const$3
     );
-    static final FunctionDescriptor wireguard_write$FUNC = FunctionDescriptor.of(MemoryLayout.structLayout(
-        Constants$root.C_LONG$LAYOUT.withName("op"),
-        MemoryLayout.paddingLayout(32),
-        Constants$root.C_LONG_LONG$LAYOUT.withName("size")
+    static final FunctionDescriptor const$5 = FunctionDescriptor.of(MemoryLayout.structLayout(
+        JAVA_INT.withName("op"),
+        MemoryLayout.paddingLayout(4),
+        JAVA_LONG.withName("size")
     ).withName("wireguard_result"),
-        Constants$root.C_POINTER$LAYOUT,
-        Constants$root.C_POINTER$LAYOUT,
-        Constants$root.C_LONG$LAYOUT,
-        Constants$root.C_POINTER$LAYOUT,
-        Constants$root.C_LONG$LAYOUT
+        RuntimeHelper.POINTER,
+        RuntimeHelper.POINTER,
+        JAVA_INT,
+        RuntimeHelper.POINTER,
+        JAVA_INT
     );
-    static final MethodHandle wireguard_write$MH = RuntimeHelper.downcallHandle(
+    static final MethodHandle const$6 = RuntimeHelper.downcallHandle(
         "wireguard_write",
-        constants$2.wireguard_write$FUNC
-    );
-    static final FunctionDescriptor wireguard_read$FUNC = FunctionDescriptor.of(MemoryLayout.structLayout(
-        Constants$root.C_LONG$LAYOUT.withName("op"),
-        MemoryLayout.paddingLayout(32),
-        Constants$root.C_LONG_LONG$LAYOUT.withName("size")
-    ).withName("wireguard_result"),
-        Constants$root.C_POINTER$LAYOUT,
-        Constants$root.C_POINTER$LAYOUT,
-        Constants$root.C_LONG$LAYOUT,
-        Constants$root.C_POINTER$LAYOUT,
-        Constants$root.C_LONG$LAYOUT
-    );
-    static final MethodHandle wireguard_read$MH = RuntimeHelper.downcallHandle(
-        "wireguard_read",
-        constants$2.wireguard_read$FUNC
-    );
-    static final FunctionDescriptor wireguard_tick$FUNC = FunctionDescriptor.of(MemoryLayout.structLayout(
-        Constants$root.C_LONG$LAYOUT.withName("op"),
-        MemoryLayout.paddingLayout(32),
-        Constants$root.C_LONG_LONG$LAYOUT.withName("size")
-    ).withName("wireguard_result"),
-        Constants$root.C_POINTER$LAYOUT,
-        Constants$root.C_POINTER$LAYOUT,
-        Constants$root.C_LONG$LAYOUT
-    );
-    static final MethodHandle wireguard_tick$MH = RuntimeHelper.downcallHandle(
-        "wireguard_tick",
-        constants$2.wireguard_tick$FUNC
-    );
-    static final FunctionDescriptor wireguard_force_handshake$FUNC = FunctionDescriptor.of(MemoryLayout.structLayout(
-        Constants$root.C_LONG$LAYOUT.withName("op"),
-        MemoryLayout.paddingLayout(32),
-        Constants$root.C_LONG_LONG$LAYOUT.withName("size")
-    ).withName("wireguard_result"),
-        Constants$root.C_POINTER$LAYOUT,
-        Constants$root.C_POINTER$LAYOUT,
-        Constants$root.C_LONG$LAYOUT
-    );
-    static final MethodHandle wireguard_force_handshake$MH = RuntimeHelper.downcallHandle(
-        "wireguard_force_handshake",
-        constants$2.wireguard_force_handshake$FUNC
-    );
-    static final FunctionDescriptor wireguard_stats$FUNC = FunctionDescriptor.of(MemoryLayout.structLayout(
-        Constants$root.C_LONG_LONG$LAYOUT.withName("time_since_last_handshake"),
-        Constants$root.C_LONG_LONG$LAYOUT.withName("tx_bytes"),
-        Constants$root.C_LONG_LONG$LAYOUT.withName("rx_bytes"),
-        Constants$root.C_FLOAT$LAYOUT.withName("estimated_loss"),
-        Constants$root.C_LONG$LAYOUT.withName("estimated_rtt"),
-        MemoryLayout.sequenceLayout(56, Constants$root.C_CHAR$LAYOUT).withName("reserved")
-    ).withName("stats"),
-        Constants$root.C_POINTER$LAYOUT
-    );
-    static final MethodHandle wireguard_stats$MH = RuntimeHelper.downcallHandle(
-        "wireguard_stats",
-        constants$2.wireguard_stats$FUNC
+        constants$2.const$5
     );
 }
 

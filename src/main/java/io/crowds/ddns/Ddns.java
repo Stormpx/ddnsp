@@ -296,7 +296,7 @@ public class Ddns {
                                     }
                                     logger.info("context {} > ip has been changed old:{} new:{}",domain,r.getContent(),ip);
                                 }
-                                r.setTtl(ttl).setContent(ip.toString());
+                                 r.setTtl(ttl).setContent(ip.getHostAddress());
                                 return resolver.updateDnsResolve(r);
                             });
         }
@@ -322,7 +322,7 @@ public class Ddns {
                                      }
                                      logger.info("context {} > ip has been changed old:{} new:{}",domain,r.getContent(),ip);
                                  }
-                                 r.setTtl(ttl).setContent(ip.toString());
+                                 r.setTtl(ttl).setContent(ip.getHostAddress());
                                  return resolver.updateDnsResolve(r);
                              });
         }

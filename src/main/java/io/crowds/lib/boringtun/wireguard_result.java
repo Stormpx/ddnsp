@@ -2,58 +2,84 @@
 
 package io.crowds.lib.boringtun;
 
-import java.lang.foreign.*;
+import java.lang.invoke.MethodHandle;
 import java.lang.invoke.VarHandle;
-
-import static java.lang.foreign.ValueLayout.PathElement;
+import java.nio.ByteOrder;
+import java.lang.foreign.*;
+import static java.lang.foreign.ValueLayout.*;
+/**
+ * {@snippet :
+ * struct wireguard_result {
+ *     enum result_type op;
+ *     size_t size;
+ * };
+ * }
+ */
 public class wireguard_result {
 
-    static final  GroupLayout $struct$LAYOUT = MemoryLayout.structLayout(
-        Constants$root.C_LONG$LAYOUT.withName("op"),
-        MemoryLayout.paddingLayout(32),
-        Constants$root.C_LONG_LONG$LAYOUT.withName("size")
-    ).withName("wireguard_result");
     public static MemoryLayout $LAYOUT() {
-        return wireguard_result.$struct$LAYOUT;
+        return constants$0.const$0;
     }
-    static final VarHandle op$VH = $struct$LAYOUT.varHandle(PathElement.groupElement("op"));
     public static VarHandle op$VH() {
-        return wireguard_result.op$VH;
+        return constants$0.const$1;
     }
+    /**
+     * Getter for field:
+     * {@snippet :
+     * enum result_type op;
+     * }
+     */
     public static int op$get(MemorySegment seg) {
-        return (int)wireguard_result.op$VH.get(seg);
+        return (int)constants$0.const$1.get(seg);
     }
-    public static void op$set( MemorySegment seg, int x) {
-        wireguard_result.op$VH.set(seg, x);
+    /**
+     * Setter for field:
+     * {@snippet :
+     * enum result_type op;
+     * }
+     */
+    public static void op$set(MemorySegment seg, int x) {
+        constants$0.const$1.set(seg, x);
     }
     public static int op$get(MemorySegment seg, long index) {
-        return (int)wireguard_result.op$VH.get(seg.asSlice(index*sizeof()));
+        return (int)constants$0.const$1.get(seg.asSlice(index*sizeof()));
     }
     public static void op$set(MemorySegment seg, long index, int x) {
-        wireguard_result.op$VH.set(seg.asSlice(index*sizeof()), x);
+        constants$0.const$1.set(seg.asSlice(index*sizeof()), x);
     }
-    static final VarHandle size$VH = $struct$LAYOUT.varHandle(PathElement.groupElement("size"));
     public static VarHandle size$VH() {
-        return wireguard_result.size$VH;
+        return constants$0.const$2;
     }
+    /**
+     * Getter for field:
+     * {@snippet :
+     * size_t size;
+     * }
+     */
     public static long size$get(MemorySegment seg) {
-        return (long)wireguard_result.size$VH.get(seg);
+        return (long)constants$0.const$2.get(seg);
     }
-    public static void size$set( MemorySegment seg, long x) {
-        wireguard_result.size$VH.set(seg, x);
+    /**
+     * Setter for field:
+     * {@snippet :
+     * size_t size;
+     * }
+     */
+    public static void size$set(MemorySegment seg, long x) {
+        constants$0.const$2.set(seg, x);
     }
     public static long size$get(MemorySegment seg, long index) {
-        return (long)wireguard_result.size$VH.get(seg.asSlice(index*sizeof()));
+        return (long)constants$0.const$2.get(seg.asSlice(index*sizeof()));
     }
     public static void size$set(MemorySegment seg, long index, long x) {
-        wireguard_result.size$VH.set(seg.asSlice(index*sizeof()), x);
+        constants$0.const$2.set(seg.asSlice(index*sizeof()), x);
     }
     public static long sizeof() { return $LAYOUT().byteSize(); }
     public static MemorySegment allocate(SegmentAllocator allocator) { return allocator.allocate($LAYOUT()); }
-    public static MemorySegment allocateArray(int len, SegmentAllocator allocator) {
+    public static MemorySegment allocateArray(long len, SegmentAllocator allocator) {
         return allocator.allocate(MemoryLayout.sequenceLayout(len, $LAYOUT()));
     }
-    public static MemorySegment ofAddress(MemoryAddress addr, MemorySession session) { return RuntimeHelper.asArray(addr, $LAYOUT(), 1, session); }
+    public static MemorySegment ofAddress(MemorySegment addr, Arena arena) { return RuntimeHelper.asArray(addr, $LAYOUT(), 1, arena); }
 }
 
 

@@ -2,235 +2,110 @@
 
 package io.crowds.lib.boringtun;
 
-import java.lang.foreign.*;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.VarHandle;
-
+import java.nio.ByteOrder;
+import java.lang.foreign.*;
 import static java.lang.foreign.ValueLayout.*;
-public class wireguard_ffi_h {
+public class wireguard_ffi_h  {
 
-    /* package-private */ wireguard_ffi_h() {}
-    public static OfByte C_CHAR = Constants$root.C_CHAR$LAYOUT;
-    public static OfShort C_SHORT = Constants$root.C_SHORT$LAYOUT;
-    public static OfInt C_INT = Constants$root.C_LONG$LAYOUT;
-    public static OfInt C_LONG = Constants$root.C_LONG$LAYOUT;
-    public static OfLong C_LONG_LONG = Constants$root.C_LONG_LONG$LAYOUT;
-    public static OfFloat C_FLOAT = Constants$root.C_FLOAT$LAYOUT;
-    public static OfDouble C_DOUBLE = Constants$root.C_DOUBLE$LAYOUT;
-    public static OfAddress C_POINTER = Constants$root.C_POINTER$LAYOUT;
-    public static int _VCRT_COMPILER_PREPROCESSOR() {
-        return (int)1L;
-    }
-    public static int _SAL_VERSION() {
-        return (int)20L;
-    }
-    public static int __SAL_H_VERSION() {
-        return (int)180000000L;
-    }
-    public static int _USE_DECLSPECS_FOR_SAL() {
-        return (int)0L;
-    }
-    public static int _USE_ATTRIBUTES_FOR_SAL() {
-        return (int)0L;
-    }
-    public static int _CRT_PACKING() {
-        return (int)8L;
-    }
-    public static int _HAS_EXCEPTIONS() {
-        return (int)1L;
-    }
-    public static int _HAS_CXX17() {
-        return (int)0L;
-    }
-    public static int _HAS_CXX20() {
-        return (int)0L;
-    }
-    public static int _HAS_NODISCARD() {
-        return (int)0L;
-    }
-    public static int WCHAR_MIN() {
-        return (int)0L;
-    }
-    public static int WCHAR_MAX() {
-        return (int)65535L;
-    }
-    public static int WINT_MIN() {
-        return (int)0L;
-    }
-    public static int WINT_MAX() {
-        return (int)65535L;
-    }
-    public static OfAddress va_list = Constants$root.C_POINTER$LAYOUT;
-    public static MethodHandle __va_start$MH() {
-        return RuntimeHelper.requireNonNull(constants$0.__va_start$MH,"__va_start");
-    }
-    public static void __va_start ( Addressable x0, Object... x1) {
-        var mh$ = __va_start$MH();
-        try {
-            mh$.invokeExact(x0, x1);
-        } catch (Throwable ex$) {
-            throw new AssertionError("should not reach here", ex$);
-        }
-    }
-    public static OfLong ptrdiff_t = Constants$root.C_LONG_LONG$LAYOUT;
-    public static OfLong intptr_t = Constants$root.C_LONG_LONG$LAYOUT;
-    public static MethodHandle __security_init_cookie$MH() {
-        return RuntimeHelper.requireNonNull(constants$0.__security_init_cookie$MH,"__security_init_cookie");
-    }
-    public static void __security_init_cookie () {
-        var mh$ = __security_init_cookie$MH();
-        try {
-            mh$.invokeExact();
-        } catch (Throwable ex$) {
-            throw new AssertionError("should not reach here", ex$);
-        }
-    }
-    public static MethodHandle __security_check_cookie$MH() {
-        return RuntimeHelper.requireNonNull(constants$0.__security_check_cookie$MH,"__security_check_cookie");
-    }
-    public static void __security_check_cookie ( long _StackCookie) {
-        var mh$ = __security_check_cookie$MH();
-        try {
-            mh$.invokeExact(_StackCookie);
-        } catch (Throwable ex$) {
-            throw new AssertionError("should not reach here", ex$);
-        }
-    }
-    public static MethodHandle __report_gsfailure$MH() {
-        return RuntimeHelper.requireNonNull(constants$0.__report_gsfailure$MH,"__report_gsfailure");
-    }
-    public static void __report_gsfailure ( long _StackCookie) {
-        var mh$ = __report_gsfailure$MH();
-        try {
-            mh$.invokeExact(_StackCookie);
-        } catch (Throwable ex$) {
-            throw new AssertionError("should not reach here", ex$);
-        }
-    }
-    public static MemoryLayout __security_cookie$LAYOUT() {
-        return constants$0.__security_cookie$LAYOUT;
-    }
-    public static VarHandle __security_cookie$VH() {
-        return constants$0.__security_cookie$VH;
-    }
-    public static MemorySegment __security_cookie$SEGMENT() {
-        return RuntimeHelper.requireNonNull(constants$0.__security_cookie$SEGMENT,"__security_cookie");
-    }
-    public static long __security_cookie$get() {
-        return (long) constants$0.__security_cookie$VH.get(RuntimeHelper.requireNonNull(constants$0.__security_cookie$SEGMENT, "__security_cookie"));
-    }
-    public static void __security_cookie$set( long x) {
-        constants$0.__security_cookie$VH.set(RuntimeHelper.requireNonNull(constants$0.__security_cookie$SEGMENT, "__security_cookie"), x);
-    }
-    public static OfShort int16_t = Constants$root.C_SHORT$LAYOUT;
-    public static OfInt int32_t = Constants$root.C_LONG$LAYOUT;
-    public static OfLong int64_t = Constants$root.C_LONG_LONG$LAYOUT;
-    public static OfShort int_least16_t = Constants$root.C_SHORT$LAYOUT;
-    public static OfInt int_least32_t = Constants$root.C_LONG$LAYOUT;
-    public static OfLong int_least64_t = Constants$root.C_LONG_LONG$LAYOUT;
-    public static OfInt int_fast16_t = Constants$root.C_LONG$LAYOUT;
-    public static OfInt int_fast32_t = Constants$root.C_LONG$LAYOUT;
-    public static OfLong int_fast64_t = Constants$root.C_LONG_LONG$LAYOUT;
-    public static OfLong intmax_t = Constants$root.C_LONG_LONG$LAYOUT;
+    public static final OfByte C_CHAR = JAVA_BYTE;
+    public static final OfShort C_SHORT = JAVA_SHORT;
+    public static final OfInt C_INT = JAVA_INT;
+    public static final OfInt C_LONG = JAVA_INT;
+    public static final OfLong C_LONG_LONG = JAVA_LONG;
+    public static final OfFloat C_FLOAT = JAVA_FLOAT;
+    public static final OfDouble C_DOUBLE = JAVA_DOUBLE;
+    public static final AddressLayout C_POINTER = RuntimeHelper.POINTER;
+    /**
+     * {@snippet :
+     * enum .MAX_WIREGUARD_PACKET_SIZE = 65600;
+     * }
+     */
     public static int MAX_WIREGUARD_PACKET_SIZE() {
         return (int)65600L;
     }
+    /**
+     * {@snippet :
+     * enum result_type.WIREGUARD_DONE = 0;
+     * }
+     */
     public static int WIREGUARD_DONE() {
         return (int)0L;
     }
+    /**
+     * {@snippet :
+     * enum result_type.WRITE_TO_NETWORK = 1;
+     * }
+     */
     public static int WRITE_TO_NETWORK() {
         return (int)1L;
     }
+    /**
+     * {@snippet :
+     * enum result_type.WIREGUARD_ERROR = 2;
+     * }
+     */
     public static int WIREGUARD_ERROR() {
         return (int)2L;
     }
+    /**
+     * {@snippet :
+     * enum result_type.WRITE_TO_TUNNEL_IPV4 = 4;
+     * }
+     */
     public static int WRITE_TO_TUNNEL_IPV4() {
         return (int)4L;
     }
+    /**
+     * {@snippet :
+     * enum result_type.WRITE_TO_TUNNEL_IPV6 = 6;
+     * }
+     */
     public static int WRITE_TO_TUNNEL_IPV6() {
         return (int)6L;
     }
-    public static MethodHandle x25519_secret_key$MH() {
-        return RuntimeHelper.requireNonNull(constants$0.x25519_secret_key$MH,"x25519_secret_key");
+    public static MethodHandle set_logging_function$MH() {
+        return RuntimeHelper.requireNonNull(constants$2.const$1,"set_logging_function");
     }
-    public static MemorySegment x25519_secret_key ( SegmentAllocator allocator, Object... x1) {
-        var mh$ = x25519_secret_key$MH();
+    /**
+     * {@snippet :
+     * _Bool set_logging_function(void (*log_func)(char*));
+     * }
+     */
+    public static boolean set_logging_function(MemorySegment log_func) {
+        var mh$ = set_logging_function$MH();
         try {
-            return (MemorySegment)mh$.invokeExact(allocator, x1);
-        } catch (Throwable ex$) {
-            throw new AssertionError("should not reach here", ex$);
-        }
-    }
-    public static MethodHandle x25519_public_key$MH() {
-        return RuntimeHelper.requireNonNull(constants$1.x25519_public_key$MH,"x25519_public_key");
-    }
-    public static MemorySegment x25519_public_key ( SegmentAllocator allocator,  MemorySegment private_key) {
-        var mh$ = x25519_public_key$MH();
-        try {
-            return (MemorySegment)mh$.invokeExact(allocator, private_key);
-        } catch (Throwable ex$) {
-            throw new AssertionError("should not reach here", ex$);
-        }
-    }
-    public static MethodHandle x25519_key_to_base64$MH() {
-        return RuntimeHelper.requireNonNull(constants$1.x25519_key_to_base64$MH,"x25519_key_to_base64");
-    }
-    public static MemoryAddress x25519_key_to_base64 ( MemorySegment key) {
-        var mh$ = x25519_key_to_base64$MH();
-        try {
-            return (MemoryAddress)mh$.invokeExact(key);
-        } catch (Throwable ex$) {
-            throw new AssertionError("should not reach here", ex$);
-        }
-    }
-    public static MethodHandle x25519_key_to_hex$MH() {
-        return RuntimeHelper.requireNonNull(constants$1.x25519_key_to_hex$MH,"x25519_key_to_hex");
-    }
-    public static MemoryAddress x25519_key_to_hex ( MemorySegment key) {
-        var mh$ = x25519_key_to_hex$MH();
-        try {
-            return (MemoryAddress)mh$.invokeExact(key);
-        } catch (Throwable ex$) {
-            throw new AssertionError("should not reach here", ex$);
-        }
-    }
-    public static MethodHandle x25519_key_to_str_free$MH() {
-        return RuntimeHelper.requireNonNull(constants$1.x25519_key_to_str_free$MH,"x25519_key_to_str_free");
-    }
-    public static void x25519_key_to_str_free ( Addressable key_str) {
-        var mh$ = x25519_key_to_str_free$MH();
-        try {
-            mh$.invokeExact(key_str);
-        } catch (Throwable ex$) {
-            throw new AssertionError("should not reach here", ex$);
-        }
-    }
-    public static MethodHandle check_base64_encoded_x25519_key$MH() {
-        return RuntimeHelper.requireNonNull(constants$1.check_base64_encoded_x25519_key$MH,"check_base64_encoded_x25519_key");
-    }
-    public static int check_base64_encoded_x25519_key ( Addressable key) {
-        var mh$ = check_base64_encoded_x25519_key$MH();
-        try {
-            return (int)mh$.invokeExact(key);
+            return (boolean)mh$.invokeExact(log_func);
         } catch (Throwable ex$) {
             throw new AssertionError("should not reach here", ex$);
         }
     }
     public static MethodHandle new_tunnel$MH() {
-        return RuntimeHelper.requireNonNull(constants$1.new_tunnel$MH,"new_tunnel");
+        return RuntimeHelper.requireNonNull(constants$2.const$3,"new_tunnel");
     }
-    public static MemoryAddress new_tunnel ( Addressable static_private,  Addressable server_static_public,  Addressable preshared_key,  short keep_alive,  int index) {
+    /**
+     * {@snippet :
+     * struct wireguard_tunnel* new_tunnel(char* static_private, char* server_static_public, char* preshared_key, uint16_t keep_alive, uint32_t index);
+     * }
+     */
+    public static MemorySegment new_tunnel(MemorySegment static_private, MemorySegment server_static_public, MemorySegment preshared_key, short keep_alive, int index) {
         var mh$ = new_tunnel$MH();
         try {
-            return (MemoryAddress)mh$.invokeExact(static_private, server_static_public, preshared_key, keep_alive, index);
+            return (MemorySegment)mh$.invokeExact(static_private, server_static_public, preshared_key, keep_alive, index);
         } catch (Throwable ex$) {
             throw new AssertionError("should not reach here", ex$);
         }
     }
     public static MethodHandle tunnel_free$MH() {
-        return RuntimeHelper.requireNonNull(constants$2.tunnel_free$MH,"tunnel_free");
+        return RuntimeHelper.requireNonNull(constants$2.const$4,"tunnel_free");
     }
-    public static void tunnel_free ( Addressable x0) {
+    /**
+     * {@snippet :
+     * void tunnel_free(struct wireguard_tunnel*);
+     * }
+     */
+    public static void tunnel_free(MemorySegment x0) {
         var mh$ = tunnel_free$MH();
         try {
             mh$.invokeExact(x0);
@@ -239,9 +114,14 @@ public class wireguard_ffi_h {
         }
     }
     public static MethodHandle wireguard_write$MH() {
-        return RuntimeHelper.requireNonNull(constants$2.wireguard_write$MH,"wireguard_write");
+        return RuntimeHelper.requireNonNull(constants$2.const$6,"wireguard_write");
     }
-    public static MemorySegment wireguard_write ( SegmentAllocator allocator,  Addressable tunnel,  Addressable src,  int src_size,  Addressable dst,  int dst_size) {
+    /**
+     * {@snippet :
+     * struct wireguard_result wireguard_write(struct wireguard_tunnel* tunnel, const uint8_t* src, uint32_t src_size, uint8_t* dst, uint32_t dst_size);
+     * }
+     */
+    public static MemorySegment wireguard_write(SegmentAllocator allocator, MemorySegment tunnel, MemorySegment src, int src_size, MemorySegment dst, int dst_size) {
         var mh$ = wireguard_write$MH();
         try {
             return (MemorySegment)mh$.invokeExact(allocator, tunnel, src, src_size, dst, dst_size);
@@ -250,9 +130,14 @@ public class wireguard_ffi_h {
         }
     }
     public static MethodHandle wireguard_read$MH() {
-        return RuntimeHelper.requireNonNull(constants$2.wireguard_read$MH,"wireguard_read");
+        return RuntimeHelper.requireNonNull(constants$3.const$0,"wireguard_read");
     }
-    public static MemorySegment wireguard_read ( SegmentAllocator allocator,  Addressable tunnel,  Addressable src,  int src_size,  Addressable dst,  int dst_size) {
+    /**
+     * {@snippet :
+     * struct wireguard_result wireguard_read(struct wireguard_tunnel* tunnel, const uint8_t* src, uint32_t src_size, uint8_t* dst, uint32_t dst_size);
+     * }
+     */
+    public static MemorySegment wireguard_read(SegmentAllocator allocator, MemorySegment tunnel, MemorySegment src, int src_size, MemorySegment dst, int dst_size) {
         var mh$ = wireguard_read$MH();
         try {
             return (MemorySegment)mh$.invokeExact(allocator, tunnel, src, src_size, dst, dst_size);
@@ -261,9 +146,14 @@ public class wireguard_ffi_h {
         }
     }
     public static MethodHandle wireguard_tick$MH() {
-        return RuntimeHelper.requireNonNull(constants$2.wireguard_tick$MH,"wireguard_tick");
+        return RuntimeHelper.requireNonNull(constants$3.const$2,"wireguard_tick");
     }
-    public static MemorySegment wireguard_tick ( SegmentAllocator allocator,  Addressable tunnel,  Addressable dst,  int dst_size) {
+    /**
+     * {@snippet :
+     * struct wireguard_result wireguard_tick(struct wireguard_tunnel* tunnel, uint8_t* dst, uint32_t dst_size);
+     * }
+     */
+    public static MemorySegment wireguard_tick(SegmentAllocator allocator, MemorySegment tunnel, MemorySegment dst, int dst_size) {
         var mh$ = wireguard_tick$MH();
         try {
             return (MemorySegment)mh$.invokeExact(allocator, tunnel, dst, dst_size);
@@ -272,9 +162,14 @@ public class wireguard_ffi_h {
         }
     }
     public static MethodHandle wireguard_force_handshake$MH() {
-        return RuntimeHelper.requireNonNull(constants$2.wireguard_force_handshake$MH,"wireguard_force_handshake");
+        return RuntimeHelper.requireNonNull(constants$3.const$3,"wireguard_force_handshake");
     }
-    public static MemorySegment wireguard_force_handshake ( SegmentAllocator allocator,  Addressable tunnel,  Addressable dst,  int dst_size) {
+    /**
+     * {@snippet :
+     * struct wireguard_result wireguard_force_handshake(struct wireguard_tunnel* tunnel, uint8_t* dst, uint32_t dst_size);
+     * }
+     */
+    public static MemorySegment wireguard_force_handshake(SegmentAllocator allocator, MemorySegment tunnel, MemorySegment dst, int dst_size) {
         var mh$ = wireguard_force_handshake$MH();
         try {
             return (MemorySegment)mh$.invokeExact(allocator, tunnel, dst, dst_size);
@@ -283,162 +178,20 @@ public class wireguard_ffi_h {
         }
     }
     public static MethodHandle wireguard_stats$MH() {
-        return RuntimeHelper.requireNonNull(constants$2.wireguard_stats$MH,"wireguard_stats");
+        return RuntimeHelper.requireNonNull(constants$3.const$5,"wireguard_stats");
     }
-    public static MemorySegment wireguard_stats ( SegmentAllocator allocator,  Addressable tunnel) {
+    /**
+     * {@snippet :
+     * struct stats wireguard_stats(struct wireguard_tunnel* tunnel);
+     * }
+     */
+    public static MemorySegment wireguard_stats(SegmentAllocator allocator, MemorySegment tunnel) {
         var mh$ = wireguard_stats$MH();
         try {
             return (MemorySegment)mh$.invokeExact(allocator, tunnel);
         } catch (Throwable ex$) {
             throw new AssertionError("should not reach here", ex$);
         }
-    }
-    public static int _VCRUNTIME_DISABLED_WARNINGS() {
-        return (int)4514L;
-    }
-    public static MemoryAddress NULL() {
-        return constants$3.NULL$ADDR;
-    }
-    public static int INT8_MIN() {
-        return (int)-128L;
-    }
-    public static int INT16_MIN() {
-        return (int)-32768L;
-    }
-    public static int INT32_MIN() {
-        return (int)-2147483648L;
-    }
-    public static long INT64_MIN() {
-        return -9223372036854775808L;
-    }
-    public static byte INT8_MAX() {
-        return (byte)127L;
-    }
-    public static short INT16_MAX() {
-        return (short)32767L;
-    }
-    public static int INT32_MAX() {
-        return (int)2147483647L;
-    }
-    public static long INT64_MAX() {
-        return 9223372036854775807L;
-    }
-    public static byte UINT8_MAX() {
-        return (byte)255L;
-    }
-    public static short UINT16_MAX() {
-        return (short)65535L;
-    }
-    public static int UINT32_MAX() {
-        return (int)4294967295L;
-    }
-    public static long UINT64_MAX() {
-        return -1L;
-    }
-    public static int INT_LEAST8_MIN() {
-        return (int)-128L;
-    }
-    public static int INT_LEAST16_MIN() {
-        return (int)-32768L;
-    }
-    public static int INT_LEAST32_MIN() {
-        return (int)-2147483648L;
-    }
-    public static long INT_LEAST64_MIN() {
-        return -9223372036854775808L;
-    }
-    public static byte INT_LEAST8_MAX() {
-        return (byte)127L;
-    }
-    public static short INT_LEAST16_MAX() {
-        return (short)32767L;
-    }
-    public static int INT_LEAST32_MAX() {
-        return (int)2147483647L;
-    }
-    public static long INT_LEAST64_MAX() {
-        return 9223372036854775807L;
-    }
-    public static byte UINT_LEAST8_MAX() {
-        return (byte)255L;
-    }
-    public static short UINT_LEAST16_MAX() {
-        return (short)65535L;
-    }
-    public static int UINT_LEAST32_MAX() {
-        return (int)4294967295L;
-    }
-    public static long UINT_LEAST64_MAX() {
-        return -1L;
-    }
-    public static int INT_FAST8_MIN() {
-        return (int)-128L;
-    }
-    public static int INT_FAST16_MIN() {
-        return (int)-2147483648L;
-    }
-    public static int INT_FAST32_MIN() {
-        return (int)-2147483648L;
-    }
-    public static long INT_FAST64_MIN() {
-        return -9223372036854775808L;
-    }
-    public static byte INT_FAST8_MAX() {
-        return (byte)127L;
-    }
-    public static int INT_FAST16_MAX() {
-        return (int)2147483647L;
-    }
-    public static int INT_FAST32_MAX() {
-        return (int)2147483647L;
-    }
-    public static long INT_FAST64_MAX() {
-        return 9223372036854775807L;
-    }
-    public static byte UINT_FAST8_MAX() {
-        return (byte)255L;
-    }
-    public static int UINT_FAST16_MAX() {
-        return (int)4294967295L;
-    }
-    public static int UINT_FAST32_MAX() {
-        return (int)4294967295L;
-    }
-    public static long UINT_FAST64_MAX() {
-        return -1L;
-    }
-    public static long INTPTR_MIN() {
-        return -9223372036854775808L;
-    }
-    public static long INTPTR_MAX() {
-        return 9223372036854775807L;
-    }
-    public static long UINTPTR_MAX() {
-        return -1L;
-    }
-    public static long INTMAX_MIN() {
-        return -9223372036854775808L;
-    }
-    public static long INTMAX_MAX() {
-        return 9223372036854775807L;
-    }
-    public static long UINTMAX_MAX() {
-        return -1L;
-    }
-    public static long PTRDIFF_MIN() {
-        return -9223372036854775808L;
-    }
-    public static long PTRDIFF_MAX() {
-        return 9223372036854775807L;
-    }
-    public static long SIZE_MAX() {
-        return -1L;
-    }
-    public static int SIG_ATOMIC_MIN() {
-        return (int)-2147483648L;
-    }
-    public static int SIG_ATOMIC_MAX() {
-        return (int)2147483647L;
     }
 }
 

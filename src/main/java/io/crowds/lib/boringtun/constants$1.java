@@ -2,65 +2,24 @@
 
 package io.crowds.lib.boringtun;
 
-import java.lang.foreign.FunctionDescriptor;
-import java.lang.foreign.MemoryLayout;
 import java.lang.invoke.MethodHandle;
+import java.lang.invoke.VarHandle;
+import java.nio.ByteOrder;
+import java.lang.foreign.*;
+import static java.lang.foreign.ValueLayout.*;
+final class constants$1 {
 
-class constants$1 {
-
-    static final FunctionDescriptor x25519_public_key$FUNC = FunctionDescriptor.of(MemoryLayout.structLayout(
-        MemoryLayout.sequenceLayout(32, Constants$root.C_CHAR$LAYOUT).withName("key")
-    ).withName("x25519_key"),
-        MemoryLayout.structLayout(
-            MemoryLayout.sequenceLayout(32, Constants$root.C_CHAR$LAYOUT).withName("key")
-        ).withName("x25519_key")
+    // Suppresses default constructor, ensuring non-instantiability.
+    private constants$1() {}
+    static final VarHandle const$0 = constants$0.const$3.varHandle(PathElement.groupElement("rx_bytes"));
+    static final VarHandle const$1 = constants$0.const$3.varHandle(PathElement.groupElement("estimated_loss"));
+    static final VarHandle const$2 = constants$0.const$3.varHandle(PathElement.groupElement("estimated_rtt"));
+    static final FunctionDescriptor const$3 = FunctionDescriptor.ofVoid(
+        RuntimeHelper.POINTER
     );
-    static final MethodHandle x25519_public_key$MH = RuntimeHelper.downcallHandle(
-        "x25519_public_key",
-        constants$1.x25519_public_key$FUNC
-    );
-    static final FunctionDescriptor x25519_key_to_base64$FUNC = FunctionDescriptor.of(Constants$root.C_POINTER$LAYOUT,
-        MemoryLayout.structLayout(
-            MemoryLayout.sequenceLayout(32, Constants$root.C_CHAR$LAYOUT).withName("key")
-        ).withName("x25519_key")
-    );
-    static final MethodHandle x25519_key_to_base64$MH = RuntimeHelper.downcallHandle(
-        "x25519_key_to_base64",
-        constants$1.x25519_key_to_base64$FUNC
-    );
-    static final FunctionDescriptor x25519_key_to_hex$FUNC = FunctionDescriptor.of(Constants$root.C_POINTER$LAYOUT,
-        MemoryLayout.structLayout(
-            MemoryLayout.sequenceLayout(32, Constants$root.C_CHAR$LAYOUT).withName("key")
-        ).withName("x25519_key")
-    );
-    static final MethodHandle x25519_key_to_hex$MH = RuntimeHelper.downcallHandle(
-        "x25519_key_to_hex",
-        constants$1.x25519_key_to_hex$FUNC
-    );
-    static final FunctionDescriptor x25519_key_to_str_free$FUNC = FunctionDescriptor.ofVoid(
-        Constants$root.C_POINTER$LAYOUT
-    );
-    static final MethodHandle x25519_key_to_str_free$MH = RuntimeHelper.downcallHandle(
-        "x25519_key_to_str_free",
-        constants$1.x25519_key_to_str_free$FUNC
-    );
-    static final FunctionDescriptor check_base64_encoded_x25519_key$FUNC = FunctionDescriptor.of(Constants$root.C_LONG$LAYOUT,
-        Constants$root.C_POINTER$LAYOUT
-    );
-    static final MethodHandle check_base64_encoded_x25519_key$MH = RuntimeHelper.downcallHandle(
-        "check_base64_encoded_x25519_key",
-        constants$1.check_base64_encoded_x25519_key$FUNC
-    );
-    static final FunctionDescriptor new_tunnel$FUNC = FunctionDescriptor.of(Constants$root.C_POINTER$LAYOUT,
-        Constants$root.C_POINTER$LAYOUT,
-        Constants$root.C_POINTER$LAYOUT,
-        Constants$root.C_POINTER$LAYOUT,
-        Constants$root.C_SHORT$LAYOUT,
-        Constants$root.C_LONG$LAYOUT
-    );
-    static final MethodHandle new_tunnel$MH = RuntimeHelper.downcallHandle(
-        "new_tunnel",
-        constants$1.new_tunnel$FUNC
+    static final MethodHandle const$4 = RuntimeHelper.upcallHandle(set_logging_function$log_func.class, "apply", constants$1.const$3);
+    static final MethodHandle const$5 = RuntimeHelper.downcallHandle(
+        constants$1.const$3
     );
 }
 

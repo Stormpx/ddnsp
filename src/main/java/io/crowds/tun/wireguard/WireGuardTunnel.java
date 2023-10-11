@@ -2,20 +2,15 @@ package io.crowds.tun.wireguard;
 
 import io.crowds.Ddnsp;
 import io.crowds.Platform;
-import io.crowds.lib.boringtun.wireguard_ffi_h;
 import io.crowds.lib.boringtun.wireguard_result;
 import io.crowds.util.Async;
-import io.crowds.util.IPCIDR;
 import io.crowds.util.Inet;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.*;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.DatagramPacket;
-import io.netty.handler.address.DynamicAddressConnectHandler;
 import io.netty.util.ReferenceCountUtil;
-import io.netty.util.concurrent.Future;
-import io.netty.util.concurrent.Promise;
 import io.netty.util.concurrent.ScheduledFuture;
 import org.drasyl.channel.tun.Tun4Packet;
 import org.drasyl.channel.tun.Tun6Packet;
@@ -25,17 +20,14 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.lang.foreign.MemoryAddress;
+import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
-import java.lang.foreign.MemorySession;
 import java.lang.foreign.SegmentAllocator;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.SocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -49,8 +41,8 @@ public class WireGuardTunnel implements Closeable {
     private DatagramSock sock;
     private List<ByteBuf> pendingList;
     private PeerOption peer;
-    private MemorySession memorySession;
-    private MemoryAddress tunnel;
+    private Arena arena;
+    private MemorySegment tunnel;
 
     private SegmentAllocator resultAllocator;
     private ScheduledFuture<?> timerFuture;
@@ -61,21 +53,21 @@ public class WireGuardTunnel implements Closeable {
     public WireGuardTunnel(EventLoop eventLoop, String privateKey, PeerOption peer,int index) {
         this.eventLoop=eventLoop;
         this.peer=peer;
-        try (MemorySession session = MemorySession.openConfined()){
+        try (Arena session = Arena.ofConfined()){
             this.tunnel = new_tunnel(
-                    session.allocateArray(C_CHAR,privateKey.getBytes(StandardCharsets.US_ASCII)).address(),
-                    session.allocateArray(C_CHAR,peer.publicKey().getBytes(StandardCharsets.US_ASCII)).address(),
-                    session.allocateArray(C_CHAR,peer.perSharedKey().getBytes(StandardCharsets.US_ASCII)).address(),
+                    session.allocateArray(C_CHAR,privateKey.getBytes(StandardCharsets.US_ASCII)),
+                    session.allocateArray(C_CHAR,peer.publicKey().getBytes(StandardCharsets.US_ASCII)),
+                    session.allocateArray(C_CHAR,peer.perSharedKey().getBytes(StandardCharsets.US_ASCII)),
                     peer.keepAlive(),
                     index
             );
-            if (this.tunnel.address().toRawLongValue()==0){
+            if (this.tunnel.address()==0){
                 throw new RuntimeException("create wireGuard tunnel failed");
             }
         }
-        this.memorySession=MemorySession.openShared();
-        this.outBuffer = MemorySegment.allocateNative(65536,memorySession);
-        this.resultAllocator = SegmentAllocator.prefixAllocator(memorySession.allocate(wireguard_result.$LAYOUT()));
+        this.arena =Arena.ofShared();
+        this.outBuffer = this.arena.allocate(65536);
+        this.resultAllocator = SegmentAllocator.prefixAllocator(arena.allocate(wireguard_result.$LAYOUT()));
         this.pendingList=new ArrayList<>();
         this.timerFuture = eventLoop.scheduleAtFixedRate(this::oneTick, 250, 250,TimeUnit.MILLISECONDS);
         this.allocChannel(peer.endpointAddr());
@@ -244,7 +236,7 @@ public class WireGuardTunnel implements Closeable {
             tunnel_free(this.tunnel);
         }
 
-        memorySession.close();
+        arena.close();
     }
 
     class WgInternalHandler extends ChannelDuplexHandler {

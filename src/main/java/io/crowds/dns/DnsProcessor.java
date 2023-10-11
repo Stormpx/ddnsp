@@ -53,15 +53,22 @@ public class DnsProcessor {
     }
 
     public void process(DnsQuery dnsQuery){
+        if (dnsQuery.count(DnsSection.QUESTION)==0){
+            return;
+        }
+        if (dnsQuery.count(DnsSection.ANSWER)!=0){
+            return;
+        }
         DatagramDnsQuery datagramDnsQuery= (DatagramDnsQuery) dnsQuery;
         if (logger.isDebugEnabled())
             logger.debug("query :{}" ,datagramDnsQuery);
-
-
         try {
+
             if (!option.isIpv6()&&isContainsV6Question(datagramDnsQuery)){
-                channel.writeAndFlush(new DatagramDnsResponse(datagramDnsQuery.recipient(),datagramDnsQuery.sender(),
-                        datagramDnsQuery.id(),DnsOpCode.QUERY,DnsResponseCode.NXDOMAIN));
+                DatagramDnsResponse response = new DatagramDnsResponse(datagramDnsQuery.recipient(),
+                        datagramDnsQuery.sender(), datagramDnsQuery.id(), DnsOpCode.QUERY, DnsResponseCode.NXDOMAIN);
+                DnsKit.msgCopy(datagramDnsQuery,response,true);
+                channel.writeAndFlush(response);
                 return;
             }
             if (isLocal(datagramDnsQuery)) {

@@ -2,112 +2,172 @@
 
 package io.crowds.lib.boringtun;
 
-import java.lang.foreign.*;
+import java.lang.invoke.MethodHandle;
 import java.lang.invoke.VarHandle;
-
-import static java.lang.foreign.ValueLayout.PathElement;
+import java.nio.ByteOrder;
+import java.lang.foreign.*;
+import static java.lang.foreign.ValueLayout.*;
+/**
+ * {@snippet :
+ * struct stats {
+ *     int64_t time_since_last_handshake;
+ *     size_t tx_bytes;
+ *     size_t rx_bytes;
+ *     float estimated_loss;
+ *     int32_t estimated_rtt;
+ *     uint8_t reserved[56];
+ * };
+ * }
+ */
 public class stats {
 
-    static final  GroupLayout $struct$LAYOUT = MemoryLayout.structLayout(
-        Constants$root.C_LONG_LONG$LAYOUT.withName("time_since_last_handshake"),
-        Constants$root.C_LONG_LONG$LAYOUT.withName("tx_bytes"),
-        Constants$root.C_LONG_LONG$LAYOUT.withName("rx_bytes"),
-        Constants$root.C_FLOAT$LAYOUT.withName("estimated_loss"),
-        Constants$root.C_LONG$LAYOUT.withName("estimated_rtt"),
-        MemoryLayout.sequenceLayout(56, Constants$root.C_CHAR$LAYOUT).withName("reserved")
-    ).withName("stats");
     public static MemoryLayout $LAYOUT() {
-        return stats.$struct$LAYOUT;
+        return constants$0.const$3;
     }
-    static final VarHandle time_since_last_handshake$VH = $struct$LAYOUT.varHandle(PathElement.groupElement("time_since_last_handshake"));
     public static VarHandle time_since_last_handshake$VH() {
-        return stats.time_since_last_handshake$VH;
+        return constants$0.const$4;
     }
+    /**
+     * Getter for field:
+     * {@snippet :
+     * int64_t time_since_last_handshake;
+     * }
+     */
     public static long time_since_last_handshake$get(MemorySegment seg) {
-        return (long)stats.time_since_last_handshake$VH.get(seg);
+        return (long)constants$0.const$4.get(seg);
     }
-    public static void time_since_last_handshake$set( MemorySegment seg, long x) {
-        stats.time_since_last_handshake$VH.set(seg, x);
+    /**
+     * Setter for field:
+     * {@snippet :
+     * int64_t time_since_last_handshake;
+     * }
+     */
+    public static void time_since_last_handshake$set(MemorySegment seg, long x) {
+        constants$0.const$4.set(seg, x);
     }
     public static long time_since_last_handshake$get(MemorySegment seg, long index) {
-        return (long)stats.time_since_last_handshake$VH.get(seg.asSlice(index*sizeof()));
+        return (long)constants$0.const$4.get(seg.asSlice(index*sizeof()));
     }
     public static void time_since_last_handshake$set(MemorySegment seg, long index, long x) {
-        stats.time_since_last_handshake$VH.set(seg.asSlice(index*sizeof()), x);
+        constants$0.const$4.set(seg.asSlice(index*sizeof()), x);
     }
-    static final VarHandle tx_bytes$VH = $struct$LAYOUT.varHandle(PathElement.groupElement("tx_bytes"));
     public static VarHandle tx_bytes$VH() {
-        return stats.tx_bytes$VH;
+        return constants$0.const$5;
     }
+    /**
+     * Getter for field:
+     * {@snippet :
+     * size_t tx_bytes;
+     * }
+     */
     public static long tx_bytes$get(MemorySegment seg) {
-        return (long)stats.tx_bytes$VH.get(seg);
+        return (long)constants$0.const$5.get(seg);
     }
-    public static void tx_bytes$set( MemorySegment seg, long x) {
-        stats.tx_bytes$VH.set(seg, x);
+    /**
+     * Setter for field:
+     * {@snippet :
+     * size_t tx_bytes;
+     * }
+     */
+    public static void tx_bytes$set(MemorySegment seg, long x) {
+        constants$0.const$5.set(seg, x);
     }
     public static long tx_bytes$get(MemorySegment seg, long index) {
-        return (long)stats.tx_bytes$VH.get(seg.asSlice(index*sizeof()));
+        return (long)constants$0.const$5.get(seg.asSlice(index*sizeof()));
     }
     public static void tx_bytes$set(MemorySegment seg, long index, long x) {
-        stats.tx_bytes$VH.set(seg.asSlice(index*sizeof()), x);
+        constants$0.const$5.set(seg.asSlice(index*sizeof()), x);
     }
-    static final VarHandle rx_bytes$VH = $struct$LAYOUT.varHandle(PathElement.groupElement("rx_bytes"));
     public static VarHandle rx_bytes$VH() {
-        return stats.rx_bytes$VH;
+        return constants$1.const$0;
     }
+    /**
+     * Getter for field:
+     * {@snippet :
+     * size_t rx_bytes;
+     * }
+     */
     public static long rx_bytes$get(MemorySegment seg) {
-        return (long)stats.rx_bytes$VH.get(seg);
+        return (long)constants$1.const$0.get(seg);
     }
-    public static void rx_bytes$set( MemorySegment seg, long x) {
-        stats.rx_bytes$VH.set(seg, x);
+    /**
+     * Setter for field:
+     * {@snippet :
+     * size_t rx_bytes;
+     * }
+     */
+    public static void rx_bytes$set(MemorySegment seg, long x) {
+        constants$1.const$0.set(seg, x);
     }
     public static long rx_bytes$get(MemorySegment seg, long index) {
-        return (long)stats.rx_bytes$VH.get(seg.asSlice(index*sizeof()));
+        return (long)constants$1.const$0.get(seg.asSlice(index*sizeof()));
     }
     public static void rx_bytes$set(MemorySegment seg, long index, long x) {
-        stats.rx_bytes$VH.set(seg.asSlice(index*sizeof()), x);
+        constants$1.const$0.set(seg.asSlice(index*sizeof()), x);
     }
-    static final VarHandle estimated_loss$VH = $struct$LAYOUT.varHandle(PathElement.groupElement("estimated_loss"));
     public static VarHandle estimated_loss$VH() {
-        return stats.estimated_loss$VH;
+        return constants$1.const$1;
     }
+    /**
+     * Getter for field:
+     * {@snippet :
+     * float estimated_loss;
+     * }
+     */
     public static float estimated_loss$get(MemorySegment seg) {
-        return (float)stats.estimated_loss$VH.get(seg);
+        return (float)constants$1.const$1.get(seg);
     }
-    public static void estimated_loss$set( MemorySegment seg, float x) {
-        stats.estimated_loss$VH.set(seg, x);
+    /**
+     * Setter for field:
+     * {@snippet :
+     * float estimated_loss;
+     * }
+     */
+    public static void estimated_loss$set(MemorySegment seg, float x) {
+        constants$1.const$1.set(seg, x);
     }
     public static float estimated_loss$get(MemorySegment seg, long index) {
-        return (float)stats.estimated_loss$VH.get(seg.asSlice(index*sizeof()));
+        return (float)constants$1.const$1.get(seg.asSlice(index*sizeof()));
     }
     public static void estimated_loss$set(MemorySegment seg, long index, float x) {
-        stats.estimated_loss$VH.set(seg.asSlice(index*sizeof()), x);
+        constants$1.const$1.set(seg.asSlice(index*sizeof()), x);
     }
-    static final VarHandle estimated_rtt$VH = $struct$LAYOUT.varHandle(PathElement.groupElement("estimated_rtt"));
     public static VarHandle estimated_rtt$VH() {
-        return stats.estimated_rtt$VH;
+        return constants$1.const$2;
     }
+    /**
+     * Getter for field:
+     * {@snippet :
+     * int32_t estimated_rtt;
+     * }
+     */
     public static int estimated_rtt$get(MemorySegment seg) {
-        return (int)stats.estimated_rtt$VH.get(seg);
+        return (int)constants$1.const$2.get(seg);
     }
-    public static void estimated_rtt$set( MemorySegment seg, int x) {
-        stats.estimated_rtt$VH.set(seg, x);
+    /**
+     * Setter for field:
+     * {@snippet :
+     * int32_t estimated_rtt;
+     * }
+     */
+    public static void estimated_rtt$set(MemorySegment seg, int x) {
+        constants$1.const$2.set(seg, x);
     }
     public static int estimated_rtt$get(MemorySegment seg, long index) {
-        return (int)stats.estimated_rtt$VH.get(seg.asSlice(index*sizeof()));
+        return (int)constants$1.const$2.get(seg.asSlice(index*sizeof()));
     }
     public static void estimated_rtt$set(MemorySegment seg, long index, int x) {
-        stats.estimated_rtt$VH.set(seg.asSlice(index*sizeof()), x);
+        constants$1.const$2.set(seg.asSlice(index*sizeof()), x);
     }
     public static MemorySegment reserved$slice(MemorySegment seg) {
         return seg.asSlice(32, 56);
     }
     public static long sizeof() { return $LAYOUT().byteSize(); }
     public static MemorySegment allocate(SegmentAllocator allocator) { return allocator.allocate($LAYOUT()); }
-    public static MemorySegment allocateArray(int len, SegmentAllocator allocator) {
+    public static MemorySegment allocateArray(long len, SegmentAllocator allocator) {
         return allocator.allocate(MemoryLayout.sequenceLayout(len, $LAYOUT()));
     }
-    public static MemorySegment ofAddress(MemoryAddress addr, MemorySession session) { return RuntimeHelper.asArray(addr, $LAYOUT(), 1, session); }
+    public static MemorySegment ofAddress(MemorySegment addr, Arena arena) { return RuntimeHelper.asArray(addr, $LAYOUT(), 1, arena); }
 }
 
 
