@@ -9,6 +9,7 @@ import io.crowds.util.Strs;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.dns.*;
 import io.netty.util.ReferenceCountUtil;
+import io.vertx.core.AsyncResult;
 import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
@@ -93,8 +94,6 @@ public class DnsClient implements InternalDnsResolver{
         return dnsResponse;
     }
 
-
-
     private Future<DnsResponse> scheduleUpStreams(DnsQuery dnsQuery){
         return CompositeFuture.any(
                 this.upStreams
@@ -115,52 +114,66 @@ public class DnsClient implements InternalDnsResolver{
         );
     }
 
+
+    private void tryCacheResponse(DnsResponse response){
+        if (response.code()==DnsResponseCode.NOERROR&&!response.isTruncated()){
+            dnsCache.cacheMessage(response, eventLoopGroup.next());
+        }
+    }
+
     private Future<DnsResponse> request(DnsQuery dnsQuery,boolean useDefault){
+        if (this.upStreams.isEmpty()){
+            useDefault=true;
+        }
+
         DnsRecord record = dnsQuery.recordAt(DnsSection.QUESTION, 0);
+
+        DomainLookupEvent event = new DomainLookupEvent(record.name(),record.type().toString(),useDefault);
+        event.begin();
+
         CacheKey key = new CacheKey(record);
         var result = new ArrayList<DnsRecord>();
         if (dnsCache.getAnswer(key, dnsQuery.isRecursionDesired(), result)){
-//            logger.info("query {} hit cache",key);
             SafeDnsResponse response = new SafeDnsResponse(dnsQuery.id(), dnsQuery.opCode(), DnsResponseCode.NOERROR);
             response.setRecursionDesired(dnsQuery.isRecursionDesired());
             response.addRecord(DnsSection.QUESTION,DnsKit.clone(record));
             for (DnsRecord dnsRecord : result) {
                 response.addRecord(DnsSection.ANSWER,dnsRecord);
             }
+            event.hitCacheCommit();
             return Future.succeededFuture(response);
         }
 
-        if (this.upStreams.isEmpty()){
-            useDefault=true;
-        }
-
         var future =useDefault?this.defaultStream.lookup(dnsQuery).map(this::copyResp):scheduleUpStreams(dnsQuery);
 
-        return future.onSuccess(response->{
-            if (response.code()==DnsResponseCode.NOERROR&&!response.isTruncated()){
-                dnsCache.cacheMessage(response, eventLoopGroup.next());
-            }
-        });
+        return future.onComplete(event::commit)
+                     .onSuccess(this::tryCacheResponse);
 
     }
 
+
+
     private Future<List<InetAddress>> request(String target,DnsRecordType type,boolean useDefault){
-        CacheKey key = new CacheKey(target,type);
-        List<InetAddress> inetAddresses = dnsCache.lightWeightGet(key, true);
-        if (!inetAddresses.isEmpty()){
-            return Future.succeededFuture(inetAddresses);
-        }
         if (this.upStreams.isEmpty()){
             useDefault=true;
         }
+
+        DomainLookupEvent event = new DomainLookupEvent(target,type.toString(),useDefault);
+        event.begin();
+
+        CacheKey key = new CacheKey(target,type);
+        List<InetAddress> inetAddresses = dnsCache.lightWeightGet(key, true);
+        if (!inetAddresses.isEmpty()){
+            event.hitCacheCommit();
+            return Future.succeededFuture(inetAddresses);
+        }
+
         DnsQuery dnsQuery = newQuery(target, type);
         var future =useDefault?this.defaultStream.lookup(dnsQuery).map(this::copyResp):scheduleUpStreams(dnsQuery);
 
-        return future.onSuccess(response->{
-            if (response.code()==DnsResponseCode.NOERROR&&!response.isTruncated()){
-                dnsCache.cacheMessage(response, eventLoopGroup.next());
-            }
-        }).map(resp->DnsKit.getInetAddrFromResponse(resp,type==DnsRecordType.A).toList());
+        return future.onComplete(event::commit)
+                     .onSuccess(this::tryCacheResponse)
+                     .map(resp->DnsKit.getInetAddrFromResponse(resp,type==DnsRecordType.A).toList());
     }
 
 
