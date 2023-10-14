@@ -1,4 +1,4 @@
-FROM  eclipse-temurin:19.0.2_7-jdk as packager
+FROM  eclipse-temurin:21-jdk as packager
 MAINTAINER crowds
 RUN { \
         java --version ; \
@@ -12,7 +12,7 @@ ENV JAVA_MINIMAL=/opt/jre
 RUN jlink \
     --verbose \
     --add-modules \
-        java.base,jdk.crypto.ec,java.compiler,java.desktop,java.management,java.naming,java.sql,jdk.unsupported \
+        java.base,jdk.crypto.ec,java.compiler,java.desktop,jdk.jfr,jdk.management.jfr,java.management,java.naming,java.sql,jdk.unsupported \
     --compress 2 \
     --no-header-files \
     --no-man-pages \
@@ -23,8 +23,8 @@ FROM debian:stable-slim
 
 #RUN apt-get install autoconf automake libtool make tar gcc
 
-RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
-RUN echo 'Asia/Shanghai' >/etc/timezone
+#RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+#RUN echo 'Asia/Shanghai' >/etc/timezone
 
 ENV JAVA_MINIMAL=/opt/jre
 ENV PATH="$PATH:$JAVA_MINIMAL/bin"
