@@ -6,6 +6,7 @@ import io.crowds.proxy.transport.TransportOption;
 import io.crowds.proxy.transport.proxy.shadowsocks.CipherAlgo;
 import io.crowds.proxy.transport.proxy.shadowsocks.ShadowsocksOption;
 import io.crowds.proxy.transport.proxy.socks.SocksOption;
+import io.crowds.proxy.transport.proxy.ssh.SshOption;
 import io.crowds.proxy.transport.proxy.trojan.TrojanOption;
 import io.crowds.proxy.transport.proxy.vless.VlessOption;
 import io.crowds.proxy.transport.proxy.vless.VlessUUID;
@@ -20,6 +21,7 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.vertx.core.json.JsonObject;
 
 import java.net.InetSocketAddress;
+import java.nio.file.Path;
 import java.util.Map;
 import java.util.UUID;
 
@@ -136,6 +138,32 @@ public class ProtocolOptionFactory {
         return vlessOption;
     }
 
+    private static SshOption parseSsh(JsonObject json){
+        SshOption sshOption = new SshOption();
+        var host=json.getString("host");
+        var port=json.getInteger("port");
+        InetSocketAddress address = Inet.createSocketAddress(host,port);
+        String user = json.getString("user");
+        if (Strs.isBlank(user)) {
+            throw new IllegalArgumentException("user is required");
+        }
+        String password = json.getString("password");
+        String privateKey = json.getString("privateKey");
+        String passphrase = json.getString("passphrase");
+        String serverKey = json.getString("serverKey");
+        String verify = json.getString("verify");
+        sshOption.setAddress(address)
+                .setUser(user)
+                .setPassword(password)
+                .setPrivateKey(Strs.isBlank(privateKey)?null:Path.of(privateKey))
+                .setPassphrase(passphrase)
+                .setServerKey(Strs.isBlank(serverKey)?null:Path.of(serverKey))
+                .setVerifyStrategy(SshOption.VerifyStrategy.valueOf0(verify))
+        ;
+
+        return sshOption;
+    }
+
     public static ProtocolOption newOption(JsonObject json){
         var protocol = json.getString("protocol");
         try {
@@ -155,6 +183,8 @@ public class ProtocolOptionFactory {
                 protocolOption=parseSocks(json);
             }else if ("vless".equalsIgnoreCase(protocol)) {
                 protocolOption=parseVless(json);
+            }else if("ssh".equalsIgnoreCase(protocol)){
+                protocolOption=parseSsh(json);
             }else if ("direct".equalsIgnoreCase(protocol)){
                 protocolOption=new ProtocolOption();
             }

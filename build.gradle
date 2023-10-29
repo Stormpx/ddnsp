@@ -4,7 +4,7 @@ plugins {
     id 'java'
     id 'application'
     id "com.github.johnrengelman.shadow" version "8.1.1"
-    id 'me.champeau.jmh' version '0.6.8'
+    id 'me.champeau.jmh' version '0.7.2'
 }
 
 group 'io.crowds'
@@ -12,6 +12,17 @@ version '1.0-SNAPSHOT'
 
 sourceCompatibility = 21
 targetCompatibility = 21
+
+
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+
+
 repositories {
     mavenCentral()
 }
@@ -73,6 +84,8 @@ dependencies {
     implementation 'io.vertx:vertx-config-yaml:4.2.6'
     implementation 'ch.qos.logback:logback-core:1.2.11'
     implementation 'ch.qos.logback:logback-classic:1.2.11'
+
+    implementation 'org.apache.sshd:sshd-core:2.11.0'
 
     implementation 'org.drasyl:netty-tun:1.2.1'
     implementation "io.netty:netty-transport-native-epoll:4.1.82.Final:linux-${arch.isAmd64()?'x86_64':'aarch_64'}"

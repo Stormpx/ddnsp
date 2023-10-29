@@ -27,7 +27,7 @@ public abstract class AbstractProxyTransport implements ProxyTransport {
 
     protected abstract Future<Channel> proxy(Channel channel, NetLocation netLocation);
 
-    protected Future<Channel> createChannel(EventLoop eventLoop,NetLocation netLocation) throws Exception {
+    protected Future<Channel> createChannel(EventLoop eventLoop,NetLocation netLocation,Transport transport) throws Exception {
 
         Destination destination = getRemote(netLocation.getTp());
         if (destination==null) {
@@ -47,7 +47,7 @@ public abstract class AbstractProxyTransport implements ProxyTransport {
         NetLocation netLocation = proxyContext.getNetLocation();
 
         Promise<EndPoint> promise = proxyContext.getEventLoop().newPromise();
-        Async.cascadeFailure(createChannel(proxyContext.getEventLoop(),proxyContext.getNetLocation()),promise,f->{
+        Async.cascadeFailure(createChannel(proxyContext.getEventLoop(),proxyContext.getNetLocation(),transport),promise,f->{
             Channel ch = f.get();
             if (netLocation.getTp()==TP.TCP){
                 promise.trySuccess(new TcpEndPoint(ch));

@@ -17,6 +17,13 @@ import java.util.function.Consumer;
 
 public class BaseChannelInitializer extends ChannelInitializer<Channel> {
 
+    public final static ChannelInitializer<Channel> EMPTY = new ChannelInitializer<Channel>() {
+        @Override
+        protected void initChannel(Channel ch) throws Exception {
+
+        }
+    };
+
     private SslContext sslContext;
     private String tlsServerName;
     private int port;

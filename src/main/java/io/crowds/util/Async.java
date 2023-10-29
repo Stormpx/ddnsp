@@ -66,6 +66,20 @@ public class Async {
         });
     }
 
+    public static <V,F extends Future<V>> void cascadeFailure0(F future, Promise<?> promise, GenericFutureListener<F> futureListener){
+        future.addListener((GenericFutureListener<F>) f->{
+            if (f.isCancelled()){
+                if (promise.isCancellable()){
+                    promise.cancel(false);
+                }
+            } else if (!f.isSuccess()) {
+                promise.tryFailure(f.cause());
+            }else{
+                futureListener.operationComplete(f);
+            }
+        });
+    }
+
     public static <V> FutureListener<V> cascade(Promise<V> promise){
         return f-> {
             if (f.isCancelled()){

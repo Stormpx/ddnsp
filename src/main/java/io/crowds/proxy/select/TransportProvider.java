@@ -9,8 +9,12 @@ import io.crowds.proxy.transport.proxy.shadowsocks.ShadowsocksOption;
 import io.crowds.proxy.transport.proxy.shadowsocks.ShadowsocksTransport;
 import io.crowds.proxy.transport.proxy.socks.SocksOption;
 import io.crowds.proxy.transport.proxy.socks.SocksProxyTransport;
+import io.crowds.proxy.transport.proxy.ssh.SshOption;
+import io.crowds.proxy.transport.proxy.ssh.SshProxyTransport;
 import io.crowds.proxy.transport.proxy.trojan.TrojanOption;
 import io.crowds.proxy.transport.proxy.trojan.TrojanProxyTransport;
+import io.crowds.proxy.transport.proxy.vless.VlessOption;
+import io.crowds.proxy.transport.proxy.vless.VlessProxyTransport;
 import io.crowds.proxy.transport.proxy.vmess.VmessOption;
 import io.crowds.proxy.transport.proxy.vmess.VmessProxyTransport;
 import io.vertx.core.json.JsonArray;
@@ -49,16 +53,22 @@ public class TransportProvider {
 
         if (protocolOptions!=null) {
             for (ProtocolOption protocolOption : protocolOptions) {
-                if ("vmess".equalsIgnoreCase(protocolOption.getProtocol())) {
-                    map.put(protocolOption.getName(), new VmessProxyTransport(channelCreator, (VmessOption) protocolOption));
-                } else if ("ss".equalsIgnoreCase(protocolOption.getProtocol())) {
-                    map.put(protocolOption.getName(), new ShadowsocksTransport(channelCreator, (ShadowsocksOption) protocolOption));
-                } else if ("trojan".equalsIgnoreCase(protocolOption.getProtocol())){
-                    map.put(protocolOption.getName(), new TrojanProxyTransport(channelCreator, (TrojanOption) protocolOption));
-                } else if ("socks".equalsIgnoreCase(protocolOption.getProtocol())) {
-                    map.put(protocolOption.getName(), new SocksProxyTransport(channelCreator, (SocksOption) protocolOption));
-                } else if ("direct".equalsIgnoreCase(protocolOption.getProtocol())){
-                    map.put(protocolOption.getName(),new DirectProxyTransport(channelCreator,protocolOption));
+                String name = protocolOption.getName();
+                String protocol = protocolOption.getProtocol();
+                if ("vmess".equalsIgnoreCase(protocol)) {
+                    map.put(name, new VmessProxyTransport(channelCreator, (VmessOption) protocolOption));
+                } else if ("ss".equalsIgnoreCase(protocol)) {
+                    map.put(name, new ShadowsocksTransport(channelCreator, (ShadowsocksOption) protocolOption));
+                } else if ("trojan".equalsIgnoreCase(protocol)){
+                    map.put(name, new TrojanProxyTransport(channelCreator, (TrojanOption) protocolOption));
+                } else if ("socks".equalsIgnoreCase(protocol)) {
+                    map.put(name, new SocksProxyTransport(channelCreator, (SocksOption) protocolOption));
+                } else if ("vless".equalsIgnoreCase(protocol)){
+                    map.put(name, new VlessProxyTransport(channelCreator, (VlessOption) protocolOption));
+                } else if ("ssh".equalsIgnoreCase(protocol)){
+                    map.put(name, new SshProxyTransport(channelCreator, (SshOption) protocolOption));
+                } else if ("direct".equalsIgnoreCase(protocol)){
+                    map.put(name,new DirectProxyTransport(channelCreator,protocolOption));
                 }
             }
         }
