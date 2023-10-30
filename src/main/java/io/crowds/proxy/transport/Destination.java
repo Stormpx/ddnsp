@@ -6,6 +6,6 @@ import io.crowds.proxy.TP;
 
 public record Destination(NetAddr addr, TP tp) {
     public Destination(NetLocation netLocation){
-        this(netLocation.getDest(),netLocation.getTp());
+        this(netLocation.getDst(),netLocation.getTp());
     }
 }

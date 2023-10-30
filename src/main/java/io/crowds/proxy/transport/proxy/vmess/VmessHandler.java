@@ -9,7 +9,6 @@ import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.socket.DatagramPacket;
-import io.netty.util.concurrent.Promise;
 
 import java.util.Set;
 
@@ -32,7 +31,7 @@ public class VmessHandler extends ChannelDuplexHandler {
 
 
     public void handshake(){
-        NetAddr dest = netLocation.getDest();
+        NetAddr dest = netLocation.getDst();
         User user = vmessOption.getUser();
         VmessRequest request = new VmessRequest(Set.of(Option.CHUNK_STREAM,Option.CHUNK_MASKING), netLocation.getTp(), dest);
         request.setUser(user.randomUser());
@@ -65,7 +64,7 @@ public class VmessHandler extends ChannelDuplexHandler {
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         if (msg instanceof ByteBuf buf) {
             if (netLocation.getTp()== TP.UDP){
-                msg=new DatagramPacket(buf,null,netLocation.getDest().getAsInetAddr());
+                msg=new DatagramPacket(buf,null,netLocation.getDst().getAsInetAddr());
             }
         }
         super.channelRead(ctx, msg);

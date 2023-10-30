@@ -1,6 +1,5 @@
 package io.crowds.proxy;
 
-import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.Objects;
 
@@ -25,7 +24,7 @@ public class NetLocation {
         return src;
     }
 
-    public NetAddr getDest() {
+    public NetAddr getDst() {
         return dest;
     }
 

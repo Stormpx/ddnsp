@@ -4,12 +4,9 @@ import io.crowds.proxy.*;
 import io.crowds.proxy.transport.*;
 import io.crowds.util.AddrType;
 import io.crowds.util.Async;
-import io.crowds.util.Lambdas;
 import io.netty.channel.*;
 import io.netty.util.concurrent.Future;
-import io.netty.util.concurrent.FutureListener;
 import io.netty.util.concurrent.Promise;
-import io.netty.util.concurrent.PromiseNotifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,11 +24,11 @@ public abstract class AbstractProxyTransport implements ProxyTransport {
 
     protected abstract Future<Channel> proxy(Channel channel, NetLocation netLocation);
 
-    protected Future<Channel> createChannel(EventLoop eventLoop,NetLocation netLocation,Transport transport) throws Exception {
+    public Future<Channel> createChannel(EventLoop eventLoop,NetLocation netLocation,Transport transport) throws Exception {
 
         Destination destination = getRemote(netLocation.getTp());
         if (destination==null) {
-            destination = new Destination(netLocation.getDest(),netLocation.getTp());
+            destination = new Destination(netLocation.getDst(),netLocation.getTp());
         }
         Promise<Channel> promise = eventLoop.newPromise();
 
@@ -55,7 +52,7 @@ public abstract class AbstractProxyTransport implements ProxyTransport {
                 UdpChannel udpChannel = new UdpChannel(ch,netLocation.getSrc().getAsInetAddr());
                 if (proxyContext.fallbackPacketHandler()!=null)
                     udpChannel.fallbackHandler(proxyContext.fallbackPacketHandler());
-                promise.trySuccess(new UdpEndPoint(udpChannel,netLocation.getDest()));
+                promise.trySuccess(new UdpEndPoint(udpChannel,netLocation.getDst()));
             }
         });
         return promise;

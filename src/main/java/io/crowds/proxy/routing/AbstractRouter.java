@@ -50,7 +50,7 @@ public abstract class AbstractRouter implements Router{
     protected abstract String routing(NetLocation netLocation, RuleType... types);
 
     public String routing(NetLocation netLocation){
-        if (netLocation.getDest() instanceof DomainNetAddr){
+        if (netLocation.getDst() instanceof DomainNetAddr){
             return routing(netLocation, RuleType.EQ,RuleType.EW,RuleType.KW,RuleType.DOMAIN,RuleType.PORT,RuleType.SRC_CIDR,RuleType.SRC_POST);
         }else {
             return routing(netLocation, RuleType.CIDR,RuleType.PORT,RuleType.SRC_CIDR,RuleType.SRC_POST,RuleType.GEOIP);

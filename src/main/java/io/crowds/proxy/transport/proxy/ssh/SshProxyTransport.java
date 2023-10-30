@@ -20,13 +20,11 @@ import org.apache.sshd.client.auth.AuthenticationIdentitiesProvider;
 import org.apache.sshd.client.future.AuthFuture;
 import org.apache.sshd.client.future.ConnectFuture;
 import org.apache.sshd.client.keyverifier.*;
-import org.apache.sshd.client.session.ClientConnectionService;
 import org.apache.sshd.client.session.ClientSession;
 import org.apache.sshd.common.AttributeRepository;
 import org.apache.sshd.common.NamedResource;
 import org.apache.sshd.common.config.keys.FilePasswordProvider;
 import org.apache.sshd.common.config.keys.loader.KeyPairResourceLoader;
-import org.apache.sshd.common.future.CancelFuture;
 import org.apache.sshd.common.future.KeyExchangeFuture;
 import org.apache.sshd.common.future.SshFuture;
 import org.apache.sshd.common.future.SshFutureListener;
@@ -38,7 +36,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.InetSocketAddress;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.security.GeneralSecurityException;
@@ -187,7 +184,7 @@ public class SshProxyTransport extends AbstractProxyTransport {
                         Async.cascadeFailure(
                                 session.start(),
                                 promise,
-                                _->session.allocTunnel(netLocation.getDest())
+                                _->session.allocTunnel(netLocation.getDst())
                                           .addListener(Async.cascade(promise))
                         );
                     });
@@ -197,7 +194,7 @@ public class SshProxyTransport extends AbstractProxyTransport {
     }
 
     @Override
-    protected Future<Channel> createChannel(EventLoop eventLoop, NetLocation netLocation, Transport transport) throws Exception {
+    public Future<Channel> createChannel(EventLoop eventLoop, NetLocation netLocation, Transport transport) throws Exception {
         if (netLocation.getTp()== TP.UDP){
             return eventLoop.newFailedFuture(new IllegalArgumentException("SSH protocol does not support proxy UDP"));
         }

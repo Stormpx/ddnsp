@@ -5,15 +5,12 @@ import io.crowds.proxy.NetLocation;
 import io.crowds.proxy.TP;
 import io.crowds.proxy.transport.Destination;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.channel.socket.DatagramPacket;
 import io.netty.util.ReferenceCountUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 public class ShadowsocksHandler extends ChannelDuplexHandler {
@@ -51,7 +48,7 @@ public class ShadowsocksHandler extends ChannelDuplexHandler {
             ctx.channel().eventLoop().schedule(()->{
                 if (!writeAddr){
                     writeAddr=true;
-                    ctx.writeAndFlush(new ShadowsocksRequest(new Destination(netLocation.getDest(),netLocation.getTp())));
+                    ctx.writeAndFlush(new ShadowsocksRequest(new Destination(netLocation.getDst(),netLocation.getTp())));
                 }
             },50, TimeUnit.MILLISECONDS);
         }
@@ -63,7 +60,7 @@ public class ShadowsocksHandler extends ChannelDuplexHandler {
             if (!writeAddr){
                 assert msg instanceof ByteBuf;
                 writeAddr=true;
-                super.write(ctx,new ShadowsocksRequest(new Destination(netLocation.getDest(),netLocation.getTp())).setPayload((ByteBuf) msg),promise);
+                super.write(ctx,new ShadowsocksRequest(new Destination(netLocation.getDst(),netLocation.getTp())).setPayload((ByteBuf) msg),promise);
             }else {
                 super.write(ctx, msg, promise);
             }

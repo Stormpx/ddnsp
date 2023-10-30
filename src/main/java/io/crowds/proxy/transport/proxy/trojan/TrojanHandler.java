@@ -24,7 +24,7 @@ public class TrojanHandler extends ChannelOutboundHandlerAdapter {
 
     private TrojanRequest newRequest(Object msg){
         this.request=true;
-        var request=new TrojanRequest(trojanOption.getPassword(),new Destination(netLocation.getDest(),netLocation.getTp()));
+        var request=new TrojanRequest(trojanOption.getPassword(),new Destination(netLocation.getDst(),netLocation.getTp()));
         if (msg!=null) {
             if (msg instanceof ByteBuf buf) {
                 request.setPayload(buf);

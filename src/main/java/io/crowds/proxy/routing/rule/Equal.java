@@ -17,8 +17,8 @@ public class Equal implements Rule {
 
     @Override
     public boolean match(NetLocation netLocation) {
-        if (netLocation.getDest() instanceof DomainNetAddr){
-            return Objects.equals(target,netLocation.getDest().getHost());
+        if (netLocation.getDst() instanceof DomainNetAddr){
+            return Objects.equals(target,netLocation.getDst().getHost());
         }
         return false;
     }

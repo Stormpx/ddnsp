@@ -16,8 +16,8 @@ public class EndsWith implements Rule{
 
     @Override
     public boolean match(NetLocation netLocation) {
-        if (netLocation.getDest() instanceof DomainNetAddr){
-            return netLocation.getDest().getHost().endsWith(suffix);
+        if (netLocation.getDst() instanceof DomainNetAddr){
+            return netLocation.getDst().getHost().endsWith(suffix);
         }
         return false;
     }

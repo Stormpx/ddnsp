@@ -27,8 +27,8 @@ public class Domain implements Rule {
 
     @Override
     public boolean match(NetLocation netLocation) {
-        if(netLocation.getDest() instanceof DomainNetAddr){
-            String host = netLocation.getDest().getHost().toLowerCase();
+        if(netLocation.getDst() instanceof DomainNetAddr){
+            String host = netLocation.getDst().getHost().toLowerCase();
             if (!host.endsWith(domain)){
                 return false;
             }

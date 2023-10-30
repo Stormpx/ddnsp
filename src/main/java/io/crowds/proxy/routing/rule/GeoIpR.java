@@ -34,7 +34,7 @@ public class GeoIpR implements Rule{
 
     @Override
     public boolean match(NetLocation netLocation) {
-        NetAddr addr = netLocation.getDest();
+        NetAddr addr = netLocation.getDst();
         if (addr.isIpv4()||addr.isIpv6()){
             String code = Mmdb.instance().queryIsoCode(addr.getAsInetAddr().getAddress());
             return not != this.isoCode.equalsIgnoreCase(code);

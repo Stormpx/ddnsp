@@ -32,7 +32,7 @@ public class Port implements Rule {
 
     @Override
     public boolean match(NetLocation netLocation) {
-        NetAddr dest = this.dest?netLocation.getDest():netLocation.getSrc();
+        NetAddr dest = this.dest?netLocation.getDst():netLocation.getSrc();
         return Objects.equals(dest.getPort(),this.port);
     }
 

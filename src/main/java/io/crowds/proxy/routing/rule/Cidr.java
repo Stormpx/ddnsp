@@ -4,8 +4,6 @@ import io.crowds.proxy.NetAddr;
 import io.crowds.proxy.NetLocation;
 import io.crowds.util.IPCIDR;
 
-import java.net.InetAddress;
-
 public class Cidr implements Rule {
     private boolean dest;
     private IPCIDR ipcidr;
@@ -25,7 +23,7 @@ public class Cidr implements Rule {
 
     @Override
     public boolean match(NetLocation netLocation) {
-        NetAddr addr = this.dest?netLocation.getDest():netLocation.getSrc();
+        NetAddr addr = this.dest?netLocation.getDst():netLocation.getSrc();
         if (addr.isIpv4()|| addr.isIpv6()){
             return ipcidr.isMatch(addr.getByte());
         }

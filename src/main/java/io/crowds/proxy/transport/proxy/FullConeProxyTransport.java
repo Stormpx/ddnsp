@@ -76,7 +76,7 @@ public abstract class FullConeProxyTransport extends AbstractProxyTransport {
                             return;
                         }
                         UdpChannel udpChannel = f.get();
-                        promise.trySuccess(new UdpEndPoint(udpChannel,netLocation.getDest()));
+                        promise.trySuccess(new UdpEndPoint(udpChannel,netLocation.getDst()));
                     });
 
             return promise;

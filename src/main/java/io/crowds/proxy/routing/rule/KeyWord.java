@@ -26,8 +26,8 @@ public class KeyWord implements Rule {
 
     @Override
     public boolean match(NetLocation netLocation) {
-        if (netLocation.getDest() instanceof DomainNetAddr){
-            return netLocation.getDest().getHost().contains(keyword);
+        if (netLocation.getDst() instanceof DomainNetAddr){
+            return netLocation.getDst().getHost().contains(keyword);
         }
         return false;
     }

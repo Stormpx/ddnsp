@@ -1,6 +1,5 @@
 package io.crowds.proxy;
 
-import io.crowds.Ddnsp;
 import io.crowds.proxy.dns.FakeContext;
 import io.crowds.proxy.dns.FakeDns;
 import io.crowds.proxy.dns.FakeOption;
@@ -144,9 +143,9 @@ public class Axis {
 
 
     private ProxyContext createContext(EventLoop eventLoop,NetLocation netLocation){
-        FakeContext fakeContext=getFakeContext(netLocation.getDest());
+        FakeContext fakeContext=getFakeContext(netLocation.getDst());
         if (fakeContext!=null)
-            netLocation=new NetLocation(netLocation.getSrc(), fakeContext.getNetAddr(netLocation.getDest().getPort()), netLocation.getTp());
+            netLocation=new NetLocation(netLocation.getSrc(), fakeContext.getNetAddr(netLocation.getDst().getPort()), netLocation.getTp());
 
         ProxyContext proxyContext = new ProxyContext(eventLoop,netLocation);
         proxyContext.withFakeContext(fakeContext);
@@ -177,14 +176,14 @@ public class Axis {
             ProxyContext proxyContext = createContext(channel.eventLoop(),netLocation);
 
             Transport transport=getTransport(proxyContext);
-            logger.info("tcp {} to {} via [{}]",proxyContext.getNetLocation().getSrc(),proxyContext.getNetLocation().getDest(), transport.getChain());
+            logger.info("tcp {} to {} via [{}]",proxyContext.getNetLocation().getSrc(),proxyContext.getNetLocation().getDst(), transport.getChain());
             ProxyTransport proxy = transport.proxy();
             proxy.createEndPoint(proxyContext)
                     .addListener(future -> {
                         if (!future.isSuccess()){
                             if (logger.isDebugEnabled())
                                 logger.error("",future.cause());
-                            logger.error("failed to connect remote: {} > {}",proxyContext.getNetLocation().getDest().getAddress(),future.cause().getMessage());
+                            logger.error("failed to connect remote: {} > {}",proxyContext.getNetLocation().getDst().getAddress(),future.cause().getMessage());
                             promise.tryFailure(future.cause());
                             src.close();
                             return;
@@ -221,7 +220,7 @@ public class Axis {
                 var src=new UdpEndPoint(datagramChannel,netLocation.getSrc());
                 src.exceptionHandler(t->logException(sender.getAddress(),recipient.getAddress(),t,true));
                 Transport transport=getTransport(proxyContext);
-                logger.info("udp {} to {} via [{}]",proxyContext.getNetLocation().getSrc(),proxyContext.getNetLocation().getDest(),transport.getChain());
+                logger.info("udp {} to {} via [{}]",proxyContext.getNetLocation().getSrc(),proxyContext.getNetLocation().getDst(),transport.getChain());
                 ProxyTransport proxy = transport.proxy();
                 proxy.createEndPoint(proxyContext)
                         .addListener(future -> {

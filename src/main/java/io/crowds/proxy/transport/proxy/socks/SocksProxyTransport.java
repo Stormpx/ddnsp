@@ -4,23 +4,19 @@ import io.crowds.proxy.*;
 import io.crowds.proxy.common.IdleTimeoutHandler;
 import io.crowds.proxy.common.Socks;
 import io.crowds.proxy.transport.Destination;
+import io.crowds.proxy.transport.Transport;
 import io.crowds.proxy.transport.proxy.FullConeProxyTransport;
 import io.crowds.util.AddrType;
 import io.crowds.util.Async;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelDuplexHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelPromise;
-import io.netty.channel.internal.ChannelUtils;
+import io.netty.channel.*;
 import io.netty.channel.socket.DatagramPacket;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.Promise;
 
 import java.net.InetSocketAddress;
-import java.nio.channels.Channels;
 
 public class SocksProxyTransport extends FullConeProxyTransport {
     private SocksOption socksOption;
@@ -43,14 +39,13 @@ public class SocksProxyTransport extends FullConeProxyTransport {
         return destination;
     }
 
-    private void safeClose(Channel channel){
+    private void closeChannel(Channel channel){
         if (channel.isActive()){
             channel.close();
         }
     }
 
-    @Override
-    protected Future<Channel> proxy(Channel channel, NetLocation netLocation) {
+    private Future<Channel> proxy(Channel channel, NetLocation netLocation,Transport transport) {
         Promise<Channel> promise=channel.eventLoop().newPromise();
         SocksClientNegotiator negotiator = new SocksClientNegotiator(channel,
                 new Destination(netLocation));
@@ -65,12 +60,27 @@ public class SocksProxyTransport extends FullConeProxyTransport {
                     Channel udpChannel = f.get();
                     udpChannel.pipeline().addLast(new SocksUdpHandler(netAddr));
                     channel.attr(IdleTimeoutHandler.IGNORE_IDLE_FLAG);
-                    channel.closeFuture().addListener(it->safeClose(udpChannel));
-                    udpChannel.closeFuture().addListener(it->safeClose(channel));
+                    channel.closeFuture().addListener(it-> closeChannel(udpChannel));
+                    udpChannel.closeFuture().addListener(it-> closeChannel(channel));
                     promise.trySuccess(udpChannel);
                 });
             }
         });
+        return promise;
+    }
+
+    @Override
+    protected Future<Channel> proxy(Channel channel, NetLocation netLocation) {
+        return proxy(channel,netLocation,transport);
+    }
+
+    @Override
+    public Future<Channel> createChannel(EventLoop eventLoop, NetLocation netLocation, Transport transport) throws Exception {
+
+        Promise<Channel> promise = eventLoop.newPromise();
+        Async.toFuture(transport.createChannel(eventLoop,destination,netLocation.getSrc().isIpv4()? AddrType.IPV4:AddrType.IPV6))
+             .compose(it->Async.toFuture(proxy(it,netLocation,transport)))
+             .onComplete(Async.futureCascadeCallback(promise));
         return promise;
     }
 
