@@ -2,7 +2,7 @@ package io.crowds.proxy.transport.proxy.vmess;
 
 import java.util.UUID;
 
-public class VmessDynamicPortCmd {
+public class VmessDynamicPortCmd implements VmessMessage{
     private int port;
     private UUID uuid;
     private int alterId;

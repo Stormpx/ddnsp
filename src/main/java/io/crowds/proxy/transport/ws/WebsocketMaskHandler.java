@@ -1,5 +1,4 @@
 package io.crowds.proxy.transport.ws;
-import io.crowds.proxy.transport.proxy.vmess.VmessClose;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.*;
 import io.netty.handler.codec.http.FullHttpResponse;

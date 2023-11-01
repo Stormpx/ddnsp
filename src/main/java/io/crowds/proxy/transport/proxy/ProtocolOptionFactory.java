@@ -3,6 +3,8 @@ package io.crowds.proxy.transport.proxy;
 import io.crowds.proxy.transport.ProtocolOption;
 import io.crowds.proxy.transport.TlsOption;
 import io.crowds.proxy.transport.TransportOption;
+import io.crowds.proxy.transport.proxy.chain.ChainOption;
+import io.crowds.proxy.transport.proxy.chain.NodeType;
 import io.crowds.proxy.transport.proxy.shadowsocks.CipherAlgo;
 import io.crowds.proxy.transport.proxy.shadowsocks.ShadowsocksOption;
 import io.crowds.proxy.transport.proxy.socks.SocksOption;
@@ -18,15 +20,20 @@ import io.crowds.util.Inet;
 import io.crowds.util.Strs;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.HttpHeaders;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 public class ProtocolOptionFactory {
-
+    private final static Logger logger= LoggerFactory.getLogger(ProtocolOptionFactory.class);
     private static TlsOption parseTls(JsonObject json){
         if (json==null)
             return null;
@@ -164,6 +171,33 @@ public class ProtocolOptionFactory {
         return sshOption;
     }
 
+    private static ChainOption parseChain(JsonObject json){
+        ChainOption chainOption = new ChainOption();
+        JsonArray nodes = json.getJsonArray("nodes");
+        List<NodeType> nodeTypes=new ArrayList<>();
+        for (Object item : nodes) {
+            if (item instanceof String str){
+                nodeTypes.add(new NodeType.Name(str));
+            }else if (item instanceof JsonObject jsonObject){
+                ProtocolOption subOption = newOption(jsonObject);
+                if (subOption!=null) {
+                    if (subOption instanceof ChainOption subChainOption){
+                        for (NodeType node : subChainOption.getNodes()) {
+                            if (node instanceof NodeType.Name){
+                                throw new IllegalArgumentException("Nested chains directly specifying a proxy is not allowed.");
+                            }
+                        }
+                    }
+                    nodeTypes.add(new NodeType.Option(subOption));
+                }
+            }else{
+                logger.warn("{} unrecognized node config",item.getClass().getSimpleName());
+            }
+        }
+        chainOption.setNodes(nodeTypes);
+        return chainOption;
+    }
+
     public static ProtocolOption newOption(JsonObject json){
         var protocol = json.getString("protocol");
         try {
@@ -185,6 +219,8 @@ public class ProtocolOptionFactory {
                 protocolOption=parseVless(json);
             }else if("ssh".equalsIgnoreCase(protocol)){
                 protocolOption=parseSsh(json);
+            }else if ("chain".equals(protocol)){
+                protocolOption=parseChain(json);
             }else if ("direct".equalsIgnoreCase(protocol)){
                 protocolOption=new ProtocolOption();
             }

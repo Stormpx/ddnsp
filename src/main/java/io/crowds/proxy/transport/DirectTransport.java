@@ -17,9 +17,6 @@ import javax.net.ssl.SSLException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
-import java.net.StandardProtocolFamily;
-import java.util.AbstractMap;
-import java.util.concurrent.locks.ReentrantLock;
 
 public class DirectTransport implements Transport {
 
@@ -103,8 +100,7 @@ public class DirectTransport implements Transport {
         return promise;
     }
 
-    @Override
-    public Future<Channel> createChannel(EventLoop eventLoop, Destination destination,AddrType preferType) throws Exception {
+    public Future<Channel> createChannelInternal(EventLoop eventLoop, Destination destination, AddrType preferType) throws Exception {
         NetAddr addr = destination.addr();
         TP tp = destination.tp();
         BaseChannelInitializer initializer = new BaseChannelInitializer();
@@ -116,5 +112,14 @@ public class DirectTransport implements Transport {
         }
 
         return tp==TP.TCP?createTcp(eventLoop,preferType,addr,initializer):createUdp(eventLoop,preferType,addr,initializer);
+    }
+
+    @Override
+    public Future<Channel> createChannel(EventLoop eventLoop, Destination destination,AddrType preferType,Transport delegate) throws Exception {
+        if (delegate!=null&&delegate!=this){
+            return delegate.createChannel(eventLoop,destination,preferType,delegate);
+        }else{
+            return createChannelInternal(eventLoop, destination, preferType);
+        }
     }
 }

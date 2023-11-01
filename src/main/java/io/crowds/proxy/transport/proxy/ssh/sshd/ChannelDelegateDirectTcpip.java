@@ -5,6 +5,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.Promise;
+import io.netty.util.internal.PlatformDependent;
 import org.apache.sshd.client.channel.ChannelDirectTcpip;
 import org.apache.sshd.common.SshConstants;
 import org.apache.sshd.common.channel.ChannelAsyncOutputStream;
@@ -32,7 +33,7 @@ public class ChannelDelegateDirectTcpip extends ChannelDirectTcpip {
     public ChannelDelegateDirectTcpip(SshdSocketAddress remote, SshSessionContext context) {
         super(SshdSocketAddress.LOCALHOST_ADDRESS, remote);
         this.context = context;
-        this.pendingBuffers=new LinkedList<>();
+        this.pendingBuffers= PlatformDependent.newSpscQueue();
     }
 
     public Future<Void> openChannel(){

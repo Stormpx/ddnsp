@@ -1,6 +1,7 @@
 package io.crowds.proxy.transport.proxy;
 
 import io.crowds.proxy.*;
+import io.crowds.proxy.common.HandlerName;
 import io.crowds.proxy.transport.*;
 import io.crowds.util.AddrType;
 import io.crowds.util.Async;
@@ -14,17 +15,30 @@ public abstract class AbstractProxyTransport implements ProxyTransport {
     private final static Logger logger= LoggerFactory.getLogger(AbstractProxyTransport.class);
     protected ChannelCreator channelCreator;
     protected Transport transport;
-
+    private String protocol;
     public AbstractProxyTransport(ChannelCreator channelCreator,ProtocolOption protocolOption) {
         this.channelCreator = channelCreator;
         this.transport= TransportFactory.newTransport(protocolOption,channelCreator);
+        this.protocol= protocolOption.getProtocol();
+    }
+
+    protected HandlerName handlerName(){
+        return new HandlerName(STR."\{protocol}-\{getTag()}");
+    }
+
+    protected String handlerName(String name){
+        return STR."\{protocol}-\{getTag()}-\{name}";
     }
 
     protected Destination getRemote(TP tp){return null;}
 
     protected abstract Future<Channel> proxy(Channel channel, NetLocation netLocation);
 
-    public Future<Channel> createChannel(EventLoop eventLoop,NetLocation netLocation,Transport transport) throws Exception {
+    public Future<Channel> createChannel(EventLoop eventLoop, NetLocation netLocation) throws Exception {
+        return createChannel(eventLoop,netLocation,transport);
+    }
+
+    public Future<Channel> createChannel(EventLoop eventLoop, NetLocation netLocation, Transport delegate) throws Exception {
 
         Destination destination = getRemote(netLocation.getTp());
         if (destination==null) {
@@ -32,7 +46,7 @@ public abstract class AbstractProxyTransport implements ProxyTransport {
         }
         Promise<Channel> promise = eventLoop.newPromise();
 
-        Async.toFuture(transport.createChannel(eventLoop,destination,netLocation.getSrc().isIpv4()? AddrType.IPV4:AddrType.IPV6))
+        Async.toFuture(this.transport.createChannel(eventLoop,destination,netLocation.getSrc().isIpv4()? AddrType.IPV4:AddrType.IPV6,delegate))
                 .compose(it->Async.toFuture(proxy(it,netLocation)))
                 .onComplete(Async.futureCascadeCallback(promise));
 
@@ -44,7 +58,7 @@ public abstract class AbstractProxyTransport implements ProxyTransport {
         NetLocation netLocation = proxyContext.getNetLocation();
 
         Promise<EndPoint> promise = proxyContext.getEventLoop().newPromise();
-        Async.cascadeFailure(createChannel(proxyContext.getEventLoop(),proxyContext.getNetLocation(),transport),promise,f->{
+        Async.cascadeFailure(createChannel(proxyContext.getEventLoop(),proxyContext.getNetLocation()),promise,f->{
             Channel ch = f.get();
             if (netLocation.getTp()==TP.TCP){
                 promise.trySuccess(new TcpEndPoint(ch));

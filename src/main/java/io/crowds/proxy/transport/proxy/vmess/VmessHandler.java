@@ -3,6 +3,7 @@ package io.crowds.proxy.transport.proxy.vmess;
 import io.crowds.proxy.NetAddr;
 import io.crowds.proxy.NetLocation;
 import io.crowds.proxy.TP;
+import io.crowds.proxy.common.HandlerName;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
@@ -13,19 +14,20 @@ import io.netty.channel.socket.DatagramPacket;
 import java.util.Set;
 
 public class VmessHandler extends ChannelDuplexHandler {
+    private final HandlerName baseName;
+    private final Channel channel;
+    private final VmessOption vmessOption;
+    private final NetLocation netLocation;
 
-    private Channel channel;
-    private VmessOption vmessOption;
-    private NetLocation netLocation;
 
-
-    public VmessHandler(Channel channel, VmessOption vmessOption, NetLocation netLocation) {
+    public VmessHandler(HandlerName baseName, Channel channel, VmessOption vmessOption, NetLocation netLocation) {
+        this.baseName=baseName;
         this.channel = channel;
         this.vmessOption = vmessOption;
         this.netLocation = netLocation;
         this.channel.pipeline()
-                .addLast(new VmessMessageCodec())
-                .addLast(this);
+                .addLast(baseName.with("codec"), new VmessMessageCodec())
+                .addLast(baseName.with("handler"), this);
     }
 
 
@@ -62,6 +64,10 @@ public class VmessHandler extends ChannelDuplexHandler {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+        if (msg instanceof VmessMessage){
+            //do nothing
+            return;
+        }
         if (msg instanceof ByteBuf buf) {
             if (netLocation.getTp()== TP.UDP){
                 msg=new DatagramPacket(buf,null,netLocation.getDst().getAsInetAddr());

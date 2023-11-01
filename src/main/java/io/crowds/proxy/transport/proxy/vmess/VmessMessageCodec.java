@@ -289,7 +289,6 @@ public class VmessMessageCodec extends ByteToMessageCodec<Object> {
             }
             decodeCmd(plain,out);
         }
-        out.add(new VmessResponse());
         return true;
     }
 

@@ -33,13 +33,9 @@ public class VmessProxyTransport extends AbstractProxyTransport {
 
     @Override
     protected Future<Channel> proxy(Channel channel, NetLocation netLocation) {
-        new VmessHandler(channel,vmessOption,netLocation).handshake();
+        new VmessHandler(handlerName(),channel,vmessOption,netLocation).handshake();
         return channel.eventLoop().newSucceededFuture(channel);
     }
 
 
-    @Override
-    public Future<EndPoint> createEndPoint(ProxyContext proxyContext) throws Exception {
-        return super.createEndPoint(proxyContext);
-    }
 }

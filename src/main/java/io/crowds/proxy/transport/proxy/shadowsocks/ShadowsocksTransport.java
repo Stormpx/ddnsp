@@ -2,6 +2,7 @@ package io.crowds.proxy.transport.proxy.shadowsocks;
 
 import io.crowds.Ddnsp;
 import io.crowds.proxy.*;
+import io.crowds.proxy.common.HandlerName;
 import io.crowds.proxy.transport.Destination;
 import io.crowds.proxy.transport.Transport;
 import io.crowds.proxy.transport.proxy.FullConeProxyTransport;
@@ -47,10 +48,13 @@ public class ShadowsocksTransport extends FullConeProxyTransport {
 
     @Override
     protected Future<Channel> proxy(Channel channel, NetLocation netLocation) {
+        HandlerName baseName = handlerName();
+        var codecName = baseName.with("codec");
+        var handlerName = baseName.with("handler");
         if (netLocation.getTp()==TP.TCP){
             channel.pipeline()
-                   .addLast(AEAD.tcp(shadowsocksOption,saltPool))
-                   .addLast(new ShadowsocksHandler(shadowsocksOption,netLocation));
+                   .addLast(codecName,AEAD.tcp(shadowsocksOption,saltPool))
+                   .addLast(handlerName,new ShadowsocksHandler(shadowsocksOption,netLocation));
             return channel.eventLoop().newSucceededFuture(channel);
         }else{
             NetAddr server;
@@ -62,21 +66,21 @@ public class ShadowsocksTransport extends FullConeProxyTransport {
                 server = NetAddr.of(shadowsocksOption.getAddress());
             }
             channel.pipeline()
-                   .addLast(AEAD.udp(shadowsocksOption))
-                   .addLast(new ShadowsocksHandler(shadowsocksOption,server));
+                   .addLast(codecName,AEAD.udp(shadowsocksOption))
+                   .addLast(handlerName,new ShadowsocksHandler(shadowsocksOption,server));
             return channel.eventLoop().newSucceededFuture(channel);
         }
     }
 
     @Override
-    public Future<Channel> createChannel(EventLoop eventLoop, NetLocation netLocation, Transport transport) throws Exception {
+    public Future<Channel> createChannel(EventLoop eventLoop, NetLocation netLocation, Transport delegate) throws Exception {
         Promise<Channel> promise = eventLoop.newPromise();
 
         NetAddr src = netLocation.getSrc();
         TP tp = netLocation.getTp();
         Destination destination = new Destination(NetAddr.of(shadowsocksOption.getAddress()), tp);
 
-        Async.toFuture(transport.createChannel(eventLoop,destination, src.isIpv4()? AddrType.IPV4:AddrType.IPV6))
+        Async.toFuture(this.transport.createChannel(eventLoop,destination, src.isIpv4()? AddrType.IPV4:AddrType.IPV6,delegate))
              .compose(it->Async.toFuture(proxy(it,netLocation)))
              .onComplete(Async.futureCascadeCallback(promise));
 

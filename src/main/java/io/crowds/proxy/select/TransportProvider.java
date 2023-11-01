@@ -3,7 +3,10 @@ package io.crowds.proxy.select;
 import io.crowds.proxy.*;
 import io.crowds.proxy.transport.ProtocolOption;
 import io.crowds.proxy.transport.ProxyTransport;
+import io.crowds.proxy.transport.proxy.ProxyTransportProvider;
 import io.crowds.proxy.transport.proxy.block.BlockProxyTransport;
+import io.crowds.proxy.transport.proxy.chain.ChainOption;
+import io.crowds.proxy.transport.proxy.chain.ChainProxyTransport;
 import io.crowds.proxy.transport.proxy.direct.DirectProxyTransport;
 import io.crowds.proxy.transport.proxy.shadowsocks.ShadowsocksOption;
 import io.crowds.proxy.transport.proxy.shadowsocks.ShadowsocksTransport;
@@ -44,6 +47,27 @@ public class TransportProvider {
         initSelector(selectors);
     }
 
+    private ProxyTransport createProxyTransport(ProtocolOption protocolOption){
+        String protocol = protocolOption.getProtocol();
+        if ("vmess".equalsIgnoreCase(protocol)) {
+           return new VmessProxyTransport(channelCreator, (VmessOption) protocolOption);
+        } else if ("ss".equalsIgnoreCase(protocol)) {
+           return new ShadowsocksTransport(channelCreator, (ShadowsocksOption) protocolOption);
+        } else if ("trojan".equalsIgnoreCase(protocol)){
+            return new TrojanProxyTransport(channelCreator, (TrojanOption) protocolOption);
+        } else if ("socks".equalsIgnoreCase(protocol)) {
+            return new SocksProxyTransport(channelCreator, (SocksOption) protocolOption);
+        } else if ("vless".equalsIgnoreCase(protocol)){
+            return new VlessProxyTransport(channelCreator, (VlessOption) protocolOption);
+        } else if ("ssh".equalsIgnoreCase(protocol)){
+            return new SshProxyTransport(channelCreator, (SshOption) protocolOption);
+        } else if ("chain".equalsIgnoreCase(protocol)){
+            return new ChainProxyTransport(channelCreator, (ChainOption) protocolOption);
+        } else if ("direct".equalsIgnoreCase(protocol)){
+            return new DirectProxyTransport(channelCreator,protocolOption);
+        }
+        return null;
+    }
 
     private void initTransport(List<ProtocolOption> protocolOptions){
         var map=new ConcurrentHashMap<String,ProxyTransport>();
@@ -52,24 +76,47 @@ public class TransportProvider {
         map.put(BLOCK_TRANSPORT,new BlockProxyTransport(channelCreator));
 
         if (protocolOptions!=null) {
+            List<ChainProxyTransport> chainProxyTransports=new ArrayList<>();
             for (ProtocolOption protocolOption : protocolOptions) {
                 String name = protocolOption.getName();
-                String protocol = protocolOption.getProtocol();
-                if ("vmess".equalsIgnoreCase(protocol)) {
-                    map.put(name, new VmessProxyTransport(channelCreator, (VmessOption) protocolOption));
-                } else if ("ss".equalsIgnoreCase(protocol)) {
-                    map.put(name, new ShadowsocksTransport(channelCreator, (ShadowsocksOption) protocolOption));
-                } else if ("trojan".equalsIgnoreCase(protocol)){
-                    map.put(name, new TrojanProxyTransport(channelCreator, (TrojanOption) protocolOption));
-                } else if ("socks".equalsIgnoreCase(protocol)) {
-                    map.put(name, new SocksProxyTransport(channelCreator, (SocksOption) protocolOption));
-                } else if ("vless".equalsIgnoreCase(protocol)){
-                    map.put(name, new VlessProxyTransport(channelCreator, (VlessOption) protocolOption));
-                } else if ("ssh".equalsIgnoreCase(protocol)){
-                    map.put(name, new SshProxyTransport(channelCreator, (SshOption) protocolOption));
-                } else if ("direct".equalsIgnoreCase(protocol)){
-                    map.put(name,new DirectProxyTransport(channelCreator,protocolOption));
+                ProxyTransport proxyTransport = createProxyTransport(protocolOption);
+                if (proxyTransport!=null){
+                    map.put(name,proxyTransport);
+                    if (proxyTransport instanceof ChainProxyTransport chainProxyTransport){
+                        chainProxyTransports.add(chainProxyTransport);
+                    }
                 }
+            }
+            ProxyTransportProvider provider = new ProxyTransportProvider() {
+                ProxyTransportProvider subProvider = new ProxyTransportProvider() {
+                    @Override
+                    public ProxyTransport get(String name) {return null;}
+                    @Override
+                    public ProxyTransport create(ProtocolOption protocolOption) {
+                        ProxyTransport transport = ProxyTransport.create(channelCreator,protocolOption);
+                        if (transport instanceof ChainProxyTransport){
+                            ((ChainProxyTransport) transport).initTransport(subProvider);
+                        }
+                        return transport;
+                    }
+                };
+                @Override
+                public ProxyTransport get(String name) {
+                    return map.get(name);
+                }
+
+                @Override
+                public ProxyTransport create(ProtocolOption protocolOption) {
+                    ProxyTransport transport = ProxyTransport.create(channelCreator,protocolOption);
+                    if (transport instanceof ChainProxyTransport){
+                        ((ChainProxyTransport) transport).initTransport(subProvider);
+                    }
+                    return transport;
+                }
+            };
+
+            for (ChainProxyTransport chainProxyTransport : chainProxyTransports) {
+                chainProxyTransport.initTransport(provider);
             }
         }
         this.transportMap=map;

@@ -9,6 +9,10 @@ import io.netty.util.concurrent.Future;
 
 public interface Transport {
 
-    Future<Channel> createChannel(EventLoop eventLoop, Destination dest, AddrType preferType) throws Exception;
+    default Future<Channel> createChannel(EventLoop eventLoop, Destination dest, AddrType preferType) throws Exception{
+        return createChannel(eventLoop,dest,preferType,null);
+    }
+
+    Future<Channel> createChannel(EventLoop eventLoop, Destination dest, AddrType preferType,Transport delegate) throws Exception;
 
 }

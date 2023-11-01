@@ -1,6 +1,7 @@
 package io.crowds.proxy.transport.proxy.socks;
 
 import io.crowds.proxy.*;
+import io.crowds.proxy.common.HandlerName;
 import io.crowds.proxy.common.IdleTimeoutHandler;
 import io.crowds.proxy.common.Socks;
 import io.crowds.proxy.transport.Destination;
@@ -45,9 +46,15 @@ public class SocksProxyTransport extends FullConeProxyTransport {
         }
     }
 
+    @Override
+    protected Future<Channel> proxy(Channel channel, NetLocation netLocation) {
+        return proxy(channel,netLocation,transport);
+    }
+
     private Future<Channel> proxy(Channel channel, NetLocation netLocation,Transport transport) {
         Promise<Channel> promise=channel.eventLoop().newPromise();
-        SocksClientNegotiator negotiator = new SocksClientNegotiator(channel,
+        HandlerName handlerName = handlerName();
+        SocksClientNegotiator negotiator = new SocksClientNegotiator(handlerName,channel,
                 new Destination(netLocation));
         Async.cascadeFailure(negotiator.handshake(),promise,future->{
             if (netLocation.getTp() == TP.TCP) {
@@ -55,10 +62,10 @@ public class SocksProxyTransport extends FullConeProxyTransport {
             }else{
                 NetAddr netAddr = future.get();
                 Future<Channel> channelFuture = transport.createChannel(channel.eventLoop(),
-                        new Destination(netAddr, TP.UDP), netLocation.getSrc().isIpv4()? AddrType.IPV4:AddrType.IPV6);
+                        new Destination(netAddr, TP.UDP), netLocation.getSrc().isIpv4()? AddrType.IPV4:AddrType.IPV6,transport);
                 Async.cascadeFailure(channelFuture, promise, f-> {
                     Channel udpChannel = f.get();
-                    udpChannel.pipeline().addLast(new SocksUdpHandler(netAddr));
+                    udpChannel.pipeline().addLast(handlerName.with("udpHandler"),new SocksUdpHandler(netAddr));
                     channel.attr(IdleTimeoutHandler.IGNORE_IDLE_FLAG);
                     channel.closeFuture().addListener(it-> closeChannel(udpChannel));
                     udpChannel.closeFuture().addListener(it-> closeChannel(channel));
@@ -70,15 +77,10 @@ public class SocksProxyTransport extends FullConeProxyTransport {
     }
 
     @Override
-    protected Future<Channel> proxy(Channel channel, NetLocation netLocation) {
-        return proxy(channel,netLocation,transport);
-    }
-
-    @Override
     public Future<Channel> createChannel(EventLoop eventLoop, NetLocation netLocation, Transport transport) throws Exception {
 
         Promise<Channel> promise = eventLoop.newPromise();
-        Async.toFuture(transport.createChannel(eventLoop,destination,netLocation.getSrc().isIpv4()? AddrType.IPV4:AddrType.IPV6))
+        Async.toFuture(transport.createChannel(eventLoop,destination,netLocation.getSrc().isIpv4()? AddrType.IPV4:AddrType.IPV6,transport))
              .compose(it->Async.toFuture(proxy(it,netLocation,transport)))
              .onComplete(Async.futureCascadeCallback(promise));
         return promise;
