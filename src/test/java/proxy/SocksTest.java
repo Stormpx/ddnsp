@@ -11,7 +11,7 @@ import java.net.InetSocketAddress;
 public class SocksTest extends ProxyTest{
 
     protected ProxyTransport createProxy(ChannelCreator channelCreator) {
-        InetSocketAddress dest = new InetSocketAddress("127.0.0.1", 1089);
+        InetSocketAddress dest = new InetSocketAddress("127.0.0.1", 16837);
         SocksOption option=new SocksOption()
                 .setRemote(dest);
         option.setName("socks");
