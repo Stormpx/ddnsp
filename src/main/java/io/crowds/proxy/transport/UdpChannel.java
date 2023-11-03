@@ -70,7 +70,18 @@ public class UdpChannel  extends ChannelInboundHandlerAdapter {
         super.channelRead(ctx, msg);
     }
 
-//    @Override
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        if (logger.isErrorEnabled()) {
+            logger.error("udp channel caught exception", cause);
+        }else{
+            logger.warn("udp channel caught exception: {}", cause.getMessage());
+        }
+        ctx.close();
+    }
+
+
+    //    @Override
 //    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
 //        if (evt instanceof IdleStateEvent){
 //            channel.close();

@@ -2,6 +2,7 @@ package io.crowds.proxy.dns;
 
 import io.crowds.dns.DnsContext;
 import io.crowds.proxy.routing.Router;
+import io.crowds.util.AddrType;
 import io.crowds.util.IPCIDR;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
@@ -64,7 +65,15 @@ public class FakeDns implements Handler<DnsContext> {
         if (context==null)
             return false;
         if (!context.isAvailable()){
-            executors.execute(()->domainFakeMap.remove(domain));
+            if (executors.inEventLoop()){
+                domainFakeMap.remove(domain);
+            }else {
+                executors.execute(() ->{
+                    if (domainFakeMap.get(domain)==context){
+                        domainFakeMap.remove(domain);
+                    }
+                });
+            }
             return false;
         }
 //        logger.warn("fakedns hit cache domain: {} fakeAddr:{} realAddr: {}",domain,context.getFakeAddr(),context.getRealAddr());
@@ -193,6 +202,11 @@ public class FakeDns implements Handler<DnsContext> {
         return context;
     }
 
+    public FakeContext getFake(String domainName, AddrType addrType){
+        var domain = new Domain(domainName,addrType==AddrType.IPV4?DnsRecordType.A:DnsRecordType.AAAA);
+        FakeContext context = domainFakeMap.get(domain);
+        return context;
+    }
     record Domain(String name,DnsRecordType type){}
 
 

@@ -7,6 +7,7 @@ import io.crowds.proxy.transport.UdpChannel;
 import io.crowds.proxy.transport.UdpEndPoint;
 import io.crowds.util.Lambdas;
 import io.netty.channel.Channel;
+import io.netty.channel.EventLoop;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.FutureListener;
 import io.netty.util.concurrent.Promise;
@@ -49,11 +50,13 @@ public abstract class FullConeProxyTransport extends AbstractProxyTransport {
         if (netLocation.getTp()== TP.TCP){
             return super.createEndPoint(proxyContext);
         }else {
+            EventLoop eventLoop = proxyContext.getEventLoop();
             NetAddr src = netLocation.getSrc();
             Future<UdpChannel> channelFuture = udpChannelMap.computeIfAbsent(src,
-                    Lambdas.rethrowFunction(k->
-                            createUdpChannel(proxyContext)
-                                .addListener((FutureListener<UdpChannel>)future -> {
+                    Lambdas.rethrowFunction(_->{
+                            var udpFuture = createUdpChannel(proxyContext);
+                            if (!udpFuture.isDone()||udpFuture.isSuccess()){
+                                udpFuture.addListener((FutureListener<UdpChannel>)future -> {
                                     if (!future.isSuccess()){
                                         udpChannelMap.remove(src);
                                     }
@@ -63,11 +66,14 @@ public abstract class FullConeProxyTransport extends AbstractProxyTransport {
                                         udpChannel.fallbackHandler(proxyContext.fallbackPacketHandler());
 
                                     udpChannel.getChannel().closeFuture()
-                                            .addListener(f->udpChannelMap.remove(src));
-                                }))
+                                              .addListener(_->udpChannelMap.remove(src));
+                                });
+                            }
+                            return udpFuture;
+                    })
             );
 
-            Promise<EndPoint> promise = proxyContext.getEventLoop().newPromise();
+            Promise<EndPoint> promise = eventLoop.newPromise();
 
             channelFuture
                     .addListener((FutureListener<UdpChannel>) f->{

@@ -1,12 +1,12 @@
 package io.crowds.proxy.services.transparent;
 
-import io.crowds.Ddnsp;
 import io.crowds.Platform;
 import io.crowds.proxy.Axis;
 import io.crowds.proxy.DatagramOption;
 import io.crowds.proxy.common.BaseChannelInitializer;
 import io.crowds.proxy.dns.FakeContext;
 import io.crowds.proxy.dns.FakeDns;
+import io.crowds.util.AddrType;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
@@ -169,12 +169,33 @@ public class TransparentServer {
 
     }
 
+    private InetSocketAddress getFakeAddress(InetSocketAddress address, AddrType addrType){
+        if (!address.isUnresolved()){
+            return address;
+        }
+        FakeDns fakeDns = axis.getFakeDns();
+        if (fakeDns==null){
+            return null;
+        }
+        FakeContext fakeContext = fakeDns.getFake(address.getHostString(), addrType);
+        return fakeContext != null ? new InetSocketAddress(fakeContext.getFakeAddr(), address.getPort()) : null;
+    }
+
     private void handleFallbackPacket(DatagramPacket packet)  {
         InetSocketAddress sender = packet.sender();
+        if (sender.isUnresolved()) {
+            var fakeAddr = getFakeAddress(sender,AddrType.of(packet.recipient()));
+            if (fakeAddr==null){
+                logger.warn("The fake address of the {} cannot be found. drop the packet",sender);
+                return;
+            }
+            sender=fakeAddr;
+        }
+        InetSocketAddress finalSender = sender;
         createForeignChannel(sender)
                 .addListener((FutureListener<DatagramChannel>) future -> {
                     if (!future.isSuccess()){
-                        logger.error("bind addr:{} failed cause:{}",sender,future.cause().getMessage());
+                        logger.error("bind addr:{} failed cause:{}", finalSender,future.cause().getMessage());
                         ReferenceCountUtil.safeRelease(packet);
                         return;
                     }
