@@ -1,12 +1,10 @@
 package io.crowds.ddns;
 
-import io.crowds.ddns.resolve.CloudFlareDnsResolver;
-import io.crowds.ddns.resolve.DnsResolver;
+import io.crowds.ddns.resolve.CloudFlareDDnsResolver;
+import io.crowds.ddns.resolve.DDnsResolver;
 import io.crowds.ddns.resolve.DomainRecord;
-import io.crowds.util.Inet;
 import io.crowds.util.Strs;
 import io.netty.util.NetUtil;
-import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
 import io.vertx.core.TimeoutStream;
 import io.vertx.core.Vertx;
@@ -17,7 +15,6 @@ import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,7 +28,7 @@ public class Ddns {
     private DDnsOption option;
 
     private Map<String, IpProvider> ipProviders;
-    private Map<String,DnsResolver> resolvers;
+    private Map<String, DDnsResolver> resolvers;
     private List<Context> contexts;
 
     public Ddns(Vertx vertx, DDnsOption option) {
@@ -99,9 +96,9 @@ public class Ddns {
             String name = json.getString("name");
             Objects.requireNonNull(name,"resolver name is required");
             String type = json.getString("type");
-            DnsResolver resolver;
+            DDnsResolver resolver;
             if ("cf".equalsIgnoreCase(type)){
-                resolver=new CloudFlareDnsResolver(httpClient,json);
+                resolver=new CloudFlareDDnsResolver(httpClient,json);
             }else{
                 throw new IllegalArgumentException("type "+type+" not supported");
             }
@@ -275,7 +272,7 @@ public class Ddns {
             this.ipv6=ipv6;
         }
 
-        private Future<Void> updateIpv4(IpProvider ipProvider,DnsResolver resolver,List<DomainRecord> records){
+        private Future<Void> updateIpv4(IpProvider ipProvider, DDnsResolver resolver, List<DomainRecord> records){
             return ipProvider.getIpv4()
                              .map(NetUtil::createInetAddressFromIpAddressString)
                              .compose(ip->{
@@ -301,7 +298,7 @@ public class Ddns {
                             });
         }
 
-        private Future<Void> updateIpv6(IpProvider ipProvider,DnsResolver resolver,List<DomainRecord> records){
+        private Future<Void> updateIpv6(IpProvider ipProvider, DDnsResolver resolver, List<DomainRecord> records){
             return ipProvider.getIpv6()
                              .map(NetUtil::createInetAddressFromIpAddressString)
                              .compose(ip->{
@@ -336,7 +333,7 @@ public class Ddns {
                 logger.error("context {} > refresh resolve failed cause: ipHelper {} not found",domain,this.provider);
                 return;
             }
-            DnsResolver resolver = resolvers.get(this.resolver);
+            DDnsResolver resolver = resolvers.get(this.resolver);
             if (resolver==null){
                 logger.error("context {} > refresh resolve failed cause: resolver {} not found",domain,this.resolver);
                 return;

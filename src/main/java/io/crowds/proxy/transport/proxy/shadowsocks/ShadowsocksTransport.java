@@ -8,11 +8,13 @@ import io.crowds.proxy.transport.Transport;
 import io.crowds.proxy.transport.proxy.FullConeProxyTransport;
 import io.crowds.util.AddrType;
 import io.crowds.util.Async;
+import io.crowds.util.Inet;
 import io.netty.channel.Channel;
 import io.netty.channel.EventLoop;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.Promise;
 
+import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -57,14 +59,7 @@ public class ShadowsocksTransport extends FullConeProxyTransport {
                    .addLast(handlerName,new ShadowsocksHandler(shadowsocksOption,netLocation));
             return channel.eventLoop().newSucceededFuture(channel);
         }else{
-            NetAddr server;
-
-            InetSocketAddress serverAddr = shadowsocksOption.getAddress();
-            if (serverAddr.isUnresolved()&&channel.remoteAddress() instanceof InetSocketAddress address){
-                server = NetAddr.of(address);
-            }else{
-                server = NetAddr.of(shadowsocksOption.getAddress());
-            }
+            NetAddr server = NetAddr.of(shadowsocksOption.getAddress());
             channel.pipeline()
                    .addLast(codecName,AEAD.udp(shadowsocksOption))
                    .addLast(handlerName,new ShadowsocksHandler(shadowsocksOption,server));

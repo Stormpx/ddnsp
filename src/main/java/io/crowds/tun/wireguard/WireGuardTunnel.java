@@ -10,6 +10,7 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.*;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.DatagramPacket;
+import io.netty.channel.socket.InternetProtocolFamily;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.ScheduledFuture;
 import org.drasyl.channel.tun.Tun4Packet;
@@ -107,8 +108,9 @@ public class WireGuardTunnel implements Closeable {
         if (creatingSock){
             return;
         }
-        var local = new InetSocketAddress(remoteAddress.getAddress() instanceof Inet4Address?"0.0.0.0":"::",0);
-        DatagramChannel channel = Platform.getDatagramChannel();
+        boolean ipv4 = remoteAddress.getAddress() instanceof Inet4Address;
+        var local = new InetSocketAddress(0);
+        DatagramChannel channel = Platform.getDatagramChannel(ipv4? InternetProtocolFamily.IPv4:InternetProtocolFamily.IPv6);
         eventLoop.register(channel).addListener(bf->{
             if (!bf.isSuccess()){
                 creatingSock=false;

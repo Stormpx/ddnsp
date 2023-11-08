@@ -5,7 +5,7 @@ import io.vertx.core.json.JsonObject;
 
 import java.util.List;
 
-public interface DnsResolver {
+public interface DDnsResolver {
 
     void setConfig(JsonObject config);
 

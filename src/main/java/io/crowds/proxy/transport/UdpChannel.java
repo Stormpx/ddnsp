@@ -20,17 +20,18 @@ public class UdpChannel  extends ChannelInboundHandlerAdapter {
     private final static Logger logger= LoggerFactory.getLogger(UdpChannel.class);
 
     private Channel channel;
-
     private InetSocketAddress src;
+    private boolean closeIfEmpty;
     private Consumer<DatagramPacket> fallbackPacketHandler;
 
     private Map<InetSocketAddress, Consumer<DatagramPacket>> handlers=new ConcurrentHashMap<>();
 
 
 
-    public UdpChannel(Channel channel,InetSocketAddress src) {
+    public UdpChannel(Channel channel,InetSocketAddress src,boolean closeIfEmpty) {
         this.channel = channel;
         this.src=src;
+        this.closeIfEmpty=closeIfEmpty;
         this.channel.pipeline().addLast(this);
     }
 
@@ -43,6 +44,11 @@ public class UdpChannel  extends ChannelInboundHandlerAdapter {
     public UdpChannel packetHandler(NetAddr netAddr,Consumer<DatagramPacket> bufferHandler){
         if (bufferHandler==null){
             handlers.remove(netAddr.getAsInetAddr());
+            if (closeIfEmpty){
+                if (handlers.isEmpty()){
+                    channel.close();
+                }
+            }
         }else {
             handlers.put(netAddr.getAsInetAddr(), bufferHandler);
         }

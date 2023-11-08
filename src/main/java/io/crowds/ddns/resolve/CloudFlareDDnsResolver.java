@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-public class CloudFlareDnsResolver  implements DnsResolver{
+public class CloudFlareDDnsResolver implements DDnsResolver {
     private final static String DNS_RECORDS_LIST_URL="https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records";
     private final static String DNS_RECORDS_UPDATE_URL="https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records/${id}";
     private final static String DNS_RECORDS_CREATE_URL="https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records";
@@ -24,7 +24,7 @@ public class CloudFlareDnsResolver  implements DnsResolver{
     private HttpClient httpClient;
     private JsonObject config;
 
-    public CloudFlareDnsResolver(HttpClient httpClient, JsonObject config) {
+    public CloudFlareDDnsResolver(HttpClient httpClient, JsonObject config) {
         this.httpClient = httpClient;
         setConfig(config);
     }

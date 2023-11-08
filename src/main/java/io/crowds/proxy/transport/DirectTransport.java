@@ -3,11 +3,14 @@ package io.crowds.proxy.transport;
 import io.crowds.Ddnsp;
 import io.crowds.proxy.*;
 import io.crowds.proxy.common.BaseChannelInitializer;
+import io.crowds.proxy.common.DynamicRecipientLookupHandler;
 import io.crowds.util.AddrType;
 import io.crowds.util.Async;
 import io.crowds.util.Inet;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoop;
+import io.netty.channel.socket.DatagramChannel;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.Promise;
 import io.netty.util.concurrent.PromiseNotifier;
@@ -90,10 +93,17 @@ public class DirectTransport implements Transport {
         resolve(eventLoop,preferType,dst)
                 .addListener(resolveFuture->{
                     if (!resolveFuture.isSuccess()){
-                        promise.tryFailure(new SocketException("bind with domain failed",resolveFuture.cause()));
+                        promise.tryFailure(new SocketException(STR."unable resolve \{dst}",resolveFuture.cause()));
                         return;
                     }
                     NetAddr dest = (NetAddr) resolveFuture.get();
+                    initializer.initializer(new ChannelInitializer<>() {
+                        @Override
+                        protected void initChannel(Channel ch) throws Exception {
+                            ch.pipeline()
+                              .addLast(new DynamicRecipientLookupHandler(Ddnsp.dnsResolver()));
+                        }
+                    });
                     var future = channelCreator.createDatagramChannel(new DatagramOption().setBindAddr(getLocalAddr(dest.isIpv6())),initializer);
                     PromiseNotifier.cascade(future,promise);
                 });

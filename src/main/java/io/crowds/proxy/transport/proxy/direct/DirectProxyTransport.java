@@ -8,6 +8,7 @@ import io.crowds.util.AddrType;
 import io.crowds.util.Async;
 import io.netty.channel.*;
 import io.netty.channel.socket.DatagramPacket;
+import io.netty.handler.address.DynamicAddressConnectHandler;
 import io.netty.util.AttributeKey;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.*;
@@ -39,42 +40,11 @@ public class DirectProxyTransport extends FullConeProxyTransport {
     @Override
     protected Future<Channel> proxy(Channel channel, NetLocation netLocation) {
 
-        if (netLocation.getTp()==TP.UDP){
-            channel.pipeline().addLast(new DirectOutboundHandler());
-        }else{
+        if (netLocation.getTp()==TP.TCP){
             channel.attr(DIRECT_FLAG);
         }
         return channel.eventLoop().newSucceededFuture(channel);
     }
 
-    private static class DirectOutboundHandler extends ChannelOutboundHandlerAdapter{
-
-        @Override
-        public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-            if (msg instanceof DatagramPacket packet){
-                InetSocketAddress recipient = packet.recipient();
-                if (recipient.isUnresolved()){
-                    if (ctx.channel().localAddress() instanceof InetSocketAddress address){
-                        boolean ipv4 = address.getAddress() instanceof Inet4Address;
-
-                        Async.toCallback(
-                                ctx.channel().eventLoop(),
-                                Ddnsp.dnsResolver().resolve(recipient.getHostString(),ipv4? AddrType.IPV4:AddrType.IPV6)
-                        ).addListener(f->{
-                            if (!f.isSuccess()){
-                                promise.tryFailure(f.cause());
-                                ReferenceCountUtil.safeRelease(packet);
-                                return;
-                            }
-                            var validPacket = new DatagramPacket(packet.content(),new InetSocketAddress((InetAddress) f.get(),recipient.getPort()),packet.sender());
-                            ctx.write(validPacket,promise);
-                        });
-                        return;
-                    }
-                }
-            }
-            super.write(ctx, msg, promise);
-        }
-    }
 
 }

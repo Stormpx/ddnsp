@@ -63,7 +63,7 @@ public abstract class AbstractProxyTransport implements ProxyTransport {
             if (netLocation.getTp()==TP.TCP){
                 promise.trySuccess(new TcpEndPoint(ch));
             }else{
-                UdpChannel udpChannel = new UdpChannel(ch,netLocation.getSrc().getAsInetAddr());
+                UdpChannel udpChannel = new UdpChannel(ch,netLocation.getSrc().getAsInetAddr(),true);
                 if (proxyContext.fallbackPacketHandler()!=null)
                     udpChannel.fallbackHandler(proxyContext.fallbackPacketHandler());
                 promise.trySuccess(new UdpEndPoint(udpChannel,netLocation.getDst()));

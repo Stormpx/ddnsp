@@ -35,7 +35,7 @@ public abstract class FullConeProxyTransport extends AbstractProxyTransport {
                     }
                     Channel channel = f.get();
                     UdpChannel udpChannel = new UdpChannel(channel,
-                            proxyContext.getNetLocation().getSrc().getAsInetAddr());
+                            proxyContext.getNetLocation().getSrc().getAsInetAddr(),false);
 
                     promise.trySuccess(udpChannel);
 

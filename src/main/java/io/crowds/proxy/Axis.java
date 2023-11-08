@@ -189,7 +189,7 @@ public class Axis {
                             return;
                         }
                         EndPoint dst= (EndPoint) future.get();
-                        dst.exceptionHandler(t->logException(srcAddr,dstAddr,t,false));
+                        dst.exceptionHandler(t->logException(netLocation.getSrc().getAddress(),netLocation.getDst().getAddress(),t,false));
                         proxyContext.bridging(src,dst);
                         promise.trySuccess(null);
                         proxyContext.setAutoRead();
@@ -218,7 +218,7 @@ public class Axis {
                         .withFakeContext(fakeContext);
                 Promise<ProxyContext> promise = proxyContext.getEventLoop().newPromise();
                 var src=new UdpEndPoint(datagramChannel,netLocation.getSrc());
-                src.exceptionHandler(t->logException(sender.getAddress(),recipient.getAddress(),t,true));
+                src.exceptionHandler(t->logException(netLocation.getSrc().getAddress(),netLocation.getDst().getAddress(),t,true));
                 Transport transport=getTransport(proxyContext);
                 logger.info("udp {} to {} via [{}]",proxyContext.getNetLocation().getSrc(),proxyContext.getNetLocation().getDst(),transport.getChain());
                 ProxyTransport proxy = transport.proxy();
@@ -229,7 +229,7 @@ public class Axis {
                                 return;
                             }
                             EndPoint dst= (EndPoint) future.get();
-                            dst.exceptionHandler(t->logException(sender.getAddress(),recipient.getAddress(),t,false));
+                            dst.exceptionHandler(t->logException(netLocation.getSrc().getAddress(),netLocation.getDst().getAddress(),t,false));
                             proxyContext.bridging(src,dst);
                             promise.trySuccess(proxyContext);
                             proxyContext.setAutoRead();

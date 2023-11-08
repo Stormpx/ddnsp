@@ -6,6 +6,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.socket.DatagramChannel;
+import io.netty.channel.socket.InternetProtocolFamily;
 import io.netty.handler.codec.dns.*;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.ScheduledFuture;
@@ -39,7 +40,6 @@ public class UdpUpstream extends AbstractDnsUpstream {
             throw new RuntimeException("unresolved address");
         }
         this.eventLoopGroup = eventLoopGroup;
-        this.channel= Platform.getDatagramChannel();
         this.queryContextMap=new HashMap<>();
         init(defaultAddr);
     }
@@ -47,13 +47,13 @@ public class UdpUpstream extends AbstractDnsUpstream {
     public UdpUpstream(EventLoopGroup eventLoopGroup, InetSocketAddress defaultAddr,InternalDnsResolver internalDnsResolver) {
         super(internalDnsResolver);
         this.eventLoopGroup = eventLoopGroup;
-        this.channel= Platform.getDatagramChannel();
         this.queryContextMap=new HashMap<>();
         bootLookup(defaultAddr).onSuccess(this::init);
     }
 
     private void init(InetSocketAddress defaultAddr){
         boolean ipv6=defaultAddr.getAddress() instanceof Inet6Address;
+        this.channel= Platform.getDatagramChannel(ipv6? InternetProtocolFamily.IPv6:InternetProtocolFamily.IPv4);
         this.defaultAddr=defaultAddr;
         this.channel.pipeline()
                 .addLast(new DatagramDnsQueryEncoder())
@@ -79,7 +79,7 @@ public class UdpUpstream extends AbstractDnsUpstream {
                     }
                 });
         this.eventLoopGroup.register(channel);
-        this.channel.bind(new InetSocketAddress(ipv6?"::":"0.0.0.0",0));
+        this.channel.bind(new InetSocketAddress(0));
     }
 
     private int getNextId(){

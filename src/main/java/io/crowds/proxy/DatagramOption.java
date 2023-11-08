@@ -1,10 +1,8 @@
 package io.crowds.proxy;
 
-import io.netty.channel.Channel;
 import io.netty.channel.EventLoop;
 
 import java.net.SocketAddress;
-import java.util.function.Consumer;
 
 public class DatagramOption {
 
@@ -13,7 +11,7 @@ public class DatagramOption {
 
     private EventLoop eventLoop;
 
-    public boolean isIpTransport() {
+    public boolean isIpTransparent() {
         return ipTransport;
     }
 

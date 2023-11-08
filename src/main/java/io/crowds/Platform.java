@@ -6,6 +6,7 @@ import io.netty.channel.epoll.EpollDatagramChannel;
 import io.netty.channel.epoll.EpollServerSocketChannel;
 import io.netty.channel.epoll.EpollSocketChannel;
 import io.netty.channel.socket.DatagramChannel;
+import io.netty.channel.socket.InternetProtocolFamily;
 import io.netty.channel.socket.ServerSocketChannel;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioDatagramChannel;
@@ -26,6 +27,14 @@ public class Platform {
 
     public static boolean isOsx(){
         return PlatformDependent.isOsx();
+    }
+
+    public static DatagramChannel getDatagramChannel(InternetProtocolFamily family){
+        if (Epoll.isAvailable()){
+            return new EpollDatagramChannel(family);
+        }else{
+            return new NioDatagramChannel(family);
+        }
     }
 
     public static DatagramChannel getDatagramChannel(){
