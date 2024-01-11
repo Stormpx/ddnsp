@@ -35,7 +35,7 @@ public class TransportProvider {
     private final static String DEFAULT_TRANSPORT="direct";
     private final static String BLOCK_TRANSPORT="block";
 
-    private ChannelCreator channelCreator;
+    private final ChannelCreator channelCreator;
 
     private Map<String, ProxyTransport> transportMap;
 
@@ -45,28 +45,6 @@ public class TransportProvider {
         this.channelCreator = channelCreator;
         initTransport(protocolOptions);
         initSelector(selectors);
-    }
-
-    private ProxyTransport createProxyTransport(ProtocolOption protocolOption){
-        String protocol = protocolOption.getProtocol();
-        if ("vmess".equalsIgnoreCase(protocol)) {
-           return new VmessProxyTransport(channelCreator, (VmessOption) protocolOption);
-        } else if ("ss".equalsIgnoreCase(protocol)) {
-           return new ShadowsocksTransport(channelCreator, (ShadowsocksOption) protocolOption);
-        } else if ("trojan".equalsIgnoreCase(protocol)){
-            return new TrojanProxyTransport(channelCreator, (TrojanOption) protocolOption);
-        } else if ("socks".equalsIgnoreCase(protocol)) {
-            return new SocksProxyTransport(channelCreator, (SocksOption) protocolOption);
-        } else if ("vless".equalsIgnoreCase(protocol)){
-            return new VlessProxyTransport(channelCreator, (VlessOption) protocolOption);
-        } else if ("ssh".equalsIgnoreCase(protocol)){
-            return new SshProxyTransport(channelCreator, (SshOption) protocolOption);
-        } else if ("chain".equalsIgnoreCase(protocol)){
-            return new ChainProxyTransport(channelCreator, (ChainOption) protocolOption);
-        } else if ("direct".equalsIgnoreCase(protocol)){
-            return new DirectProxyTransport(channelCreator,protocolOption);
-        }
-        return null;
     }
 
     private void initTransport(List<ProtocolOption> protocolOptions){
@@ -79,7 +57,7 @@ public class TransportProvider {
             List<ChainProxyTransport> chainProxyTransports=new ArrayList<>();
             for (ProtocolOption protocolOption : protocolOptions) {
                 String name = protocolOption.getName();
-                ProxyTransport proxyTransport = createProxyTransport(protocolOption);
+                ProxyTransport proxyTransport = ProxyTransport.create(channelCreator,protocolOption);
                 if (proxyTransport!=null){
                     map.put(name,proxyTransport);
                     if (proxyTransport instanceof ChainProxyTransport chainProxyTransport){
@@ -88,7 +66,7 @@ public class TransportProvider {
                 }
             }
             ProxyTransportProvider provider = new ProxyTransportProvider() {
-                ProxyTransportProvider subProvider = new ProxyTransportProvider() {
+                final ProxyTransportProvider subProvider = new ProxyTransportProvider() {
                     @Override
                     public ProxyTransport get(String name) {return null;}
                     @Override

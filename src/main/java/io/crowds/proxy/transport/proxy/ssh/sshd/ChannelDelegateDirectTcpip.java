@@ -15,6 +15,7 @@ import org.apache.sshd.common.util.Readable;
 import org.apache.sshd.common.util.buffer.Buffer;
 import org.apache.sshd.common.util.buffer.ByteArrayBuffer;
 import org.apache.sshd.common.util.net.SshdSocketAddress;
+import org.apache.sshd.common.util.threads.ThreadUtils;
 
 import java.io.IOException;
 import java.util.LinkedList;
@@ -68,7 +69,8 @@ public class ChannelDelegateDirectTcpip extends ChannelDirectTcpip {
                 if (buffer==null){
                     return;
                 }
-                this.ioWriteFuture = asyncIn.writeBuffer(buffer);
+                Buffer finalBuffer = buffer;
+                this.ioWriteFuture = ThreadUtils.runAsInternal(()->asyncIn.writeBuffer(finalBuffer));
                 this.ioWriteFuture.addListener(iwf->{
                    if (!iwf.isWritten()){
                        quietlyClose();
@@ -79,7 +81,7 @@ public class ChannelDelegateDirectTcpip extends ChannelDirectTcpip {
             }else{
                 this.pendingBuffers.add(buffer);
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }

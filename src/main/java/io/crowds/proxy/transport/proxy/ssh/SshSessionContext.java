@@ -38,6 +38,7 @@ public class SshSessionContext {
     }
 
     public void setServerChannel(ClientSession session, LocalChannel localChannel) throws IOException {
+        //the sub server channel
         this.server=localChannel;
         ConnectionService service = session.getService(ConnectionService.class);
         ChannelDelegateDirectTcpip tcpip = new ChannelDelegateDirectTcpip(new SshdSocketAddress(dst.getHost(), dst.getPort()), this);
@@ -47,6 +48,7 @@ public class SshSessionContext {
                        @Override
                        protected void channelRead0(ChannelHandlerContext ctx, Object msg) throws Exception {
                            if (msg instanceof ByteBuf buf) {
+                               //data from client. write to dst
                                tcpip.writeBuffer(buf);
                            }
                        }
