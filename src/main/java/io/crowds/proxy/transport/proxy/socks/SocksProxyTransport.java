@@ -51,7 +51,7 @@ public class SocksProxyTransport extends FullConeProxyTransport {
         return proxy(channel,netLocation,transport);
     }
 
-    private Future<Channel> proxy(Channel channel, NetLocation netLocation,Transport transport) {
+    private Future<Channel> proxy(Channel channel, NetLocation netLocation,Transport delegate) {
         Promise<Channel> promise=channel.eventLoop().newPromise();
         HandlerName handlerName = handlerName();
         SocksClientNegotiator negotiator = new SocksClientNegotiator(handlerName,channel,
@@ -61,8 +61,8 @@ public class SocksProxyTransport extends FullConeProxyTransport {
                 promise.trySuccess(channel);
             }else{
                 NetAddr netAddr = future.get();
-                Future<Channel> channelFuture = transport.createChannel(channel.eventLoop(),
-                        new Destination(netAddr, TP.UDP), netLocation.getSrc().isIpv4()? AddrType.IPV4:AddrType.IPV6,transport);
+                Future<Channel> channelFuture = this.transport.createChannel(channel.eventLoop(),
+                        new Destination(netAddr, TP.UDP), netLocation.getSrc().isIpv4()? AddrType.IPV4:AddrType.IPV6,delegate);
                 Async.cascadeFailure(channelFuture, promise, f-> {
                     Channel udpChannel = f.get();
                     udpChannel.pipeline().addLast(handlerName.with("udpHandler"),new SocksUdpHandler(netAddr));
@@ -77,11 +77,11 @@ public class SocksProxyTransport extends FullConeProxyTransport {
     }
 
     @Override
-    public Future<Channel> createChannel(EventLoop eventLoop, NetLocation netLocation, Transport transport) throws Exception {
+    public Future<Channel> createChannel(EventLoop eventLoop, NetLocation netLocation, Transport delegate) throws Exception {
 
         Promise<Channel> promise = eventLoop.newPromise();
-        Async.toFuture(transport.createChannel(eventLoop,destination,netLocation.getSrc().isIpv4()? AddrType.IPV4:AddrType.IPV6,transport))
-             .compose(it->Async.toFuture(proxy(it,netLocation,transport)))
+        Async.toFuture(this.transport.createChannel(eventLoop,destination,netLocation.getSrc().isIpv4()? AddrType.IPV4:AddrType.IPV6,delegate))
+             .compose(it->Async.toFuture(proxy(it,netLocation,delegate)))
              .onComplete(Async.futureCascadeCallback(promise));
         return promise;
     }
