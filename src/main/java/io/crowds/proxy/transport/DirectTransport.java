@@ -10,7 +10,6 @@ import io.crowds.util.Inet;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoop;
-import io.netty.channel.socket.DatagramChannel;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.Promise;
 import io.netty.util.concurrent.PromiseNotifier;
@@ -125,9 +124,9 @@ public class DirectTransport implements Transport {
     }
 
     @Override
-    public Future<Channel> createChannel(EventLoop eventLoop, Destination destination,AddrType preferType,Transport delegate) throws Exception {
+    public Future<Channel> openChannel(EventLoop eventLoop, Destination destination, AddrType preferType, Transport delegate) throws Exception {
         if (delegate!=null&&delegate!=this){
-            return delegate.createChannel(eventLoop,destination,preferType,delegate);
+            return delegate.openChannel(eventLoop,destination,preferType,delegate);
         }else{
             return createChannelInternal(eventLoop, destination, preferType);
         }

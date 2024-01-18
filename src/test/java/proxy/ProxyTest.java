@@ -32,7 +32,7 @@ public abstract class ProxyTest {
     protected EventLoopGroup eventLoopGroup=vertx.nettyEventLoopGroup();
     protected ChannelCreator channelCreator=new ChannelCreator(eventLoopGroup);
 
-    private volatile boolean setupHttpServer=false;
+    private static volatile boolean setupHttpServer=false;
 
     private io.vertx.core.Future<Void> setupHttpServer(){
         if (setupHttpServer){

@@ -26,13 +26,11 @@ public abstract class AbstractProxyTransport implements ProxyTransport {
         return new HandlerName(STR."\{protocol}-\{getTag()}");
     }
 
-    protected String handlerName(String name){
-        return STR."\{protocol}-\{getTag()}-\{name}";
-    }
-
     protected Destination getRemote(TP tp){return null;}
 
-    protected abstract Future<Channel> proxy(Channel channel, NetLocation netLocation);
+    protected Future<Channel> proxy(Channel channel, NetLocation netLocation,Transport delegate){
+        return channel.eventLoop().newSucceededFuture(channel);
+    }
 
     public Future<Channel> createChannel(EventLoop eventLoop, NetLocation netLocation) throws Exception {
         return createChannel(eventLoop,netLocation,transport);
@@ -46,8 +44,8 @@ public abstract class AbstractProxyTransport implements ProxyTransport {
         }
         Promise<Channel> promise = eventLoop.newPromise();
 
-        Async.toFuture(this.transport.createChannel(eventLoop,destination,netLocation.getSrc().isIpv4()? AddrType.IPV4:AddrType.IPV6,delegate))
-                .compose(it->Async.toFuture(proxy(it,netLocation)))
+        Async.toFuture(this.transport.openChannel(eventLoop,destination,netLocation.getSrc().isIpv4()? AddrType.IPV4:AddrType.IPV6,delegate))
+                .compose(it->Async.toFuture(proxy(it,netLocation,delegate)))
                 .onComplete(Async.futureCascadeCallback(promise));
 
         return promise;

@@ -47,11 +47,7 @@ public class SocksProxyTransport extends FullConeProxyTransport {
     }
 
     @Override
-    protected Future<Channel> proxy(Channel channel, NetLocation netLocation) {
-        return proxy(channel,netLocation,transport);
-    }
-
-    private Future<Channel> proxy(Channel channel, NetLocation netLocation,Transport delegate) {
+    protected Future<Channel> proxy(Channel channel, NetLocation netLocation,Transport delegate) {
         Promise<Channel> promise=channel.eventLoop().newPromise();
         HandlerName handlerName = handlerName();
         SocksClientNegotiator negotiator = new SocksClientNegotiator(handlerName,channel,
@@ -61,7 +57,7 @@ public class SocksProxyTransport extends FullConeProxyTransport {
                 promise.trySuccess(channel);
             }else{
                 NetAddr netAddr = future.get();
-                Future<Channel> channelFuture = this.transport.createChannel(channel.eventLoop(),
+                Future<Channel> channelFuture = this.transport.openChannel(channel.eventLoop(),
                         new Destination(netAddr, TP.UDP), netLocation.getSrc().isIpv4()? AddrType.IPV4:AddrType.IPV6,delegate);
                 Async.cascadeFailure(channelFuture, promise, f-> {
                     Channel udpChannel = f.get();
@@ -73,16 +69,6 @@ public class SocksProxyTransport extends FullConeProxyTransport {
                 });
             }
         });
-        return promise;
-    }
-
-    @Override
-    public Future<Channel> createChannel(EventLoop eventLoop, NetLocation netLocation, Transport delegate) throws Exception {
-
-        Promise<Channel> promise = eventLoop.newPromise();
-        Async.toFuture(this.transport.createChannel(eventLoop,destination,netLocation.getSrc().isIpv4()? AddrType.IPV4:AddrType.IPV6,delegate))
-             .compose(it->Async.toFuture(proxy(it,netLocation,delegate)))
-             .onComplete(Async.futureCascadeCallback(promise));
         return promise;
     }
 

@@ -8,6 +8,7 @@ import io.crowds.proxy.common.HandlerName;
 import io.crowds.proxy.transport.Destination;
 import io.crowds.proxy.transport.ProtocolOption;
 import io.crowds.proxy.transport.TlsOption;
+import io.crowds.proxy.transport.Transport;
 import io.crowds.proxy.transport.proxy.FullConeProxyTransport;
 import io.netty.channel.Channel;
 import io.netty.util.concurrent.Future;
@@ -37,7 +38,7 @@ public class TrojanProxyTransport extends FullConeProxyTransport {
     }
 
     @Override
-    protected Future<Channel> proxy(Channel channel, NetLocation netLocation) {
+    protected Future<Channel> proxy(Channel channel, NetLocation netLocation, Transport delegate) {
         HandlerName baseName = handlerName();
         channel.pipeline()
                 .addLast(baseName.with("codec"),new TrojanCodec(netLocation.getTp()))

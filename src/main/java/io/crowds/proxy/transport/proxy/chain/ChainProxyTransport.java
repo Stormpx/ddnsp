@@ -67,10 +67,7 @@ public class ChainProxyTransport extends AbstractProxyTransport {
         return chainOption.getName();
     }
 
-    @Override
-    protected Future<Channel> proxy(Channel channel, NetLocation netLocation) {
-        return channel.eventLoop().newSucceededFuture(channel);
-    }
+
 
     @Override
     public Future<Channel> createChannel(EventLoop eventLoop, NetLocation netLocation, Transport delegate) throws Exception {

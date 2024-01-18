@@ -170,7 +170,7 @@ public class SshProxyTransport extends AbstractProxyTransport {
     }
 
     @Override
-    protected Future<Channel> proxy(Channel channel, NetLocation netLocation) {
+    protected Future<Channel> proxy(Channel channel, NetLocation netLocation,Transport delegate) {
         Promise<Channel> promise = channel.eventLoop().newPromise();
         //here the channel already created. so we specify host to  127.0.0,1 to avoid dns lookup.
         cascadeSshFuture(

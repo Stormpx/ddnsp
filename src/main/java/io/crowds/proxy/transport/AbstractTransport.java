@@ -9,9 +9,9 @@ public abstract class AbstractTransport implements Transport{
 
     protected abstract Future<Channel> doCreateChannel(EventLoop eventLoop, Destination dest, AddrType preferType) throws Exception;
     @Override
-    public Future<Channel> createChannel(EventLoop eventLoop, Destination dest, AddrType preferType, Transport delegate) throws Exception {
+    public Future<Channel> openChannel(EventLoop eventLoop, Destination dest, AddrType preferType, Transport delegate) throws Exception {
         if (this!=delegate){
-            delegate.createChannel(eventLoop, dest, preferType, delegate);
+            delegate.openChannel(eventLoop, dest, preferType, delegate);
         }
         return doCreateChannel(eventLoop, dest, preferType);
     }

@@ -42,8 +42,8 @@ public class WebsocketTransport extends DirectTransport {
     }
 
     @Override
-    public Future<Channel> createChannel(EventLoop eventLoop, Destination dest, AddrType preferType, Transport delegate) throws Exception {
-        Future<Channel> future = super.createChannel(eventLoop, dest,preferType,delegate);
+    public Future<Channel> openChannel(EventLoop eventLoop, Destination dest, AddrType preferType, Transport delegate) throws Exception {
+        Future<Channel> future = super.openChannel(eventLoop, dest,preferType,delegate);
         if (dest.tp()==TP.UDP)
             return future;
 

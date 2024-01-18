@@ -49,7 +49,7 @@ public class ShadowsocksTransport extends FullConeProxyTransport {
 
 
     @Override
-    protected Future<Channel> proxy(Channel channel, NetLocation netLocation) {
+    protected Future<Channel> proxy(Channel channel, NetLocation netLocation,Transport delegate) {
         HandlerName baseName = handlerName();
         var codecName = baseName.with("codec");
         var handlerName = baseName.with("handler");
@@ -67,18 +67,4 @@ public class ShadowsocksTransport extends FullConeProxyTransport {
         }
     }
 
-    @Override
-    public Future<Channel> createChannel(EventLoop eventLoop, NetLocation netLocation, Transport delegate) throws Exception {
-        Promise<Channel> promise = eventLoop.newPromise();
-
-        NetAddr src = netLocation.getSrc();
-        TP tp = netLocation.getTp();
-        Destination destination = new Destination(NetAddr.of(shadowsocksOption.getAddress()), tp);
-
-        Async.toFuture(this.transport.createChannel(eventLoop,destination, src.isIpv4()? AddrType.IPV4:AddrType.IPV6,delegate))
-             .compose(it->Async.toFuture(proxy(it,netLocation)))
-             .onComplete(Async.futureCascadeCallback(promise));
-
-        return promise;
-    }
 }

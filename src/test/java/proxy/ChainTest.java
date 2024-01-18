@@ -107,6 +107,17 @@ public class ChainTest extends ProxyTest {
         option.setName(name);
         return new SocksProxyTransport(channelCreator, option);
     }
+
+    protected ProxyTransport createSocksProxyWithWs(ChannelCreator channelCreator,String name) {
+        InetSocketAddress dest = new InetSocketAddress("127.0.0.1", 16838);
+        SocksOption option=new SocksOption()
+                .setRemote(dest);
+        option.setName(name)
+              .setNetwork("ws")
+              .setTransport(new TransportOption().setWs(new WsOption()));
+        return new SocksProxyTransport(channelCreator, option);
+    }
+
     private ProxyTransport createVlessProxy(ChannelCreator channelCreator,String name) {
         InetSocketAddress dest = new InetSocketAddress("127.0.0.1", 16839);
         var option=new VlessOption()
@@ -214,7 +225,8 @@ public class ChainTest extends ProxyTest {
     public void wsTest() throws Exception {
         var list = List.of(
                 createVmessProxyWithWs(channelCreator,"ws-vmess0"),
-                createSsProxyWithWs(channelCreator,"ws-ss0"));
+                createSsProxyWithWs(channelCreator,"ws-ss0"),
+                createSocksProxyWithWs(channelCreator,"ws-socks0"));
 
         for (int i = 0; i < list.size(); i++) {
             allCombine(list,new ArrayList<>(),i, Lambdas.rethrowConsumer(it->{

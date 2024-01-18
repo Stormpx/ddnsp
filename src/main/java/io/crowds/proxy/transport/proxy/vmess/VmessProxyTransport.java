@@ -3,6 +3,7 @@ package io.crowds.proxy.transport.proxy.vmess;
 import io.crowds.proxy.*;
 import io.crowds.proxy.transport.Destination;
 import io.crowds.proxy.transport.EndPoint;
+import io.crowds.proxy.transport.Transport;
 import io.crowds.proxy.transport.proxy.AbstractProxyTransport;
 import io.netty.channel.Channel;
 import io.netty.util.concurrent.Future;
@@ -32,7 +33,7 @@ public class VmessProxyTransport extends AbstractProxyTransport {
     }
 
     @Override
-    protected Future<Channel> proxy(Channel channel, NetLocation netLocation) {
+    protected Future<Channel> proxy(Channel channel, NetLocation netLocation, Transport delegate) {
         new VmessHandler(handlerName(),channel,vmessOption,netLocation).handshake();
         return channel.eventLoop().newSucceededFuture(channel);
     }

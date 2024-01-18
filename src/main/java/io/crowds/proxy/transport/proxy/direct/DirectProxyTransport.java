@@ -3,6 +3,7 @@ package io.crowds.proxy.transport.proxy.direct;
 import io.crowds.Ddnsp;
 import io.crowds.proxy.*;
 import io.crowds.proxy.transport.ProtocolOption;
+import io.crowds.proxy.transport.Transport;
 import io.crowds.proxy.transport.proxy.FullConeProxyTransport;
 import io.crowds.util.AddrType;
 import io.crowds.util.Async;
@@ -38,7 +39,7 @@ public class DirectProxyTransport extends FullConeProxyTransport {
     }
 
     @Override
-    protected Future<Channel> proxy(Channel channel, NetLocation netLocation) {
+    protected Future<Channel> proxy(Channel channel, NetLocation netLocation, Transport delegate) {
 
         if (netLocation.getTp()==TP.TCP){
             channel.attr(DIRECT_FLAG);

@@ -7,6 +7,7 @@ import io.crowds.proxy.TP;
 import io.crowds.proxy.common.HandlerName;
 import io.crowds.proxy.transport.Destination;
 import io.crowds.proxy.transport.ProtocolOption;
+import io.crowds.proxy.transport.Transport;
 import io.crowds.proxy.transport.proxy.AbstractProxyTransport;
 import io.netty.channel.Channel;
 import io.netty.util.concurrent.Future;
@@ -31,7 +32,7 @@ public class VlessProxyTransport extends AbstractProxyTransport {
     }
 
     @Override
-    protected Future<Channel> proxy(Channel channel, NetLocation netLocation) {
+    protected Future<Channel> proxy(Channel channel, NetLocation netLocation, Transport delegate) {
         HandlerName baseName = handlerName();
         Destination dest = new Destination(netLocation);
         channel.pipeline()

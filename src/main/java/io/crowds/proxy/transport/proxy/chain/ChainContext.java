@@ -52,7 +52,7 @@ public class ChainContext {
 
     public Future<Channel> createChannel() throws Exception {
         assert chainedTransport!=null;
-        return chainedTransport.createChannel(eventLoop,new Destination(netLocation),netLocation.getSrc().isIpv4()?AddrType.IPV4:AddrType.IPV6);
+        return chainedTransport.openChannel(eventLoop,new Destination(netLocation),netLocation.getSrc().isIpv4()?AddrType.IPV4:AddrType.IPV6);
     }
 
     class ProxyTransportTransport implements Transport{
@@ -64,7 +64,7 @@ public class ChainContext {
         }
 
         @Override
-        public Future<Channel> createChannel(EventLoop eventLoop, Destination dest, AddrType preferType) throws Exception {
+        public Future<Channel> openChannel(EventLoop eventLoop, Destination dest, AddrType preferType) throws Exception {
             Promise<Channel> promise = eventLoop.newPromise();
             Future<Channel> channelFuture;
             NetLocation nextLocation = new NetLocation(netLocation.getSrc(), dest.addr(), dest.tp());
@@ -84,11 +84,11 @@ public class ChainContext {
         }
 
         @Override
-        public Future<Channel> createChannel(EventLoop eventLoop, Destination dest, AddrType preferType, Transport delegate) throws Exception {
+        public Future<Channel> openChannel(EventLoop eventLoop, Destination dest, AddrType preferType, Transport delegate) throws Exception {
             if (delegate != this) {
                 throw new UnsupportedOperationException("Chained transport does not support delegating to other transports");
             }
-            return createChannel(eventLoop, dest, preferType);
+            return openChannel(eventLoop, dest, preferType);
         }
     }
 }
