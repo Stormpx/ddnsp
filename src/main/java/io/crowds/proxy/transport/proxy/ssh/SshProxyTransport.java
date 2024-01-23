@@ -28,6 +28,7 @@ import org.apache.sshd.common.config.keys.loader.KeyPairResourceLoader;
 import org.apache.sshd.common.future.KeyExchangeFuture;
 import org.apache.sshd.common.future.SshFuture;
 import org.apache.sshd.common.future.SshFutureListener;
+import org.apache.sshd.common.keyprovider.FileKeyPairProvider;
 import org.apache.sshd.common.session.SessionContext;
 import org.apache.sshd.common.util.io.resource.PathResource;
 import org.apache.sshd.common.util.security.SecurityUtils;
@@ -50,7 +51,7 @@ public class SshProxyTransport extends AbstractProxyTransport {
 
 
     private final SshClient sshClient;
-    private SshOption sshOption;
+    private final SshOption sshOption;
     private final ChannelDelegateServiceFactoryFactory channelDelegateServiceFactoryFactory;
 
     public SshProxyTransport(ChannelCreator channelCreator,SshOption sshOption) {
@@ -103,6 +104,7 @@ public class SshProxyTransport extends AbstractProxyTransport {
 
         List<Object> identities = new ArrayList<>();
         if (sshOption.getPassword()!=null){
+
             identities.add(sshOption.getPassword());
         }
         if (sshOption.getPrivateKey()!=null){
@@ -120,7 +122,9 @@ public class SshProxyTransport extends AbstractProxyTransport {
             }
         }
         if (!identities.isEmpty()) {
-            sshClient.setPasswordIdentityProvider(AuthenticationIdentitiesProvider.wrapIdentities(identities));
+            AuthenticationIdentitiesProvider identitiesProvider = AuthenticationIdentitiesProvider.wrapIdentities(identities);
+            sshClient.setPasswordIdentityProvider(identitiesProvider);
+            sshClient.setKeyIdentityProvider(identitiesProvider);
         }
         sshClient.setIoServiceFactoryFactory(this.channelDelegateServiceFactoryFactory);
         sshClient.start();
