@@ -24,7 +24,7 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.dns.AddressResolverOptions;
-import io.vertx.core.impl.VertxImpl;
+import io.vertx.core.impl.VertxInternal;
 import io.vertx.core.impl.resolver.DnsResolverProvider;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -89,7 +89,7 @@ public class DDnspOptionLoader {
     public Future<DDnspOption> load(){
 
         if (configRetriever==null){
-            DnsResolverProvider provider = new DnsResolverProvider((VertxImpl) vertx,  new AddressResolverOptions());
+            DnsResolverProvider provider = DnsResolverProvider.create((VertxInternal) vertx,  new AddressResolverOptions());
             if (provider.nameServerAddresses().isEmpty()){
                 throw new IllegalStateException("can not found default nameServers");
             }
