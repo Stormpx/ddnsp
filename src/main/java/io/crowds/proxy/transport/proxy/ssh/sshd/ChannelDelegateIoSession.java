@@ -141,7 +141,7 @@ public class ChannelDelegateIoSession extends AbstractCloseable implements IoSes
     @Override
     public IoWriteFuture writeBuffer(Buffer buffer) throws IOException {
         if (context==null){
-            throw new IOException("ChannelHandlerContext is not present");
+            throw new IOException("ChannelHandlerContext is not exists");
         }
         int available = buffer.available();
         ByteBuf byteBuf = context.alloc().buffer(available);
@@ -156,6 +156,12 @@ public class ChannelDelegateIoSession extends AbstractCloseable implements IoSes
                         future.setValue(cause==null?new RuntimeException("writeBuffer failed"):cause);
                     }
                 });
+        if (future.isDone()){
+            Throwable throwable = future.getException();
+            if (throwable!=null){
+                throw throwable instanceof IOException ioe? ioe : new IOException(throwable);
+            }
+        }
         return future;
     }
 

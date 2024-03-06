@@ -206,10 +206,11 @@ public class ChainTest extends ProxyTest {
     @Test
     public void tcpTest() throws Exception {
         setupSshServer();
-        var list = List.of(createVmessProxy(channelCreator,"vmess0"),createSsProxy(channelCreator,"ss0"),
+        var list = new ArrayList<>(List.of(createVmessProxy(channelCreator,"vmess0"),createSsProxy(channelCreator,"ss0"),
                 createTrojanProxy(channelCreator,"trojan0"),createVlessProxy(channelCreator,"vless0"),createSshProxy(channelCreator,"ssh0"),
-                createSocksProxy(channelCreator,"socks0"));
-
+                createSocksProxy(channelCreator,"socks0")));
+        Collections.shuffle(list);
+        System.out.println(list.stream().map(ProxyTransport::getTag).collect(Collectors.joining(",")));
 //        List<ProxyTransport> proxies = new ArrayList<>();
 //        for (int i = 0; i < list.size(); i++) {
 //            all(list,proxies,i, Lambdas.rethrowConsumer(it->{

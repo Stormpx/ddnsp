@@ -83,10 +83,7 @@ public class WRR extends TransportSelector {
     @Override
     public String nextTag(ProxyContext proxyContext) {
         int index = cursor.getAndIncrement();
-        if (index>= seq.length){
-            index%=seq.length;
-            cursor.set(index+1);
-        }
+        index%=seq.length;
         return tags.get(seq[index]);
     }
 
