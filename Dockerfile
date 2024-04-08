@@ -13,7 +13,7 @@ RUN jlink \
     --verbose \
     --add-modules \
         java.base,jdk.crypto.ec,java.compiler,java.desktop,jdk.jfr,jdk.management.jfr,java.management,java.naming,java.rmi,jdk.unsupported \
-    --compress 2 \
+    --compress zip-9 \
     --no-header-files \
     --no-man-pages \
     --output "$JAVA_MINIMAL"
