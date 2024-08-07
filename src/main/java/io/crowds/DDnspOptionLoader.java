@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import java.net.*;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 public class DDnspOptionLoader {
@@ -55,6 +56,7 @@ public class DDnspOptionLoader {
         }
         logger.info("config path: {}",configFile);
         var configOption=new ConfigRetrieverOptions()
+                .setScanPeriod(TimeUnit.SECONDS.toMillis(30))
                 .addStore(new ConfigStoreOptions()
                         .setType("file")
                         .setOptional(false)
