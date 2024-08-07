@@ -13,7 +13,7 @@ public record TtlRecord(DnsRecord record, long expireTimestamp){
     public boolean isTimeout(long timestamp){
         return expireTimestamp<timestamp;
     }
-    public int remainTtl(long timestamp){
+    public int remainTimeToLive(long timestamp){
         return Math.toIntExact((expireTimestamp - timestamp)/1000);
     }
 }

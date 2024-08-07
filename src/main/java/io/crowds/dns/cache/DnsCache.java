@@ -5,7 +5,6 @@ import io.crowds.util.Lambdas;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.EventLoop;
 import io.netty.handler.codec.dns.*;
-import io.netty.util.NetUtil;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -90,7 +89,7 @@ public class DnsCache {
             if (cacheEntries instanceof CnameEntries cnameEntries && !cacheEntries.isTimeout(ts)){
                 String cname = cnameEntries.cname();
                 TtlRecord ttlRecord = cacheEntries.records().get(0);
-                results.add(DnsKit.clone(ttlRecord.record(),ttlRecord.remainTtl(ts)));
+                results.add(DnsKit.clone(ttlRecord.record(),ttlRecord.remainTimeToLive(ts)));
                 if (recursive){
                     return getAnswer(new CacheKey(cname,key.type()),true,results);
                 }
@@ -102,7 +101,7 @@ public class DnsCache {
         }
         entries.records().stream()
                 .filter(ttlRecord -> !ttlRecord.isTimeout(ts))
-                .map(ttlRecord -> DnsKit.clone(ttlRecord.record(),ttlRecord.remainTtl(ts)))
+                .map(ttlRecord -> DnsKit.clone(ttlRecord.record(),ttlRecord.remainTimeToLive(ts)))
                 .forEach(results::add);
         return true;
     }
@@ -130,7 +129,7 @@ public class DnsCache {
         }
         return entries.records().stream()
                 .filter(ttlRecord -> !ttlRecord.isTimeout(ts))
-                .map(ttlRecord -> DnsKit.clone(ttlRecord.record(),ttlRecord.remainTtl(ts)))
+                .map(ttlRecord -> DnsKit.clone(ttlRecord.record(),ttlRecord.remainTimeToLive(ts)))
                 .toList();
     }
 
