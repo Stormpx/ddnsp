@@ -23,7 +23,7 @@ public abstract class AbstractProxyTransport implements ProxyTransport {
     }
 
     protected HandlerName handlerName(){
-        return new HandlerName(STR."\{protocol}-\{getTag()}");
+        return new HandlerName(protocol+"-"+getTag());
     }
 
     protected Destination getRemote(TP tp){return null;}

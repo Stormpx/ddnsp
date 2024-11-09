@@ -13,6 +13,6 @@ public class HandlerName {
     }
 
     public String with(String name){
-        return STR."\{base}-\{name}";
+        return base+"-"+name;
     }
 }

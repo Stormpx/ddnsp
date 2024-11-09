@@ -92,7 +92,7 @@ public class DirectTransport implements Transport {
         resolve(eventLoop,preferType,dst)
                 .addListener(resolveFuture->{
                     if (!resolveFuture.isSuccess()){
-                        promise.tryFailure(new SocketException(STR."unable resolve \{dst}",resolveFuture.cause()));
+                        promise.tryFailure(new SocketException("unable resolve "+dst,resolveFuture.cause()));
                         return;
                     }
                     NetAddr dest = (NetAddr) resolveFuture.get();

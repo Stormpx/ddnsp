@@ -50,7 +50,7 @@ public class ChainProxyTransport extends AbstractProxyTransport {
             }
             if (proxyTransport instanceof ChainProxyTransport chainProxyTransport) {
                 if (chainProxyTransport.getProxyTransports().contains(this)) {
-                    throw new IllegalArgumentException(STR."circular reference detected in chain \{chainProxyTransport.getTag()}");
+                    throw new IllegalArgumentException("circular reference detected in chain "+chainProxyTransport.getTag());
                 }
             }
 

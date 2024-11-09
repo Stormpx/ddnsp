@@ -41,9 +41,9 @@ public abstract class ProxyTest {
         return vertx.createHttpServer(new HttpServerOptions())
                     .requestHandler(request->{
                         System.out.println("---------------------------------------------------------");
-                        System.out.println(STR."\{request.method().toString()} \{request.uri()} \{request.version().toString()}");
+                        System.out.println(request.method().toString() + " " + request.uri() + " " + request.version().toString());
                         for (Map.Entry<String, String> entry : request.headers()) {
-                            System.out.println(STR."\{entry.getKey()}: \{entry.getValue()}");
+                            System.out.println(entry.getKey() + ": " + entry.getValue());
                         }
                         System.out.println("---------------------------------------------------------");
                         request.response()
