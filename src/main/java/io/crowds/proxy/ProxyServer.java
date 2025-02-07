@@ -1,5 +1,6 @@
 package io.crowds.proxy;
 
+import io.crowds.Context;
 import io.crowds.dns.DnsContext;
 import io.crowds.proxy.services.http.HttpServer;
 import io.crowds.proxy.services.socks.SocksServer;
@@ -22,9 +23,8 @@ public class ProxyServer {
     private final static Logger logger= LoggerFactory.getLogger(ProxyServer.class);
 
     private ProxyOption proxyOption;
-    private EventLoopGroup eventLoopGroup;
-
-    private Axis axis;
+    private final Context context;
+    private final Axis axis;
 
 
     private HttpServer httpServer;
@@ -33,12 +33,9 @@ public class ProxyServer {
 
     private List<TunService> tunServices;
 
-    public ProxyServer(EventLoopGroup eventLoopGroup) {
-        this(eventLoopGroup,eventLoopGroup);
-    }
-    public ProxyServer(EventLoopGroup acceptor,EventLoopGroup eventLoopGroup) {
-        this.eventLoopGroup = eventLoopGroup;
-        this.axis=new Axis(acceptor,eventLoopGroup);
+    public ProxyServer(Context context) {
+        this.context = context;
+        this.axis=new Axis(context);
     }
 
     public ProxyServer setProxyOption(ProxyOption proxyOption) {
@@ -49,7 +46,7 @@ public class ProxyServer {
 
     private Future<Void> startTun(TunOption tunOption){
         WireGuardOption wireGuardOption= (WireGuardOption) tunOption;
-        WireGuardTunService service = new WireGuardTunService(eventLoopGroup, wireGuardOption);
+        WireGuardTunService service = new WireGuardTunService(context, wireGuardOption);
         return service.start();
     }
 

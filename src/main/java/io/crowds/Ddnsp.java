@@ -3,6 +3,21 @@ package io.crowds;
 import io.crowds.dns.ClientOption;
 import io.crowds.dns.DnsClient;
 import io.crowds.dns.InternalDnsResolver;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFactory;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.ServerChannel;
+import io.netty.channel.epoll.Epoll;
+import io.netty.channel.epoll.EpollDatagramChannel;
+import io.netty.channel.epoll.EpollServerSocketChannel;
+import io.netty.channel.epoll.EpollSocketChannel;
+import io.netty.channel.socket.DatagramChannel;
+import io.netty.channel.socket.InternetProtocolFamily;
+import io.netty.channel.socket.ServerSocketChannel;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.socket.nio.NioDatagramChannel;
+import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.resolver.AddressResolverGroup;
 import io.netty.resolver.DefaultNameResolver;
 import io.netty.util.concurrent.EventExecutor;
@@ -24,7 +39,8 @@ import java.util.concurrent.atomic.AtomicReference;
 public class Ddnsp {
     private final static Logger logger= LoggerFactory.getLogger(Ddnsp.class);
 
-    public final static Vertx VERTX;
+    private final static Vertx VERTX;
+    private final static Context CONTEXT;
     private final static AtomicReference<InternalDnsResolver> INTERNAL_DNS_RESOLVER =new AtomicReference<>();
 
     static {
@@ -33,6 +49,8 @@ public class Ddnsp {
                 .setWorkerPoolSize(Math.max(Runtime.getRuntime().availableProcessors()/2,1))
                 .setInternalBlockingPoolSize(Runtime.getRuntime().availableProcessors())
                 .setPreferNativeTransport(true));
+
+        CONTEXT = new Context((VertxImpl) VERTX);
     }
 
     static {
@@ -47,17 +65,6 @@ public class Ddnsp {
         }
     }
 
-//    private static Unsafe getUnsafe() {
-//        Class<Unsafe> aClass = Unsafe.class;
-//        try {
-//            Field unsafe = aClass.getDeclaredField("theUnsafe");
-//            unsafe.setAccessible(true);
-//            return ((Unsafe) unsafe.get(null));
-//        } catch (Exception e) {
-//            throw new RuntimeException(e);
-//        }
-//
-//    }
 
     private static MethodHandles.Lookup fetchMethodHandlesLookup() {
         Class<MethodHandles.Lookup> lookupClass = MethodHandles.Lookup.class;
@@ -68,6 +75,14 @@ public class Ddnsp {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public static Vertx vertx(){
+        return VERTX;
+    }
+
+    public static Context context(){
+        return CONTEXT;
     }
 
     public static void initDnsResolver(InternalDnsResolver dnsClient){

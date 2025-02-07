@@ -7,12 +7,13 @@ import io.crowds.util.AddrType;
 import io.crowds.util.Inet;
 import io.crowds.util.Strs;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.socket.InternetProtocolFamily;
 import io.netty.handler.codec.dns.*;
 import io.netty.util.ReferenceCountUtil;
-import io.vertx.core.AsyncResult;
 import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
+import io.vertx.core.impl.VertxImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,31 +25,41 @@ import java.util.stream.Stream;
 
 public class DnsClient implements InternalDnsResolver{
     private final Logger logger= LoggerFactory.getLogger(DnsClient.class);
-    private Vertx vertx;
-    private EventLoopGroup eventLoopGroup;
-    private boolean tryIpv6;
-    private DnsCache dnsCache;
+    private final VertxImpl vertx;
+    private final EventLoopGroup eventLoopGroup;
+    private final DnsCache dnsCache;
 
+    private boolean tryIpv6;
     private DnsUpstream defaultStream;
     private List<DnsUpstream> upStreams;
 
 
     public DnsClient(Vertx vertx, ClientOption option) {
-        this.vertx=vertx;
-        this.eventLoopGroup= vertx.nettyEventLoopGroup();
+        this.vertx= (VertxImpl) vertx;
+        this.eventLoopGroup= ((VertxImpl)vertx).getEventLoopGroup();
         this.tryIpv6= option.isTryIpv6();
         this.dnsCache=new DnsCache(eventLoopGroup.next());
-        newDefaultStream();
+        initDefaultUpstream();
         newUpStreams(option.getUpstreams());
     }
 
-    private void newDefaultStream(){
+    private UdpUpstream newUdpUpstream(InetSocketAddress address){
+        if (address.isUnresolved()){
+            return null;
+        }
+        var channel = vertx.transport()
+                           .datagramChannel((address.getAddress() instanceof Inet4Address)?
+                                   InternetProtocolFamily.IPv4:InternetProtocolFamily.IPv6);
+        return new UdpUpstream(eventLoopGroup,channel,address);
+    }
+
+    private void initDefaultUpstream(){
         String server = System.getProperty("ddnsp.dns.default.server");
         if (Strs.isBlank(server)){
             server=Locale.getDefault()==Locale.CHINA?"114.114.114.114:53":"8.8.8.8:53";
         }
         InetSocketAddress address = Inet.parseInetAddress(server);
-        this.defaultStream = new UdpUpstream(eventLoopGroup,address);
+        this.defaultStream = newUdpUpstream(address);
     }
 
 
@@ -61,7 +72,7 @@ public class DnsClient implements InternalDnsResolver{
                 .map(uri->{
                     String scheme = uri.getScheme();
                     return switch (Strs.isBlank(scheme)?"dns":scheme) {
-                        case "dns", "udp" -> new UdpUpstream(eventLoopGroup, Inet.createSocketAddress(uri.getHost(), uri.getPort()));
+                        case "dns", "udp" -> newUdpUpstream(Inet.createSocketAddress(uri.getHost(), uri.getPort()));
                         case "http", "https" -> new DohUpstream(vertx, uri,this);
                         default -> {
                             logger.error("unsupported dns server {}",uri);

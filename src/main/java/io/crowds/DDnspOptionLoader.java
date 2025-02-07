@@ -40,7 +40,7 @@ public class DDnspOptionLoader {
 
     private final static Logger logger= LoggerFactory.getLogger(DDnspOptionLoader.class);
 
-    private Vertx vertx;
+    private final Vertx vertx;
 
     private ConfigRetriever configRetriever;
 
@@ -306,7 +306,6 @@ public class DDnspOptionLoader {
                 }
             } catch (Exception e) {
                 logger.warn("parse Resource record {} failed cause:{}",str,e.getMessage());
-                continue;
             }
         }
         return map;

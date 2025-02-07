@@ -32,12 +32,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import static io.crowds.lib.boringtun.wireguard_ffi_h.*;
 
 public class WireGuardTunnel implements Closeable {
     private final static Logger logger = LoggerFactory.getLogger(WireGuardTunnel.class);
-    private EventLoop eventLoop;
+    private final EventLoop eventLoop;
+    private final Function<InternetProtocolFamily,DatagramChannel> channelFactory;
     private boolean creatingSock;
     private DatagramSock sock;
     private List<ByteBuf> pendingList;
@@ -51,8 +53,9 @@ public class WireGuardTunnel implements Closeable {
 
     private Consumer<TunPacket> packetHandler;
 
-    public WireGuardTunnel(EventLoop eventLoop, String privateKey, PeerOption peer,int index) {
+    public WireGuardTunnel(EventLoop eventLoop, Function<InternetProtocolFamily, DatagramChannel> channelFactory, String privateKey, PeerOption peer, int index) {
         this.eventLoop=eventLoop;
+        this.channelFactory = channelFactory;
         this.peer=peer;
         try (Arena session = Arena.ofConfined()){
             this.tunnel = new_tunnel(
@@ -110,7 +113,7 @@ public class WireGuardTunnel implements Closeable {
         }
         boolean ipv4 = remoteAddress.getAddress() instanceof Inet4Address;
         var local = new InetSocketAddress(0);
-        DatagramChannel channel = Platform.getDatagramChannel(ipv4? InternetProtocolFamily.IPv4:InternetProtocolFamily.IPv6);
+        DatagramChannel channel = channelFactory.apply(ipv4? InternetProtocolFamily.IPv4:InternetProtocolFamily.IPv6);
         eventLoop.register(channel).addListener(bf->{
             if (!bf.isSuccess()){
                 creatingSock=false;

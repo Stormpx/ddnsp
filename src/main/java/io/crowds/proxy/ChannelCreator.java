@@ -1,5 +1,6 @@
 package io.crowds.proxy;
 
+import io.crowds.Context;
 import io.crowds.Platform;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.*;
@@ -20,22 +21,21 @@ import java.net.SocketAddress;
 
 public class ChannelCreator {
     private final static Logger logger= LoggerFactory.getLogger(ChannelCreator.class);
-    private EventLoopGroup eventLoopGroup;
+    private final Context context;
 
-
-    public ChannelCreator(EventLoopGroup eventLoopGroup) {
-        this.eventLoopGroup = eventLoopGroup;
+    public ChannelCreator(Context context) {
+        this.context = context;
     }
 
     public EventLoopGroup getEventLoopGroup() {
-        return eventLoopGroup;
+        return context.getEventLoopGroup();
     }
 
 
     public ChannelFuture createTcpChannel(SocketAddress address, ChannelInitializer<Channel> initializer) {
         Bootstrap bootstrap = new Bootstrap();
-        var cf=bootstrap.group(eventLoopGroup)
-                .channel(Platform.getSocketChannelClass())
+        var cf=bootstrap.group(context.getEventLoopGroup())
+                .channelFactory(context.getSocketChannelFactory())
                 .handler(initializer)
                 .connect(address);
         return cf;
@@ -47,11 +47,11 @@ public class ChannelCreator {
         if (Epoll.isAvailable()){
             bootstrap.option(EpollChannelOption.EPOLL_MODE, EpollMode.LEVEL_TRIGGERED);
         }
-        var cf=bootstrap.group(eventLoop)
-                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
-                .channel(Platform.getSocketChannelClass())
-                .handler(initializer)
-                .connect(remote,local);
+        var cf=bootstrap.group(context.getEventLoopGroup())
+                        .channelFactory(context.getSocketChannelFactory())
+                        .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
+                        .handler(initializer)
+                        .connect(remote,local);
         cf.addListener(f->{
             if (cf.isCancelled()){
                 promise.cancel(false);
@@ -73,9 +73,9 @@ public class ChannelCreator {
         SocketAddress localAddress = bindAddr != null ? bindAddr : new InetSocketAddress("0.0.0.0", 0);
         DatagramChannel udpChannel;
         if (localAddress instanceof InetSocketAddress inetSocketAddress){
-            udpChannel= Platform.getDatagramChannel(inetSocketAddress.getAddress() instanceof Inet4Address? InternetProtocolFamily.IPv4:InternetProtocolFamily.IPv6);
+            udpChannel= context.getDatagramChannel(inetSocketAddress.getAddress() instanceof Inet4Address? InternetProtocolFamily.IPv4:InternetProtocolFamily.IPv6);
         }else{
-            udpChannel= Platform.getDatagramChannel();
+            udpChannel= context.getDatagramChannel();
         }
         udpChannel.config().setOption(ChannelOption.SO_REUSEADDR,true);
         if (option.isIpTransparent()&& udpChannel instanceof EpollDatagramChannel){
@@ -85,7 +85,7 @@ public class ChannelCreator {
             udpChannel.pipeline().addLast(initializer);
         }
 
-        EventLoop eventLoop = option.getEventLoop()!=null? option.getEventLoop():eventLoopGroup.next();
+        EventLoop eventLoop = option.getEventLoop()!=null? option.getEventLoop():context.getEventLoopGroup().next();
         eventLoop.register(udpChannel);
 
         Promise<DatagramChannel> promise=eventLoop.newPromise();

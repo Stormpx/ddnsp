@@ -6,6 +6,7 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.DatagramPacket;
+import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.handler.codec.dns.*;
 
 import java.net.InetSocketAddress;
@@ -16,7 +17,7 @@ public class UdpTest {
 
         NioEventLoopGroup eventLoopGroup = new NioEventLoopGroup();
 
-        DatagramChannel channel = Platform.getDatagramChannel();
+        DatagramChannel channel = new NioDatagramChannel();
         channel.pipeline()
                 .addLast(new DatagramDnsQueryEncoder())
                 .addLast(new SimpleChannelInboundHandler<DatagramPacket>() {

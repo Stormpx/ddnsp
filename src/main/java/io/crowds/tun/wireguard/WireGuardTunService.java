@@ -1,5 +1,6 @@
 package io.crowds.tun.wireguard;
 
+import io.crowds.Context;
 import io.crowds.Platform;
 import io.crowds.tun.AbstractTunService;
 import io.crowds.lib.boringtun.Wg;
@@ -23,13 +24,13 @@ import java.util.stream.Collectors;
 
 public class WireGuardTunService extends AbstractTunService {
     private final static Logger logger= LoggerFactory.getLogger(WireGuardTunService.class);
-    private EventLoopGroup eventLoopGroup;
+    private final Context context;
 
     private List<WireGuardTunnel> tunnels;
 
-    public WireGuardTunService(EventLoopGroup eventLoopGroup, WireGuardOption option) {
+    public WireGuardTunService(Context context, WireGuardOption option) {
         super(option);
-        this.eventLoopGroup=eventLoopGroup;
+        this.context = context;
     }
 
 
@@ -38,7 +39,7 @@ public class WireGuardTunService extends AbstractTunService {
         WireGuardOption wireGuardOption = (WireGuardOption) option;
         try {
             this.tunnels = wireGuardOption.getPeers().stream()
-                    .map(peer-> new WireGuardTunnel(eventLoopGroup.next(), wireGuardOption.getPrivateKey(), peer, Wg.nextIndex())
+                    .map(peer-> new WireGuardTunnel(context.getEventLoopGroup().next(),context::getDatagramChannel, wireGuardOption.getPrivateKey(), peer, Wg.nextIndex())
                             .packetHandler(packet -> {
                                 if (logger.isDebugEnabled())
                                     logger.debug("receive ip packet from {} with src address {}",peer.endpointAddr(),packet.sourceAddress());

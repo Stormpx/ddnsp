@@ -10,13 +10,11 @@ import io.crowds.proxy.ProxyOption;
 import io.crowds.proxy.ProxyServer;
 import io.crowds.util.Mmdb;
 import io.crowds.util.Strs;
-import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.cli.CLI;
 import io.vertx.core.cli.CommandLine;
 import io.vertx.core.cli.Option;
-import io.vertx.core.impl.VertxImpl;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
@@ -31,7 +29,9 @@ public class Main {
     public static void main(String[] args) {
 //        ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.PARANOID);
         System.getProperties().setProperty("vertx.disableDnsResolver","true");
-        Vertx vertx = Ddnsp.VERTX;
+        Vertx vertx = Ddnsp.vertx();
+        Context context = Ddnsp.context();
+
         CLI cli = CLI.create("ddnsp")
                 .addOption(new Option().setShortName("c").setLongName("config").setMultiValued(false).setRequired(false));
 
@@ -50,16 +50,15 @@ public class Main {
                     var dnsClient=new DnsClient(vertx, dnsOption.genClientOption());
                     Ddnsp.initDnsResolver(dnsClient);
                     InetSocketAddress socketAddress = new InetSocketAddress(dnsOption.getHost(), dnsOption.getPort());
-                    DnsServer dnsServer = new DnsServer(vertx.nettyEventLoopGroup(),dnsClient).setOption(dnsOption);
+                    DnsServer dnsServer = new DnsServer(context,dnsClient).setOption(dnsOption);
                     Ddns ddns = new Ddns(vertx, option.getDdns());
-//                    ddns.startTimer();
                     Future<Void> dnsFuture = dnsServer.start(socketAddress);
-                    ProxyServer proxyServer = new ProxyServer(((VertxImpl)vertx).getAcceptorEventLoopGroup(),((VertxImpl) vertx).getEventLoopGroup())
+                    ProxyServer proxyServer = new ProxyServer(context)
                             .setProxyOption(proxyOption);
                     Future<Void> proxyFuture = proxyServer.start()
                             .onSuccess(v->{
                                 if (proxyServer.getDnsHandler()!=null){
-                                    dnsServer.contextHandler(proxyServer.getDnsHandler());
+                                    dnsServer.dnsContextHandler(proxyServer.getDnsHandler());
                                 }
                             });
 
@@ -88,7 +87,7 @@ public class Main {
                     }
 
 //                    LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)
-                    return CompositeFuture.any(dnsFuture,proxyFuture)
+                    return Future.any(dnsFuture,proxyFuture)
                             .onSuccess(cf->{
                                 if (!Strs.isBlank(option.getLogLevel())){
                                     setLoggerLevel(Level.toLevel(option.getLogLevel()));

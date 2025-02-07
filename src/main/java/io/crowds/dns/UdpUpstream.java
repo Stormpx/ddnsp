@@ -27,33 +27,25 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class UdpUpstream extends AbstractDnsUpstream {
     private final static Logger logger= LoggerFactory.getLogger(UdpUpstream.class);
 
-    private EventLoopGroup eventLoopGroup;
-    private DatagramChannel channel;
+    private final EventLoopGroup eventLoopGroup;
+    private final DatagramChannel channel;
 
     private InetSocketAddress defaultAddr;
     private Map<Integer,QueryContext> queryContextMap;
 
-    private AtomicInteger reqId=new AtomicInteger(0);
-    public UdpUpstream(EventLoopGroup eventLoopGroup, InetSocketAddress defaultAddr) {
+    private final AtomicInteger reqId=new AtomicInteger(0);
+    public UdpUpstream(EventLoopGroup eventLoopGroup, DatagramChannel channel,InetSocketAddress defaultAddr) {
         super(null);
         if (defaultAddr.isUnresolved()){
             throw new RuntimeException("unresolved address");
         }
         this.eventLoopGroup = eventLoopGroup;
+        this.channel=channel;
         this.queryContextMap=new HashMap<>();
         init(defaultAddr);
     }
 
-    public UdpUpstream(EventLoopGroup eventLoopGroup, InetSocketAddress defaultAddr,InternalDnsResolver internalDnsResolver) {
-        super(internalDnsResolver);
-        this.eventLoopGroup = eventLoopGroup;
-        this.queryContextMap=new HashMap<>();
-        bootLookup(defaultAddr).onSuccess(this::init);
-    }
-
     private void init(InetSocketAddress defaultAddr){
-        boolean ipv6=defaultAddr.getAddress() instanceof Inet6Address;
-        this.channel= Platform.getDatagramChannel(ipv6? InternetProtocolFamily.IPv6:InternetProtocolFamily.IPv4);
         this.defaultAddr=defaultAddr;
         this.channel.pipeline()
                 .addLast(new DatagramDnsQueryEncoder())

@@ -1,7 +1,7 @@
 package io.crowds.dns;
 
 
-import io.crowds.Platform;
+import io.crowds.Context;
 import io.netty.channel.*;
 import io.netty.channel.epoll.Epoll;
 import io.netty.channel.socket.DatagramChannel;
@@ -10,7 +10,6 @@ import io.netty.handler.codec.dns.*;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Promise;
-import io.vertx.core.buffer.impl.PartialPooledByteBufAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,21 +18,18 @@ import java.util.*;
 
 public class DnsServer {
     private final static Logger logger= LoggerFactory.getLogger(DnsServer.class);
-    private EventLoopGroup eventLoopGroup;
-    private DatagramChannel channel;
 
-    private DnsClient dnsClient;
+    private final Context context;
+
+    private final DatagramChannel channel;
 
     private DnsOption option;
 
+    private final DnsProcessor processor;
 
-    private DnsProcessor processor;
-
-    public DnsServer(EventLoopGroup eventLoopGroup,DnsClient dnsClient) {
-        this.eventLoopGroup = eventLoopGroup;
-        this.dnsClient=dnsClient;
-        this.channel= Platform.getDatagramChannel();
-        this.channel.config().setAllocator(PartialPooledByteBufAllocator.DEFAULT);
+    public DnsServer(Context context, DnsClient dnsClient) {
+        this.context = context;
+        this.channel= context.getDatagramChannel();
         this.channel.config().setOption(ChannelOption.SO_REUSEADDR,true);
         if (Epoll.isAvailable()){
             this.channel.config().setOption(UnixChannelOption.SO_REUSEPORT,true);
@@ -68,7 +64,7 @@ public class DnsServer {
     }
 
 
-    public DnsServer contextHandler(Handler<DnsContext> contextHandler) {
+    public DnsServer dnsContextHandler(Handler<DnsContext> contextHandler) {
         Objects.requireNonNull(contextHandler);
         this.processor.contextHandler(contextHandler);
         return this;
@@ -79,7 +75,7 @@ public class DnsServer {
             return Future.succeededFuture();
         }
         Promise<Void> promise = Promise.promise();
-        this.eventLoopGroup.register(channel);
+        this.context.getEventLoopGroup().register(channel);
         this.channel.bind(socketAddress).addListener(future -> {
             if (future.isSuccess()){
                 logger.info("start dns server {} success",socketAddress);

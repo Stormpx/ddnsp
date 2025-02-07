@@ -1,3 +1,4 @@
+import io.crowds.Context;
 import io.crowds.proxy.ProxyOption;
 import io.crowds.proxy.ProxyServer;
 import io.crowds.proxy.services.http.HttpOption;
@@ -8,6 +9,7 @@ import io.crowds.proxy.transport.proxy.shadowsocks.ShadowsocksOption;
 import io.crowds.proxy.transport.proxy.trojan.TrojanOption;
 import io.crowds.proxy.transport.proxy.vmess.VmessOption;
 import io.vertx.core.Vertx;
+import io.vertx.core.impl.VertxImpl;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 
@@ -20,7 +22,7 @@ public class ProxySver {
     public static void main(String[] args) throws InterruptedException, UnknownHostException {
 
         Vertx vertx = Vertx.vertx();
-        ProxyServer server = new ProxyServer(vertx.nettyEventLoopGroup());
+        ProxyServer server = new ProxyServer(new Context((VertxImpl) vertx));
 
         server.setProxyOption(new ProxyOption()
                         .setHttp(new HttpOption().setEnable(true).setHost("0.0.0.0").setPort(19999))

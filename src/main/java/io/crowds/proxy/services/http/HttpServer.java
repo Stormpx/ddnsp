@@ -1,5 +1,6 @@
 package io.crowds.proxy.services.http;
 
+import io.crowds.Context;
 import io.crowds.Platform;
 import io.crowds.proxy.Axis;
 import io.crowds.util.Inet;
@@ -28,8 +29,8 @@ import java.util.Objects;
 public class HttpServer {
     private final static Logger logger= LoggerFactory.getLogger(HttpServer.class);
 
-    private Axis axis;
-    private HttpOption httpOption;
+    private final Axis axis;
+    private final HttpOption httpOption;
 
     public HttpServer( HttpOption httpOption,Axis axis) {
         Objects.requireNonNull(axis);
@@ -42,8 +43,9 @@ public class HttpServer {
         Promise<Void> promise=Promise.promise();
         InetSocketAddress socketAddress = new InetSocketAddress(httpOption.getHost(), httpOption.getPort());
         ServerBootstrap serverBootstrap = new ServerBootstrap();
-        ServerBootstrap bootstrap = serverBootstrap.group(axis.getAcceptor(), axis.getEventLoopGroup())
-                .channel(Platform.getServerSocketChannelClass());
+        Context context = axis.getContext();
+        ServerBootstrap bootstrap = serverBootstrap.group(context.getAcceptor(), context.getEventLoopGroup())
+                .channelFactory(context.getServerChannelFactory());
         if (Epoll.isAvailable()){
             bootstrap.option(UnixChannelOption.SO_REUSEPORT,true)
                      .childOption(EpollChannelOption.EPOLL_MODE, EpollMode.LEVEL_TRIGGERED);

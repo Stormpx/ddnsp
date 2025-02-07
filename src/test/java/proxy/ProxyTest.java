@@ -1,5 +1,6 @@
 package proxy;
 
+import io.crowds.Context;
 import io.crowds.proxy.*;
 import io.crowds.proxy.transport.EndPoint;
 import io.crowds.proxy.transport.ProxyTransport;
@@ -17,6 +18,7 @@ import io.netty.util.concurrent.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
 import io.vertx.core.http.HttpServerOptions;
+import io.vertx.core.impl.VertxImpl;
 
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
@@ -30,7 +32,7 @@ import java.util.concurrent.TimeUnit;
 public abstract class ProxyTest {
     protected Vertx vertx = Vertx.vertx();
     protected EventLoopGroup eventLoopGroup=vertx.nettyEventLoopGroup();
-    protected ChannelCreator channelCreator=new ChannelCreator(eventLoopGroup);
+    protected ChannelCreator channelCreator=new ChannelCreator(new Context((VertxImpl) vertx));
 
     private static volatile boolean setupHttpServer=false;
 

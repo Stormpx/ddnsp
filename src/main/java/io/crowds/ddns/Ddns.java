@@ -22,8 +22,8 @@ import java.util.stream.Collectors;
 
 public class Ddns {
     private final static Logger logger= LoggerFactory.getLogger(Ddns.class);
-    private Vertx vertx;
-    private HttpClient httpClient;
+    private final Vertx vertx;
+    private final HttpClient httpClient;
 
     private DDnsOption option;
 
@@ -35,7 +35,8 @@ public class Ddns {
         this.vertx = vertx;
         this.httpClient=vertx.createHttpClient(new HttpClientOptions()
                         .setShared(true)
-                .setTryUseCompression(true).setKeepAlive(true));
+                        .setDecompressionSupported(true)
+                        .setKeepAlive(true));
         setOption(option);
         logger.info("ddns created");
     }
@@ -174,93 +175,20 @@ public class Ddns {
         }
         this.option=option;
 
-
-//        String resolver = Optional.ofNullable(option.getResolver()).orElse("");
-//        if (resolver.contains("cf")){
-//            if (this.dnsResolver!=null&&this.dnsResolver instanceof CloudFlareDnsResolver){
-//                this.dnsResolver.setConfig(option.getCf());
-//                return;
-//            }
-//            this.dnsResolver=new CloudFlareDnsResolver(httpClient,option.getCf());
-//
-//        }else if (resolver.contains("ali")){
-//
-//        }
-//        if (this.dnsResolver==null){
-//            throw new RuntimeException("dnsResolver "+resolver+" not find ");
-//        }
     }
 
-//    public void startTimer(){
-//
-//        int refreshInterval = option.getRefreshInterval();
-//        if (refreshInterval<=0)
-//            refreshInterval=3600;
-//
-//        vertx.setTimer(refreshInterval* 1000L, id->{
-//
-//            refreshResolve(true);
-//        });
-//
-//    }
-//
-//    public void refreshResolve(boolean loop){
-//
-//        if (loop) {
-//            startTimer();
-//        }
-//        if (!option.isEnable())
-//            return;
-//        logger.info("try start refresh resolve");
-//        httpIpProvider.getCurIpv4()
-//                .onFailure(t->logger.error("",t))
-//                .onSuccess(content->{
-//                    logger.info("get cur ip:{}",content);
-//                    if (option.getDomain()==null||option.getDomain().isBlank()){
-//                        logger.warn("domain is null can not further operation");
-//                        return;
-//                    }
-//                    dnsResolver.getRecord(option.getDomain())
-//                           .onFailure(t->logger.error("",t))
-//                           .onSuccess(list->{
-//                               logger.info("dns record size:{}",list.size());
-//                               var r=list.stream()
-//                                       .filter(it->it.getName().equals(option.getDomain()))
-//                                       //only check type A
-//                                       .filter(it->it.getType().equals("A"))
-//                                       .findFirst()
-//                                       .orElse(null);
-//                               if (r==null) {
-//                                   logger.warn("can not find dns record name:{}",option.getDomain());
-//                                   return;
-//                               }
-//                               if (!content.equals(r.getContent())){
-//                                   logger.info("cur content:{} != dns record content:{} update to cur content",content,r.getContent());
-//                                   int ttl = r.getTtl();
-//                                   if (option.getTtl()!=null&&option.getTtl()>0)
-//                                       ttl=option.getTtl();
-//
-//                                   dnsResolver.updateDnsResolve(r.setContent(content).setTtl(ttl))
-//                                        .onFailure(t->logger.error("",t))
-//                                        .onSuccess(v->logger.info("update suc"))
-//                                   ;
-//                               }
-//                           });
-//
-//                });
-//    }
 
     private class Context{
-        private TimeoutStream timer;
+        private Long timerId;
 
-        private String domain;
-        private Integer ttl;
-        private long refreshInterval;
-        private String provider;
-        private String resolver;
+        private final String domain;
+        private final Integer ttl;
+        private final long refreshInterval;
+        private final String provider;
+        private final String resolver;
 
-        private boolean ipv4;
-        private boolean ipv6;
+        private final boolean ipv4;
+        private final boolean ipv6;
 
         public Context(String domain, Integer ttl, long refreshInterval, String provider, String resolver,boolean ipv4,boolean ipv6) {
             this.domain = domain;
@@ -355,16 +283,14 @@ public class Ddns {
         }
 
         public void start(){
-            this.timer=vertx.periodicStream(refreshInterval*1000L)
-                    .handler(id->{
-                        resolve();
-                    });
+            this.timerId = vertx.setPeriodic(refreshInterval*1000L,refreshInterval*1000L,id->resolve());
 
         }
 
         public void cancel(){
-            if (this.timer!=null){
-                this.timer.cancel();
+            if (this.timerId!=null){
+                vertx.cancelTimer(this.timerId);
+                this.timerId=null;
             }
         }
 

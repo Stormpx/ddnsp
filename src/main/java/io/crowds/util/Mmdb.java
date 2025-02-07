@@ -8,6 +8,7 @@ import io.netty.buffer.ByteBufInputStream;
 import io.vertx.core.Future;
 import io.vertx.core.TimeoutStream;
 import io.vertx.core.Vertx;
+import io.vertx.core.buffer.impl.BufferImpl;
 import io.vertx.core.http.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,16 +26,16 @@ import java.util.concurrent.TimeUnit;
 public class Mmdb {
     private final static Logger logger= LoggerFactory.getLogger(Mmdb.class);
     private static Mmdb instance;
-    private  Vertx vertx;
-    private HttpClient httpClient;
+    private final Vertx vertx;
+    private final HttpClient httpClient;
 
     private long duration;
     private TimeUnit timeUnit;
 
     private String target;
 
-    private TimeoutStream timeoutStream;
-    private  DatabaseReader database=null;
+    private Long timerId;
+    private volatile DatabaseReader database=null;
 
     public Mmdb(Vertx vertx, long duration, TimeUnit timeUnit) {
         Objects.requireNonNull(vertx);
@@ -62,15 +63,15 @@ public class Mmdb {
     }
 
     private void setReloadTimer(){
-        if (timeoutStream!=null)
-            timeoutStream.cancel();
+        if (timerId!=null) {
+            vertx.cancelTimer(timerId);
+        }
 
-        timeoutStream=vertx.timerStream(timeUnit.toMillis(duration))
-                .handler(id->{
-                    logger.info("try reload mmdb target: {}",target);
-                    load(target);
-                    setReloadTimer();
-                });
+        timerId = vertx.setTimer(timeUnit.toMillis(duration),id->{
+            logger.info("try reload mmdb target: {}",target);
+            load(target);
+            setReloadTimer();
+        });
 
     }
 
@@ -107,7 +108,7 @@ public class Mmdb {
                     })
                     .<Void>compose(buffer->{
                         try {
-                            load(new ByteBufInputStream(buffer.getByteBuf()));
+                            load(new ByteBufInputStream(((BufferImpl)buffer).byteBuf()));
                             return Future.succeededFuture(null);
                         } catch (Exception e) {
                             return Future.failedFuture(e);

@@ -1,5 +1,6 @@
 package io.crowds.proxy;
 
+import io.crowds.Context;
 import io.crowds.proxy.dns.FakeContext;
 import io.crowds.proxy.dns.FakeDns;
 import io.crowds.proxy.dns.FakeOption;
@@ -33,10 +34,7 @@ import java.util.function.Supplier;
 
 public class Axis {
     private final static Logger logger= LoggerFactory.getLogger(Axis.class);
-    private final static String DEFAULT_TRANSPORT="direct";
-    private final static String BLOCK_TRANSPORT="block";
-    private EventLoopGroup acceptor;
-    private EventLoopGroup eventLoopGroup;
+    private final Context context;
     private ChannelCreator channelCreator;
     private ProxyOption proxyOption;
 
@@ -48,12 +46,12 @@ public class Axis {
 
     private UdpMappings mappings;
 
-    public Axis(EventLoopGroup acceptor,EventLoopGroup eventLoopGroup) {
-        this.eventLoopGroup = eventLoopGroup;
-        this.acceptor=acceptor;
-        this.channelCreator = new ChannelCreator(eventLoopGroup);
+    public Axis(Context context) {
+        this.context = context;
+        this.channelCreator = new ChannelCreator(context);
         this.mappings=new UdpMappings();
     }
+
 
     public Axis setProxyOption(ProxyOption proxyOption) {
 
@@ -92,7 +90,7 @@ public class Axis {
                     throw new IllegalArgumentException("expect ipv6 cidr");
                 }
             }
-            this.fakeDns=new FakeDns(eventLoopGroup.next(), router,ipv4Cidr,ipv6Cidr,fakeOption.getDestStrategy());
+            this.fakeDns=new FakeDns(context.getEventLoopGroup().next(), router,ipv4Cidr,ipv6Cidr,fakeOption.getDestStrategy());
             logger.info("fake dns setup.");
         } catch (Exception e) {
             logger.warn("failed to create fakeDns cause:{}",e.getMessage());
@@ -256,12 +254,8 @@ public class Axis {
         }
     }
 
-    public EventLoopGroup getAcceptor() {
-        return acceptor;
-    }
-
-    public EventLoopGroup getEventLoopGroup() {
-        return eventLoopGroup;
+    public Context getContext() {
+        return context;
     }
 
     public ChannelCreator getChannelCreator() {
@@ -275,7 +269,7 @@ public class Axis {
 
     public static class UdpMappings{
 //        private Map<NetLocation, ReentrantLock> lockTable;
-        private Map<NetLocation, Future<ProxyContext>> contexts;
+        private final Map<NetLocation, Future<ProxyContext>> contexts;
 
 
         public UdpMappings() {

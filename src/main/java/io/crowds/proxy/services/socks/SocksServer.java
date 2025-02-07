@@ -1,5 +1,6 @@
 package io.crowds.proxy.services.socks;
 
+import io.crowds.Context;
 import io.crowds.Platform;
 import io.crowds.proxy.Axis;
 import io.crowds.proxy.DatagramOption;
@@ -52,7 +53,9 @@ public class SocksServer {
         Promise<Void> promise=Promise.promise();
         InetSocketAddress socketAddress = new InetSocketAddress(socksOption.getHost(), socksOption.getPort());
         ServerBootstrap serverBootstrap = new ServerBootstrap();
-        ServerBootstrap bootstrap = serverBootstrap.group(axis.getAcceptor(), axis.getEventLoopGroup()).channel(Platform.getServerSocketChannelClass());
+        Context context = axis.getContext();
+        ServerBootstrap bootstrap = serverBootstrap.group(context.getAcceptor(), context.getEventLoopGroup())
+                .channelFactory(context.getServerChannelFactory());
         if (Epoll.isAvailable()){
             bootstrap.option(UnixChannelOption.SO_REUSEPORT,true)
                     .childOption(EpollChannelOption.EPOLL_MODE, EpollMode.LEVEL_TRIGGERED);

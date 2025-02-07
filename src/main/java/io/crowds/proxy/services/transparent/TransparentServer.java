@@ -1,5 +1,6 @@
 package io.crowds.proxy.services.transparent;
 
+import io.crowds.Context;
 import io.crowds.Platform;
 import io.crowds.proxy.Axis;
 import io.crowds.proxy.DatagramOption;
@@ -61,7 +62,7 @@ public class TransparentServer {
             return Future.failedFuture("");
         }
 
-        List<Future> udpf=StreamSupport.stream(axis.getEventLoopGroup().spliterator(),false)
+        List<Future> udpf=StreamSupport.stream(axis.getContext().getEventLoopGroup().spliterator(),false)
                 .map(v->this.startUdp(socketAddress))
                 .collect(Collectors.toList());
         return CompositeFuture.any(startTcp(socketAddress),CompositeFuture.all(udpf).map((Void)null))
@@ -71,9 +72,9 @@ public class TransparentServer {
 
     private Future<Void> startTcp(SocketAddress socketAddress){
         Promise<Void> promise=Promise.promise();
-
+        Context context = axis.getContext();
         ServerBootstrap serverBootstrap = new ServerBootstrap();
-        serverBootstrap.channel(Platform.getServerSocketChannelClass())
+        serverBootstrap.channelFactory(context.getServerChannelFactory())
                        .option(ChannelOption.SO_REUSEADDR,true)
                        .option(UnixChannelOption.SO_REUSEPORT,true)
                        .option(EpollChannelOption.IP_TRANSPARENT,true)
@@ -82,7 +83,7 @@ public class TransparentServer {
         ;
 
         serverBootstrap
-                .group(axis.getAcceptor(),axis.getEventLoopGroup())
+                .group(context.getAcceptor(),context.getEventLoopGroup())
                 .childHandler(new ChannelInitializer<SocketChannel>(){
 
                     @Override
@@ -107,10 +108,11 @@ public class TransparentServer {
 
     private Future<Void> startUdp(SocketAddress socketAddress){
         Promise<Void> promise=Promise.promise();
+        Context context = axis.getContext();
         Bootstrap bootstrap = new Bootstrap();
         bootstrap
-                .group(axis.getEventLoopGroup())
-                .channel(Platform.getDatagramChannelClass())
+                .group(context.getEventLoopGroup())
+                .channelFactory(context::getDatagramChannel)
                 .option(ChannelOption.SO_REUSEADDR,true)
                 .option(UnixChannelOption.SO_REUSEPORT,true)
                 .option(EpollChannelOption.IP_TRANSPARENT,true)
