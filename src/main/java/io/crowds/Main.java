@@ -6,12 +6,10 @@ import io.crowds.ddns.Ddns;
 import io.crowds.dns.DnsClient;
 import io.crowds.dns.DnsServer;
 import io.crowds.dns.DnsOption;
-import io.crowds.dns.InternalDnsResolver;
 import io.crowds.proxy.ProxyOption;
 import io.crowds.proxy.ProxyServer;
 import io.crowds.util.Mmdb;
 import io.crowds.util.Strs;
-import io.netty.util.ResourceLeakDetector;
 import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
@@ -45,7 +43,6 @@ public class Main {
         if (configFile != null) {
            loader.setFilePath(configFile);
         }
-
         loader.load()
                 .compose(option->{
                     ProxyOption proxyOption = option.getProxy();
@@ -56,9 +53,8 @@ public class Main {
                     DnsServer dnsServer = new DnsServer(vertx.nettyEventLoopGroup(),dnsClient).setOption(dnsOption);
                     Ddns ddns = new Ddns(vertx, option.getDdns());
 //                    ddns.startTimer();
-
                     Future<Void> dnsFuture = dnsServer.start(socketAddress);
-                    ProxyServer proxyServer = new ProxyServer(((VertxImpl)vertx).getAcceptorEventLoopGroup(),vertx.nettyEventLoopGroup())
+                    ProxyServer proxyServer = new ProxyServer(((VertxImpl)vertx).getAcceptorEventLoopGroup(),((VertxImpl) vertx).getEventLoopGroup())
                             .setProxyOption(proxyOption);
                     Future<Void> proxyFuture = proxyServer.start()
                             .onSuccess(v->{
