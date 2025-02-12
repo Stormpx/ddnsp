@@ -10,7 +10,6 @@ import io.netty.channel.epoll.EpollDatagramChannel;
 import io.netty.channel.epoll.EpollMode;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.InternetProtocolFamily;
-import io.netty.resolver.dns.DnsNameResolver;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.FutureListener;
 import io.netty.util.concurrent.Promise;
@@ -27,12 +26,12 @@ public class ChannelCreator {
     private final static Logger logger= LoggerFactory.getLogger(ChannelCreator.class);
 
     private final Context context;
-    private final EventLoop eventLoop;
+    private final EventLoop executor;
     private final Map<InetSocketAddress,Future<DatagramChannel>> foreignChannelLookups;
 
     public ChannelCreator(Context context) {
         this.context = context;
-        this.eventLoop=context.getEventLoopGroup().next();
+        this.executor =context.getEventLoopGroup().next();
         this.foreignChannelLookups=new ConcurrentHashMap<>();
     }
 
@@ -97,7 +96,7 @@ public class ChannelCreator {
     private Future<DatagramChannel> getOrCreateForeignDatagramChannel(InetSocketAddress bindAddr,EventLoop eventLoop, ChannelInitializer<Channel> initializer) {
         assert bindAddr!=null;
         assert eventLoop!=null;
-        if (eventLoop.inEventLoop()){
+        if (this.executor.inEventLoop()){
             Future<DatagramChannel> result = foreignChannelLookups.get(bindAddr);
             if (result!=null){
                 return result;
@@ -116,8 +115,8 @@ public class ChannelCreator {
             });
             return future;
         }else{
-            Promise<DatagramChannel> promise = eventLoop.newPromise();
-            eventLoop.submit(()-> getOrCreateForeignDatagramChannel(bindAddr,eventLoop, initializer).addListener(Async.cascade(promise)));
+            Promise<DatagramChannel> promise = this.executor.newPromise();
+            this.executor.submit(()-> getOrCreateForeignDatagramChannel(bindAddr,eventLoop, initializer).addListener(Async.cascade(promise)));
             return promise;
         }
     }
