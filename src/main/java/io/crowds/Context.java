@@ -19,7 +19,7 @@ public class Context {
         return vertx.getAcceptorEventLoopGroup();
     }
     public EventLoopGroup getEventLoopGroup(){
-        return vertx.getAcceptorEventLoopGroup();
+        return vertx.getEventLoopGroup();
     }
     public DatagramChannel getDatagramChannel(InternetProtocolFamily family){
         return vertx.transport().datagramChannel(family);

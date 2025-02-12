@@ -69,7 +69,7 @@ public class IpCidrTest {
 
     @Test
     public void ipPoolTest(){
-        String ip="10.10.1.44";
+        String ip="192.10.1.44";
 
 
         for (int i = 4; i <= 32; i++) {
@@ -82,7 +82,11 @@ public class IpCidrTest {
                 address=ipPool.getAvailableAddress();
             }
             System.out.println(i+" "+c);
-            Assert.assertEquals(c, Math.pow(2, 32-i), 0.0);
+            if (i<31) {
+                Assert.assertEquals(Math.pow(2, 32 - i) - 2, c, 0.0);
+            }else{
+                Assert.assertEquals(0, c, 0.0);
+            }
         }
 
 

@@ -81,7 +81,7 @@ public class DirectTransport implements Transport {
         }
         Async.cascadeFailure(resolve(eventLoop,preferType,dst),promise,resolveFuture->{
             NetAddr dest = resolveFuture.get();
-            var cf= channelCreator.createTcpChannel(eventLoop,getLocalAddr(dest.isIpv6()),dest.getAddress(), initializer);
+            var cf= channelCreator.createSocketChannel(eventLoop,getLocalAddr(dest.isIpv6()),dest.getAddress(), initializer);
             PromiseNotifier.cascade(cf,promise);
         });
         return promise;

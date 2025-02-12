@@ -2,6 +2,8 @@ package io.crowds.util;
 
 import io.netty.util.NetUtil;
 
+import java.math.BigInteger;
+import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.Objects;
@@ -9,8 +11,10 @@ import java.util.Objects;
 public class IPCIDR {
 
     private InetAddress address;
-    private byte[] addressBytes;
-    private byte[] prefixBytes;
+
+    private final BigInteger netBits;
+    private final BigInteger netInt;
+
     private int mask;
 
     public IPCIDR(String cidr) {
@@ -23,37 +27,38 @@ public class IPCIDR {
         if (this.address==null){
             throw new IllegalArgumentException("invalid host "+strings[0]);
         }
-        this.addressBytes =this.address.getAddress();
         this.mask=Integer.parseInt(strings[1]);
+        var addressBytes =this.address.getAddress();
         if (this.mask<0||this.mask> addressBytes.length*8){
             throw new IllegalArgumentException("invalid mask");
         }
-        this.prefixBytes=new byte[addressBytes.length];
-        int i = this.mask / 8;
-        Arrays.fill(this.prefixBytes,0,i, (byte) 0xff);
-        if (i <this.addressBytes.length&&this.mask%8!=0){
-            int j = -256 >> (this.mask % 8);
-            this.prefixBytes[i]= (byte) (0xff&j);
-            this.addressBytes[i]= (byte) (this.addressBytes[i]& j);
-            Arrays.fill(this.addressBytes,i+1,this.addressBytes.length, (byte) 0);
-        }else {
-            Arrays.fill(this.addressBytes, i, this.addressBytes.length, (byte) 0);
+
+        if (mask==0){
+            this.netBits = BigInteger.ZERO;
+            this.netInt = new BigInteger(addressBytes);
+        }else{
+            int bitLength = addressBytes.length * 8;
+            var allOne = BigInteger.ONE.shiftLeft(bitLength).subtract(BigInteger.ONE);
+            var idBits = BigInteger.ONE.shiftLeft(bitLength-mask).subtract(BigInteger.ONE);
+            this.netBits = allOne.subtract(idBits);
+//            System.out.println(new BigInteger(addressBytes));
+            this.netInt = new BigInteger(addressBytes).and(netBits);
         }
     }
 
 
-    public boolean isMatch(byte[] bytes){
-        if (this.mask==0)
-            return true;
-        if (bytes.length!=this.addressBytes.length)
-            return false;
-
-        for (int i = 0; i < this.addressBytes.length; i++) {
-            if ((this.prefixBytes[i]&bytes[i])!=this.addressBytes[i]){
-                return false;
+    public boolean isMatch(byte[] addr){
+        return switch (mask) {
+            case 0 -> true;
+            default -> {
+                BigInteger bigInteger = new BigInteger(addr);
+                yield netInt.compareTo(bigInteger.and(this.netBits)) == 0;
             }
-        }
-        return true;
+        };
+    }
+
+    public boolean isBroadcastAddress(byte[] addr){
+        return new BigInteger(addr).andNot(netBits).bitCount() == mask;
     }
 
     public InetAddress getAddress() {
@@ -65,15 +70,21 @@ public class IPCIDR {
     }
 
     public int getMaximumMask(){
-        return addressBytes.length*8;
+        return (this.address instanceof Inet4Address?4:16)*8;
     }
 
     public byte[] getFirstAddress(){
-        return Arrays.copyOf(this.addressBytes,this.addressBytes.length);
+        var address = new byte[this.address instanceof Inet4Address?4:16];
+        byte[] byteArray = this.netInt.toByteArray();
+        System.arraycopy(byteArray,byteArray.length==address.length?0:1,address,0,address.length);
+        return address;
     }
 
     public byte[] getPrefixBytes() {
-        return Arrays.copyOf(this.prefixBytes,this.prefixBytes.length);
+        var prefix = new byte[this.address instanceof Inet4Address?4:16];
+        byte[] byteArray = this.netBits.toByteArray();
+        System.arraycopy(byteArray,byteArray.length==prefix.length?0:1,prefix,0,prefix.length);
+        return prefix;
     }
 
 

@@ -107,17 +107,7 @@ public class FakeDns implements Handler<DnsContext> {
             domainFakeMap.put(domain,fakeContext);
             addrFakeMap.put(fakeAddr,fakeContext);
             executors.schedule(()->{
-                boolean del = false;
-                FakeContext context = domainFakeMap.get(domain);
-                if (context!=null&&Objects.equals(context.getId(),fakeContext.getId())){
-                    domainFakeMap.remove(domain);
-                    del=true;
-                }
-                context=addrFakeMap.get(fakeAddr);
-                if (context!=null&&Objects.equals(context.getId(),fakeContext.getId())){
-                    addrFakeMap.remove(fakeAddr);
-                    del=true;
-                }
+                boolean del = domainFakeMap.remove(domain,fakeContext) | addrFakeMap.remove(fakeAddr,fakeContext);
                 if (del)
                     ipPool.release(fakeAddr);
             }, (long) (realAddr.ttl()*1.5), TimeUnit.SECONDS);

@@ -18,8 +18,10 @@ import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.DatagramPacket;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.unix.UnixChannelOption;
+import io.netty.resolver.dns.DnsNameResolver;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.FutureListener;
+import io.netty.util.concurrent.GlobalEventExecutor;
 import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
@@ -153,22 +155,10 @@ public class TransparentServer {
 
 
     private io.netty.util.concurrent.Future<DatagramChannel> createForeignChannel(InetSocketAddress address)  {
-        return tupleMap.computeIfAbsent(address,k->{
-            var future= axis.getChannelCreator().createDatagramChannel(
-                    new DatagramOption().setBindAddr(address).setIpTransport(true),
-                    new BaseChannelInitializer().connIdle(300,(ch,idleStateEvent) -> ch.close())
-            );
-            future.addListener((FutureListener<DatagramChannel>)f->{
-                if (!f.isSuccess()){
-                    tupleMap.remove(address);
-                    return;
-                }
-                DatagramChannel channel = f.get();
-                channel.closeFuture().addListener(it->tupleMap.remove(address));
-            });
-            return future;
-        });
-
+        return  axis.getChannelCreator().createDatagramChannel(
+                new DatagramOption().setBindAddr(address).setIpTransport(true),
+                new BaseChannelInitializer().connIdle(300,(ch,idleStateEvent) -> ch.close())
+        );
     }
 
     private InetSocketAddress getFakeAddress(InetSocketAddress address, AddrType addrType){

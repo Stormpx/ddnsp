@@ -58,7 +58,7 @@ public abstract class FullConeProxyTransport extends AbstractProxyTransport {
                             if (!udpFuture.isDone()||udpFuture.isSuccess()){
                                 udpFuture.addListener((FutureListener<UdpChannel>)future -> {
                                     if (!future.isSuccess()){
-                                        udpChannelMap.remove(src);
+                                        udpChannelMap.remove(src,udpFuture);
                                     }
                                     UdpChannel udpChannel = future.get();
 
@@ -66,7 +66,7 @@ public abstract class FullConeProxyTransport extends AbstractProxyTransport {
                                         udpChannel.fallbackHandler(proxyContext.fallbackPacketHandler());
 
                                     udpChannel.getChannel().closeFuture()
-                                              .addListener(_->udpChannelMap.remove(src));
+                                              .addListener(_->udpChannelMap.remove(src,udpFuture));
                                 });
                             }
                             return udpFuture;

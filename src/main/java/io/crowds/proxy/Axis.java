@@ -22,6 +22,7 @@ import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.DatagramPacket;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.GlobalEventExecutor;
 import io.netty.util.concurrent.Promise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -268,12 +269,10 @@ public class Axis {
 
 
     public static class UdpMappings{
-//        private Map<NetLocation, ReentrantLock> lockTable;
         private final Map<NetLocation, Future<ProxyContext>> contexts;
 
 
         public UdpMappings() {
-//            this.lockTable=new ConcurrentHashMap<>();
             this.contexts =new ConcurrentHashMap<>();
         }
 
@@ -282,49 +281,24 @@ public class Axis {
             return contexts.get(netLocation);
         }
 
-        private void del(NetLocation netLocation){
-//            lockTable.remove(netLocation);
-            contexts.remove(netLocation);
-        }
 
         public Future<ProxyContext> getOrCreate(NetLocation netLocation, Supplier<Future<ProxyContext>> supplier){
             Future<ProxyContext> future = get(netLocation);
             if (future!=null)
                 return future;
             return contexts.computeIfAbsent(netLocation,k-> {
-                        return supplier.get()
+                Future<ProxyContext> proxyContextFuture = supplier.get();
+                return proxyContextFuture
                                 .addListener(p->{
                                     if (!p.isSuccess()){
-                                        del(netLocation);
+                                        GlobalEventExecutor.INSTANCE.execute(()->contexts.remove(netLocation,proxyContextFuture));
                                         return;
                                     }
                                     ProxyContext context= (ProxyContext) p.get();
-                                    context.closeHandler(v->del(netLocation));
+                                    context.closeHandler(v->contexts.remove(netLocation,proxyContextFuture));
                                 });
                     });
-//            ReentrantLock lock = lockTable.computeIfAbsent(netLocation, k -> new ReentrantLock());
-//            lock.lock();
-//            try {
-//                future= contexts.get(netLocation);
-//                if (future!=null)
-//                    return future;
-//
-//
-//                future=supplier.get();
-//                contexts.put(netLocation,future);
-//                future.addListener(p->{
-//                    if (!p.isSuccess()){
-//                        contexts.remove(netLocation);
-//                        return;
-//                    }
-//                    ProxyContext context= (ProxyContext) p.get();
-//                    context.closeHandler(v->del(netLocation));
-//                });
-//
-//                return future;
-//            } finally {
-//                lock.unlock();
-//            }
+
         }
 
 

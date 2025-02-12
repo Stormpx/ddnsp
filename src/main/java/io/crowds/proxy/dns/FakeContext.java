@@ -9,7 +9,6 @@ import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class FakeContext {
-    private long id;
     private InetAddress fakeAddr;
     private String domain;
     private RealAddr realAddr;
@@ -19,7 +18,6 @@ public class FakeContext {
 
     public FakeContext(InetAddress fakeAddr, String domain, RealAddr realAddr, String tag, String destStrategy) {
         this.destStrategy = destStrategy;
-        this.id= ThreadLocalRandom.current().nextInt();
         this.fakeAddr = fakeAddr;
         this.domain = domain;
         this.realAddr = realAddr;
@@ -35,9 +33,6 @@ public class FakeContext {
         }
     }
 
-    public long getId() {
-        return id;
-    }
 
     public InetAddress getFakeAddr() {
         return fakeAddr;
