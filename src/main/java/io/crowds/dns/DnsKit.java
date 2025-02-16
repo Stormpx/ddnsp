@@ -136,41 +136,32 @@ public class DnsKit {
         return dst;
     }
 
-    public static DnsRecord clone(DnsRecord record){
+    public static DnsRecord clone(DnsRecord record,long ttl,boolean copyContent){
         if (record instanceof DnsQuestion) {
-            return record;
+            return new DefaultDnsQuestion(record.name(),record.type(),record.dnsClass());
+        } else if (record instanceof DnsRawRecord) {
+            ByteBuf content = ((DnsRawRecord) record).content();
+            content = !copyContent?content.slice():Unpooled.copiedBuffer(content);
+            return new DefaultDnsRawRecord(record.name(),record.type(),record.dnsClass(),ttl,content);
         } else if (record instanceof DnsPtrRecord) {
-//            return new DefaultDnsPtrRecord(record.name(),record.dnsClass(),record.timeToLive(),((DnsPtrRecord) record).hostname());
             String hostname = ((DnsPtrRecord) record).hostname();
             ByteBuf content = encodeDomainName(hostname, Unpooled.buffer());
-            return new DefaultDnsRawRecord(record.name(),DnsRecordType.PTR,record.dnsClass(),record.timeToLive(),content);
+            return new DefaultDnsRawRecord(record.name(),DnsRecordType.PTR,record.dnsClass(),ttl,content);
+            //            return new DefaultDnsPtrRecord(record.name(),record.dnsClass(),ttl,((DnsPtrRecord) record).hostname());
         } else if (record instanceof DnsOptEcsRecord) {
             return record;
         } else if (record instanceof DnsOptPseudoRecord) {
             return record;
-        } else if (record instanceof DnsRawRecord) {
-            return new DefaultDnsRawRecord(record.name(),record.type(),record.dnsClass(),record.timeToLive(),Unpooled.copiedBuffer(((DnsRawRecord) record).content()));
         }
         return null;
     }
 
     public static DnsRecord clone(DnsRecord record,long ttl){
-        if (record instanceof DnsQuestion) {
-            return new DefaultDnsQuestion(record.name(),record.type(),record.dnsClass());
-        } else if (record instanceof DnsPtrRecord) {
-            String hostname = ((DnsPtrRecord) record).hostname();
-            ByteBuf content = encodeDomainName(hostname, Unpooled.buffer());
-            return new DefaultDnsRawRecord(record.name(),DnsRecordType.PTR,record.dnsClass(),ttl,content);
-//            return new DefaultDnsPtrRecord(record.name(),record.dnsClass(),ttl,((DnsPtrRecord) record).hostname());
+        return clone(record,ttl,true);
+    }
 
-        } else if (record instanceof DnsOptEcsRecord) {
-            return record;
-        } else if (record instanceof DnsOptPseudoRecord) {
-            return record;
-        } else if (record instanceof DnsRawRecord) {
-            return new DefaultDnsRawRecord(record.name(),record.type(),record.dnsClass(),ttl,Unpooled.copiedBuffer(((DnsRawRecord) record).content()));
-        }
-        return null;
+    public static DnsRecord clone(DnsRecord record){
+        return clone(record, record.timeToLive());
     }
 
     public static void encodeQueryHeader(DnsQuery query,ByteBuf out){

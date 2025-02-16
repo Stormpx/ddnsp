@@ -33,7 +33,7 @@ public class IpPool {
         return this.ipcidr.isMatch(address.getAddress());
     }
 
-    private InetAddress nextAddress() throws UnknownHostException {
+    private byte[] nextAddress(){
         int seqIndex = ipcidr.getMask() / 8;
         for (int i = address.length-1; i > seqIndex-1; i--) {
             if (i==seqIndex){
@@ -43,7 +43,7 @@ public class IpPool {
             }
             address[i]++;
             if (address[i]!=0){
-                return InetAddress.getByAddress(address);
+                return address;
             }
         }
         return null;
@@ -59,13 +59,15 @@ public class IpPool {
                 return null;
             }
 
-            InetAddress next = nextAddress();
+            var next = nextAddress();
             if (next!=null){
-                if (ipcidr.isBroadcastAddress(next.getAddress())){
+                if (ipcidr.isBroadcastAddress(next)){
                     return null;
                 }
+                return InetAddress.getByAddress(next);
             }
-            return next;
+
+            return null;
 
         } catch (UnknownHostException e) {
             throw new RuntimeException(e.getMessage());

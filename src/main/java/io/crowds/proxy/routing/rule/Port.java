@@ -6,9 +6,9 @@ import io.crowds.proxy.NetLocation;
 import java.util.Objects;
 
 public class Port implements Rule {
-    private boolean dest;
-    private Integer port;
-    private String tag;
+    private final boolean dest;
+    private final Integer port;
+    private final String tag;
 
     public Port(String port, String tag,boolean dest) {
         this.port=Integer.valueOf(port);

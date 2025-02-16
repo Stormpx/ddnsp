@@ -8,6 +8,7 @@ import io.netty.util.ReferenceCountUtil;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.buffer.impl.BufferImpl;
 import io.vertx.core.http.*;
 import io.vertx.core.net.SocketAddress;
 import org.slf4j.Logger;
@@ -122,7 +123,7 @@ public class DohUpstream extends AbstractDnsUpstream {
                                     .setFollowRedirects(true)
                     ))
                     .onFailure(t-> ReferenceCountUtil.safeRelease(buf))
-                    .compose(req->req.send(Buffer.buffer(buf)))
+                    .compose(req->req.send(BufferImpl.buffer(buf)))
                     .compose(resp->{
                         if (resp.statusCode()!=200){
                             if (logger.isDebugEnabled()){
@@ -139,7 +140,7 @@ public class DohUpstream extends AbstractDnsUpstream {
                     })
                     .compose(buffer->{
                         try {
-                            return Future.succeededFuture(decodeResponse(buffer.getByteBuf()));
+                            return Future.succeededFuture(decodeResponse(((BufferImpl)buffer).byteBuf()));
                         } catch (Exception e) {
                             if (logger.isDebugEnabled()){
                                 logger.error("",e);

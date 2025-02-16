@@ -6,8 +6,8 @@ import io.crowds.proxy.NetLocation;
 import java.util.Objects;
 
 public class Domain implements Rule {
-    private String domain;
-    private String tag;
+    private final String domain;
+    private final String tag;
 
     public Domain(String domain, String tag) {
         Objects.requireNonNull(domain,"domain");
@@ -28,8 +28,8 @@ public class Domain implements Rule {
     @Override
     public boolean match(NetLocation netLocation) {
         if(netLocation.getDst() instanceof DomainNetAddr){
-            String host = netLocation.getDst().getHost().toLowerCase();
-            if (!host.endsWith(domain)){
+            String host = netLocation.getDst().getHost();
+            if (!host.regionMatches(true, host.length() - domain.length(), domain, 0, domain.length())){
                 return false;
             }
             return host.length()==domain.length()||host.charAt(host.length()-domain.length()-1)=='.';

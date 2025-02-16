@@ -6,8 +6,8 @@ import io.crowds.proxy.NetLocation;
 
 public class EndsWith implements Rule{
 
-    private String suffix;
-    private String tag;
+    private final String suffix;
+    private final String tag;
 
     public EndsWith(String suffix, String tag) {
         this.suffix = suffix;
@@ -17,7 +17,8 @@ public class EndsWith implements Rule{
     @Override
     public boolean match(NetLocation netLocation) {
         if (netLocation.getDst() instanceof DomainNetAddr){
-            return netLocation.getDst().getHost().endsWith(suffix);
+            String host = netLocation.getDst().getHost();
+            return host.regionMatches(true, host.length() - suffix.length(), suffix, 0, suffix.length());
         }
         return false;
     }

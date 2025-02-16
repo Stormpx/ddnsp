@@ -19,8 +19,8 @@ import org.slf4j.LoggerFactory;
 import java.net.Inet4Address;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class ChannelCreator {
     private final static Logger logger= LoggerFactory.getLogger(ChannelCreator.class);
@@ -32,7 +32,7 @@ public class ChannelCreator {
     public ChannelCreator(Context context) {
         this.context = context;
         this.executor =context.getEventLoopGroup().next();
-        this.foreignChannelLookups=new ConcurrentHashMap<>();
+        this.foreignChannelLookups=new HashMap<>();
     }
 
     public EventLoopGroup getEventLoopGroup() {

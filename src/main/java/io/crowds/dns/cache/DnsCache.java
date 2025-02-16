@@ -8,6 +8,7 @@ import io.netty.handler.codec.dns.*;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -19,8 +20,8 @@ import java.util.stream.Stream;
 
 public class DnsCache {
 
-    private EventLoop eventLoop;
-    private Map<CacheKey, CacheEntries> cache;
+    private final EventLoop eventLoop;
+    private final Map<CacheKey, CacheEntries> cache;
 
     public DnsCache(EventLoop eventLoop) {
         this.cache =new ConcurrentHashMap<>();
@@ -30,7 +31,7 @@ public class DnsCache {
 
 
     private Stream<TtlRecord> cacheSection(DnsMessage message, DnsSection section){
-        return IntStream.range(0, message.count(section)).mapToObj(i -> (DnsRecord)message.recordAt(section,i)).map(TtlRecord::new);
+        return IntStream.range(0, message.count(section)).mapToObj(i -> (DnsRecord)message.recordAt(section,i)).map(TtlRecord::of);
     }
 
     private void cache(CacheKey key,List<TtlRecord> value,EventLoop eventLoop){
@@ -47,7 +48,7 @@ public class DnsCache {
             long maxTtl = cacheEntries.maxTtl();
             cacheEntries.withExpiration(
                     loop.schedule(()-> {
-                        cache.computeIfPresent(key,(k,v)->v==cacheEntries?null:cacheEntries);
+                        cache.remove(key,cacheEntries);
                     }, maxTtl, TimeUnit.SECONDS)
             );
             return cacheEntries;
@@ -88,8 +89,8 @@ public class DnsCache {
             CacheEntries cacheEntries = cache.get(new CacheKey(key.name(), DnsRecordType.CNAME));
             if (cacheEntries instanceof CnameEntries cnameEntries && !cacheEntries.isTimeout(ts)){
                 String cname = cnameEntries.cname();
-                TtlRecord ttlRecord = cacheEntries.records().get(0);
-                results.add(DnsKit.clone(ttlRecord.record(),ttlRecord.remainTimeToLive(ts)));
+                TtlRecord ttlRecord = cacheEntries.records().getFirst();
+                results.add(DnsKit.clone(ttlRecord.record(),ttlRecord.remainTimeToLive(ts),false));
                 if (recursive){
                     return getAnswer(new CacheKey(cname,key.type()),true,results);
                 }
@@ -101,7 +102,7 @@ public class DnsCache {
         }
         entries.records().stream()
                 .filter(ttlRecord -> !ttlRecord.isTimeout(ts))
-                .map(ttlRecord -> DnsKit.clone(ttlRecord.record(),ttlRecord.remainTimeToLive(ts)))
+                .map(ttlRecord -> DnsKit.clone(ttlRecord.record(),ttlRecord.remainTimeToLive(ts),false))
                 .forEach(results::add);
         return true;
     }
@@ -129,7 +130,7 @@ public class DnsCache {
         }
         return entries.records().stream()
                 .filter(ttlRecord -> !ttlRecord.isTimeout(ts))
-                .map(ttlRecord -> DnsKit.clone(ttlRecord.record(),ttlRecord.remainTimeToLive(ts)))
+                .map(ttlRecord -> DnsKit.clone(ttlRecord.record(),ttlRecord.remainTimeToLive(ts),false))
                 .toList();
     }
 
@@ -157,17 +158,12 @@ public class DnsCache {
         if (entries.isTimeout(ts)){
             return List.of();
         }
-        try {
-            return entries.records().stream()
-                          .filter(ttlRecord -> !ttlRecord.isTimeout(ts))
-                          .map(TtlRecord::record)
-                          .map(record->(DnsRawRecord) record)
-                          .map(Lambdas.rethrowFunction(record-> InetAddress.getByAddress(ByteBufUtil.getBytes(record.content()))))
-                          .toList();
-        } catch (UnknownHostException e) {
-            // Should never happen!
-            throw new IllegalStateException(e);
-        }
+        return entries.records().stream()
+                      .filter(it->it instanceof TtlRecord.AddrTtlRecord)
+                      .filter(ttlRecord -> !ttlRecord.isTimeout(ts))
+                      .map(it->(TtlRecord.AddrTtlRecord) it)
+                      .map(TtlRecord.AddrTtlRecord::address)
+                      .toList();
     }
 
 }

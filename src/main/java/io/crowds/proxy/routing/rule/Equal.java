@@ -7,8 +7,8 @@ import java.util.Objects;
 
 public class Equal implements Rule {
 
-    private String target;
-    private String tag;
+    private final String target;
+    private final String tag;
 
     public Equal(String target, String tag) {
         this.target = target;
@@ -18,7 +18,7 @@ public class Equal implements Rule {
     @Override
     public boolean match(NetLocation netLocation) {
         if (netLocation.getDst() instanceof DomainNetAddr){
-            return Objects.equals(target,netLocation.getDst().getHost());
+            return target.equalsIgnoreCase(netLocation.getDst().getHost());
         }
         return false;
     }

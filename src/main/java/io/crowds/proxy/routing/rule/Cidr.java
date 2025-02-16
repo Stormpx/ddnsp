@@ -5,9 +5,9 @@ import io.crowds.proxy.NetLocation;
 import io.crowds.util.IPCIDR;
 
 public class Cidr implements Rule {
-    private boolean dest;
-    private IPCIDR ipcidr;
-    private String tag;
+    private final boolean dest;
+    private final IPCIDR ipcidr;
+    private final String tag;
 
     public Cidr(String ipcidr, String tag,boolean dest) {
         this.ipcidr = new IPCIDR(ipcidr);

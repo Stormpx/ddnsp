@@ -3,7 +3,7 @@ package io.crowds.proxy.routing.rule;
 import io.crowds.proxy.NetLocation;
 
 public class Default implements Rule{
-    private String tag;
+    private final String tag;
 
     public Default(String tag) {
         this.tag = tag;

@@ -3,10 +3,12 @@ package io.crowds.proxy.routing.rule;
 import io.crowds.proxy.DomainNetAddr;
 import io.crowds.proxy.NetLocation;
 
+import java.util.Locale;
+
 public class KeyWord implements Rule {
 
-    private String keyword;
-    private String tag;
+    private final String keyword;
+    private final String tag;
 
     public KeyWord(String keyword, String tag) {
         this.keyword = keyword;
@@ -27,7 +29,7 @@ public class KeyWord implements Rule {
     @Override
     public boolean match(NetLocation netLocation) {
         if (netLocation.getDst() instanceof DomainNetAddr){
-            return netLocation.getDst().getHost().contains(keyword);
+            return netLocation.getDst().getHost().contains(keyword.toLowerCase());
         }
         return false;
     }

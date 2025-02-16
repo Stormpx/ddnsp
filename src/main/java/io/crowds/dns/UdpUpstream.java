@@ -125,7 +125,11 @@ public class UdpUpstream extends AbstractDnsUpstream {
 
         public void callback(DnsResponse response){
             cancelSchedule();
-            this.promise.tryComplete(response);
+            if (response.isTruncated()){
+                this.promise.tryFail("response truncated");
+            }else {
+                this.promise.tryComplete(response);
+            }
         }
 
     }
