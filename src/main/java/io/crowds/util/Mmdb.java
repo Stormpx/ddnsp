@@ -6,7 +6,6 @@ import com.maxmind.geoip2.exception.GeoIp2Exception;
 import com.maxmind.geoip2.model.CountryResponse;
 import io.netty.buffer.ByteBufInputStream;
 import io.vertx.core.Future;
-import io.vertx.core.TimeoutStream;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.impl.BufferImpl;
 import io.vertx.core.http.*;

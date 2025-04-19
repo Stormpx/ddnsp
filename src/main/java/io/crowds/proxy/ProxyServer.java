@@ -5,12 +5,7 @@ import io.crowds.dns.DnsContext;
 import io.crowds.proxy.services.http.HttpServer;
 import io.crowds.proxy.services.socks.SocksServer;
 import io.crowds.proxy.services.transparent.TransparentServer;
-import io.crowds.tun.TunOption;
-import io.crowds.tun.TunService;
-import io.crowds.tun.wireguard.WireGuardOption;
-import io.crowds.tun.wireguard.WireGuardTunService;
-import io.netty.channel.*;
-import io.vertx.core.CompositeFuture;
+import io.crowds.proxy.services.tun.TunServer;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import org.slf4j.Logger;
@@ -30,8 +25,8 @@ public class ProxyServer {
     private HttpServer httpServer;
     private SocksServer socksServer;
     private TransparentServer transparentServer;
+    private TunServer tunServer;
 
-    private List<TunService> tunServices;
 
     public ProxyServer(Context context) {
         this.context = context;
@@ -44,15 +39,9 @@ public class ProxyServer {
         return this;
     }
 
-    private Future<Void> startTun(TunOption tunOption){
-        WireGuardOption wireGuardOption= (WireGuardOption) tunOption;
-        WireGuardTunService service = new WireGuardTunService(context, wireGuardOption);
-        return service.start();
-    }
-
 
     public Future<Void> start(){
-        List<Future> futures=new ArrayList<>();
+        List<Future<?>> futures=new ArrayList<>();
         if (proxyOption.getHttp()!=null&&proxyOption.getHttp().isEnable()){
             this.httpServer=new HttpServer(proxyOption.getHttp(),this.axis);
             futures.add(httpServer.start());
@@ -65,11 +54,12 @@ public class ProxyServer {
             this.transparentServer=new TransparentServer(proxyOption.getTransparent(),axis);
             futures.add(transparentServer.start());
         }
-        if (proxyOption.getTuns()!=null){
-            proxyOption.getTuns().stream().map(this::startTun).forEach(futures::add);
+        if (proxyOption.getTun()!=null&&proxyOption.getTun().isEnable()){
+            this.tunServer = new TunServer(proxyOption.getTun(), axis);
+            futures.add(tunServer.start());
         }
 
-        return CompositeFuture.all(futures)
+        return Future.all(futures)
                 .map((Void)null);
     }
 

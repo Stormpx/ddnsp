@@ -64,7 +64,7 @@ public class Axis {
             }
         }
         if (this.transportProvider==null){
-            this.transportProvider =new TransportProvider(channelCreator,proxyOption.getProxies(),proxyOption.getSelectors());
+            this.transportProvider =new TransportProvider(this,proxyOption.getProxies(),proxyOption.getSelectors());
         }
         if (this.router!=null&&this.fakeDns==null&&proxyOption.getFakeDns()!=null){
             createFakeDns(proxyOption.getFakeDns());

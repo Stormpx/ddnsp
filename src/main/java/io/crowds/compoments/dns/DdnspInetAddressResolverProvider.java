@@ -1,14 +1,16 @@
-package io.crowds.dns;
+package io.crowds.compoments.dns;
+
+import io.crowds.Ddnsp;
 
 import java.net.spi.InetAddressResolver;
 import java.net.spi.InetAddressResolverProvider;
 
-public class DnspInetAddressResolverProvider extends InetAddressResolverProvider {
+public class DdnspInetAddressResolverProvider extends InetAddressResolverProvider {
 
 
     @Override
     public InetAddressResolver get(Configuration configuration) {
-        return new DnspInetAddressResolver(configuration.builtinResolver());
+        return new DdnspInetAddressResolver(configuration.builtinResolver(), Ddnsp.dnsResolver());
     }
 
     @Override

@@ -1,6 +1,7 @@
 package io.crowds.proxy;
 
 import io.crowds.Context;
+import io.crowds.Ddnsp;
 import io.crowds.util.Async;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.*;
@@ -35,18 +36,20 @@ public class ChannelCreator {
         this.foreignChannelLookups=new HashMap<>();
     }
 
+    public Bootstrap getBootstrap(EventLoop eventLoop){
+        return new Bootstrap()
+                .group(eventLoop==null?getEventLoopGroup().next():eventLoop)
+                .resolver(context.getNettyResolver());
+    }
+
     public EventLoopGroup getEventLoopGroup() {
         return context.getEventLoopGroup();
     }
 
 
     public Future<Channel> createSocketChannel(EventLoop eventLoop, SocketAddress local, SocketAddress remote, ChannelInitializer<Channel> initializer) {
-        Bootstrap bootstrap = new Bootstrap();
         Promise<Channel> promise = eventLoop.newPromise();
-        if (Epoll.isAvailable()){
-            bootstrap.option(EpollChannelOption.EPOLL_MODE, EpollMode.LEVEL_TRIGGERED);
-        }
-        var cf=bootstrap.group(eventLoop)
+        var cf=getBootstrap(eventLoop)
                         .channelFactory(context.getSocketChannelFactory())
                         .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
                         .handler(initializer)

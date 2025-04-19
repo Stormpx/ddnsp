@@ -46,14 +46,12 @@ public class TransparentServer {
     private Axis axis;
     private AtomicBoolean logSuccess;
 
-    private Map<InetSocketAddress, io.netty.util.concurrent.Future<DatagramChannel>> tupleMap;
 
     private final Consumer<DatagramPacket> PACKET_HANDLER = this::handleFallbackPacket;
 
     public TransparentServer(TransparentOption option, Axis axis) {
         this.option = option;
         this.axis = axis;
-        this.tupleMap=new ConcurrentHashMap<>();
         this.logSuccess=new AtomicBoolean(false);
     }
 
@@ -64,10 +62,10 @@ public class TransparentServer {
             return Future.failedFuture("");
         }
 
-        List<Future> udpf=StreamSupport.stream(axis.getContext().getEventLoopGroup().spliterator(),false)
+        List<Future<?>> udpf=StreamSupport.stream(axis.getContext().getEventLoopGroup().spliterator(),false)
                 .map(v->this.startUdp(socketAddress))
                 .collect(Collectors.toList());
-        return CompositeFuture.any(startTcp(socketAddress),CompositeFuture.all(udpf).map((Void)null))
+        return Future.any(startTcp(socketAddress),Future.all(udpf).map((Void)null))
                 .map((Void)null);
 
     }
@@ -80,9 +78,7 @@ public class TransparentServer {
                        .option(ChannelOption.SO_REUSEADDR,true)
                        .option(UnixChannelOption.SO_REUSEPORT,true)
                        .option(EpollChannelOption.IP_TRANSPARENT,true)
-                       .childOption(EpollChannelOption.IP_TRANSPARENT,true)
-                       .childOption(EpollChannelOption.EPOLL_MODE, EpollMode.LEVEL_TRIGGERED);
-        ;
+                       .childOption(EpollChannelOption.IP_TRANSPARENT,true);
 
         serverBootstrap
                 .group(context.getAcceptor(),context.getEventLoopGroup())

@@ -1,5 +1,6 @@
 package io.crowds.dns;
 
+import io.crowds.compoments.dns.InternalDnsResolver;
 import io.vertx.core.Future;
 
 import java.net.InetSocketAddress;

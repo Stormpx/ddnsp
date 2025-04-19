@@ -6,7 +6,6 @@ import io.crowds.ddns.resolve.DomainRecord;
 import io.crowds.util.Strs;
 import io.netty.util.NetUtil;
 import io.vertx.core.Future;
-import io.vertx.core.TimeoutStream;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientOptions;

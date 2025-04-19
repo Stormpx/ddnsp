@@ -17,7 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public abstract class FullConeProxyTransport extends AbstractProxyTransport {
 
-    private Map<NetAddr,Future<UdpChannel>> udpChannelMap;
+    private final Map<NetAddr,Future<UdpChannel>> udpChannelMap;
 
     public FullConeProxyTransport(ChannelCreator channelCreator, ProtocolOption protocolOption) {
         super(channelCreator,protocolOption);

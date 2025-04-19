@@ -41,13 +41,13 @@ public class TransportProvider {
 
     private Map<String,TransportSelector> selectorMap;
 
-    public TransportProvider(ChannelCreator channelCreator,List<ProtocolOption> protocolOptions,JsonArray selectors) {
-        this.channelCreator = channelCreator;
-        initTransport(protocolOptions);
+    public TransportProvider(Axis axis,List<ProtocolOption> protocolOptions,JsonArray selectors) {
+        this.channelCreator = axis.getChannelCreator();
+        initTransport(axis,protocolOptions);
         initSelector(selectors);
     }
 
-    private void initTransport(List<ProtocolOption> protocolOptions){
+    private void initTransport(Axis axis,List<ProtocolOption> protocolOptions){
         var map=new ConcurrentHashMap<String,ProxyTransport>();
 
         map.put(DEFAULT_TRANSPORT,new DirectProxyTransport(channelCreator));
@@ -57,7 +57,7 @@ public class TransportProvider {
             List<ChainProxyTransport> chainProxyTransports=new ArrayList<>();
             for (ProtocolOption protocolOption : protocolOptions) {
                 String name = protocolOption.getName();
-                ProxyTransport proxyTransport = ProxyTransport.create(channelCreator,protocolOption);
+                ProxyTransport proxyTransport = ProxyTransport.create(axis,protocolOption);
                 if (proxyTransport!=null){
                     map.put(name,proxyTransport);
                     if (proxyTransport instanceof ChainProxyTransport chainProxyTransport){
@@ -71,7 +71,7 @@ public class TransportProvider {
                     public ProxyTransport get(String name) {return null;}
                     @Override
                     public ProxyTransport create(ProtocolOption protocolOption) {
-                        ProxyTransport transport = ProxyTransport.create(channelCreator,protocolOption);
+                        ProxyTransport transport = ProxyTransport.create(axis,protocolOption);
                         if (transport instanceof ChainProxyTransport){
                             ((ChainProxyTransport) transport).initTransport(subProvider);
                         }
@@ -85,7 +85,7 @@ public class TransportProvider {
 
                 @Override
                 public ProxyTransport create(ProtocolOption protocolOption) {
-                    ProxyTransport transport = ProxyTransport.create(channelCreator,protocolOption);
+                    ProxyTransport transport = ProxyTransport.create(axis,protocolOption);
                     if (transport instanceof ChainProxyTransport){
                         ((ChainProxyTransport) transport).initTransport(subProvider);
                     }

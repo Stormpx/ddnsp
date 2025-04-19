@@ -1,5 +1,6 @@
 package io.crowds.proxy.transport.proxy;
 
+import io.crowds.compoments.wireguard.PeerOption;
 import io.crowds.proxy.transport.ProtocolOption;
 import io.crowds.proxy.transport.TlsOption;
 import io.crowds.proxy.transport.TransportOption;
@@ -15,7 +16,9 @@ import io.crowds.proxy.transport.proxy.vless.VlessUUID;
 import io.crowds.proxy.transport.proxy.vmess.Security;
 import io.crowds.proxy.transport.proxy.vmess.User;
 import io.crowds.proxy.transport.proxy.vmess.VmessOption;
+import io.crowds.proxy.transport.proxy.wireguard.WireguardOption;
 import io.crowds.proxy.transport.ws.WsOption;
+import io.crowds.util.IPCIDR;
 import io.crowds.util.Inet;
 import io.crowds.util.Strs;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
@@ -24,13 +27,13 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.stormpx.net.util.IP;
+import org.stormpx.net.util.SubNet;
 
 import java.net.InetSocketAddress;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.IntStream;
 
 public class ProtocolOptionFactory {
     private final static Logger logger= LoggerFactory.getLogger(ProtocolOptionFactory.class);
@@ -171,6 +174,61 @@ public class ProtocolOptionFactory {
         return sshOption;
     }
 
+    private static SubNet parseAddress(String address){
+        int index = address.indexOf("/");
+        if (index==-1){
+            return new SubNet(IP.parse(address),32);
+        }
+        IP ip = IP.parse(address.substring(0, index));
+        int mask = Integer.parseInt(address.substring(index + 1));
+        return new SubNet(ip,mask);
+    }
+    private static PeerOption parseWgPeer(String name,int idx, JsonObject peerConfig){
+        String publicKey = peerConfig.getString("publicKey");
+        String perSharedKey = peerConfig.getString("perSharedKey");
+        String allowedIp = peerConfig.getString("allowedIp");
+        String endpoint = peerConfig.getString("endpoint");
+        Integer keepAlive = peerConfig.getInteger("keepAlive");
+        if (Strs.isBlank(publicKey)){
+            throw new IllegalArgumentException("wireGuard config: %s[%d].peer.publicKey is required.".formatted(name,idx));
+        }
+        if (Strs.isBlank(perSharedKey)){
+            throw new IllegalArgumentException("wireGuard config: %s[%d].peer.perSharedKey is required.".formatted(name,idx));
+        }
+        if (Strs.isBlank(allowedIp)){
+            throw new IllegalArgumentException("wireGuard config: %s[%d].peer.allowedIp is required.".formatted(name,idx));
+        }
+        if (Strs.isBlank(endpoint)){
+            throw new IllegalArgumentException("wireGuard config: %s[%d].peer.endpoint is required.".formatted(name,idx));
+        }
+        return new PeerOption(publicKey,perSharedKey, new IPCIDR(allowedIp), Objects.requireNonNullElse(keepAlive,0).shortValue(),
+                Inet.parseInetAddress(endpoint));
+    }
+
+    private static WireguardOption parseWireguard(JsonObject json){
+        WireguardOption wireguardOption = new WireguardOption();
+        String privateKey = json.getString("privateKey");
+        String address = json.getString("address");
+        if (Strs.isBlank(privateKey)){
+            throw new IllegalArgumentException("wireGuard privateKey is required.");
+        }
+        if (Strs.isBlank(address)){
+            throw new IllegalArgumentException("wireGuard address is required.");
+        }
+        wireguardOption.setPrivateKey(privateKey);
+        wireguardOption.setAddress(parseAddress(address));
+
+        JsonArray peersArray = json.getJsonArray("peers");
+        var peers = IntStream.range(0,peersArray.size())
+                             .filter(idx->peersArray.getValue(idx) instanceof JsonObject)
+                             .mapToObj(idx->parseWgPeer(json.getString("name"),idx,peersArray.getJsonObject(idx)))
+                             .toList();
+
+        wireguardOption.setPeers(peers);
+
+        return wireguardOption;
+    }
+
     private static ChainOption parseChain(JsonObject json){
         ChainOption chainOption = new ChainOption();
         JsonArray nodes = json.getJsonArray("nodes");
@@ -199,9 +257,12 @@ public class ProtocolOptionFactory {
     }
 
     public static ProtocolOption newOption(JsonObject json){
+        var name = json.getString("name");
+        if (Strs.isBlank(name)){
+            throw new RuntimeException("proxies option names is required");
+        }
         var protocol = json.getString("protocol");
         try {
-            var name = json.getString("name");
             var connIdle = json.getInteger("connIdle");
             String network = json.getString("network");
             JsonObject tls = json.getJsonObject("tls");
@@ -209,8 +270,9 @@ public class ProtocolOptionFactory {
             ProtocolOption protocolOption = null;
             if ("vmess".equalsIgnoreCase(protocol)){
                 protocolOption=parseVmess(json);
-            }else if ("ss".equalsIgnoreCase(protocol)){
+            }else if ("ss".equalsIgnoreCase(protocol)||"shadowsocks".equals(protocol)){
                 protocolOption=parseSs(json);
+                protocolOption.setProtocol("ss");
             }else if ("trojan".equalsIgnoreCase(protocol)){
                 protocolOption=parseTrojan(json);
             }else if ("socks".equalsIgnoreCase(protocol)){
@@ -219,6 +281,9 @@ public class ProtocolOptionFactory {
                 protocolOption=parseVless(json);
             }else if("ssh".equalsIgnoreCase(protocol)){
                 protocolOption=parseSsh(json);
+            }else if ("wg".equals(protocol)||"wireguard".equals(protocol)){
+                protocolOption=parseWireguard(json);
+                protocolOption.setProtocol("wg");
             }else if ("chain".equals(protocol)){
                 protocolOption=parseChain(json);
             }else if ("direct".equalsIgnoreCase(protocol)){

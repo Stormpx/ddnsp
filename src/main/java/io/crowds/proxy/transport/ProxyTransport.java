@@ -1,6 +1,7 @@
 package io.crowds.proxy.transport;
 
 
+import io.crowds.proxy.Axis;
 import io.crowds.proxy.ChannelCreator;
 import io.crowds.proxy.ProxyContext;
 import io.crowds.proxy.transport.proxy.chain.ChainOption;
@@ -18,6 +19,8 @@ import io.crowds.proxy.transport.proxy.vless.VlessOption;
 import io.crowds.proxy.transport.proxy.vless.VlessProxyTransport;
 import io.crowds.proxy.transport.proxy.vmess.VmessOption;
 import io.crowds.proxy.transport.proxy.vmess.VmessProxyTransport;
+import io.crowds.proxy.transport.proxy.wireguard.WireguardOption;
+import io.crowds.proxy.transport.proxy.wireguard.WireguardProxyTransport;
 import io.netty.util.concurrent.Future;
 
 public interface ProxyTransport {
@@ -27,7 +30,8 @@ public interface ProxyTransport {
     Future<EndPoint> createEndPoint(ProxyContext proxyContext) throws Exception;
 
 
-    static ProxyTransport create(ChannelCreator channelCreator, ProtocolOption protocolOption){
+    static ProxyTransport create(Axis axis, ProtocolOption protocolOption){
+        ChannelCreator channelCreator = axis.getChannelCreator();
         String protocol = protocolOption.getProtocol();
         if ("vmess".equalsIgnoreCase(protocol)) {
             return new VmessProxyTransport(channelCreator, (VmessOption) protocolOption);
@@ -41,6 +45,8 @@ public interface ProxyTransport {
             return new VlessProxyTransport(channelCreator, (VlessOption) protocolOption);
         } else if ("ssh".equalsIgnoreCase(protocol)){
             return new SshProxyTransport(channelCreator, (SshOption) protocolOption);
+        } else if ("wg".equalsIgnoreCase(protocol)){
+            return new WireguardProxyTransport(axis, (WireguardOption) protocolOption);
         } else if ("chain".equalsIgnoreCase(protocol)){
             return new ChainProxyTransport(channelCreator, (ChainOption) protocolOption);
         } else if ("direct".equalsIgnoreCase(protocol)){

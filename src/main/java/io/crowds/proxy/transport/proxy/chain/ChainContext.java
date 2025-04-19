@@ -1,5 +1,6 @@
 package io.crowds.proxy.transport.proxy.chain;
 
+import io.crowds.proxy.NetAddr;
 import io.crowds.proxy.NetLocation;
 import io.crowds.proxy.common.ShadowChannel;
 import io.crowds.proxy.transport.Destination;
@@ -21,7 +22,7 @@ public class ChainContext {
     private final NetLocation netLocation;
 
     private final Transport chainOutTransport;
-    //the four-tuple is different each time a proxy is used, we need to have access to the original four-tuple when creating a proxy chain.
+    //the four-tuple is different each time a proxy is used, we need to access to the original four-tuple when creating the proxy chain.
     //Therefore, we reinitialize the transport every time a channel is created.
     private ProxyTransportTransport chainedTransport;
 
@@ -42,7 +43,7 @@ public class ChainContext {
         ProxyTransportTransport transport = null;
         while (iterator.hasNext()){
             AbstractProxyTransport proxyTransport = iterator.next();
-            transport=new ProxyTransportTransport(proxyTransport,transport);
+            transport=new ProxyTransportTransport(netLocation.getSrc(),proxyTransport,transport);
         }
         if (transport==null){
             throw new IllegalArgumentException("proxyTransportList is empty");
@@ -56,9 +57,11 @@ public class ChainContext {
     }
 
     class ProxyTransportTransport implements Transport{
+        private final NetAddr src;
         private final AbstractProxyTransport proxyTransport;
         private final Transport head;
-        public ProxyTransportTransport(AbstractProxyTransport proxyTransport, Transport head) {
+        public ProxyTransportTransport(NetAddr src, AbstractProxyTransport proxyTransport, Transport head) {
+            this.src = src;
             this.proxyTransport = proxyTransport;
             this.head = head;
         }
@@ -67,7 +70,7 @@ public class ChainContext {
         public Future<Channel> openChannel(EventLoop eventLoop, Destination dest, AddrType preferType) throws Exception {
             Promise<Channel> promise = eventLoop.newPromise();
             Future<Channel> channelFuture;
-            NetLocation nextLocation = new NetLocation(netLocation.getSrc(), dest.addr(), dest.tp());
+            NetLocation nextLocation = new NetLocation(src, dest.addr(), dest.tp());
             if (head ==null){
                 //the last ProxyTransportTransport. which is first node.
                 if (chainOutTransport!=null) {
@@ -86,7 +89,7 @@ public class ChainContext {
         @Override
         public Future<Channel> openChannel(EventLoop eventLoop, Destination dest, AddrType preferType, Transport delegate) throws Exception {
             if (delegate != this) {
-                throw new UnsupportedOperationException("Chained transport does not support delegating to other transports");
+                throw new UnsupportedOperationException("Chained transport delegating other transport is not support");
             }
             return openChannel(eventLoop, dest, preferType);
         }

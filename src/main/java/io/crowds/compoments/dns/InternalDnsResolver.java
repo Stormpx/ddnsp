@@ -1,15 +1,14 @@
-package io.crowds.dns;
+package io.crowds.compoments.dns;
 
 import io.crowds.util.AddrType;
 import io.vertx.core.Future;
 
 import java.net.InetAddress;
-import java.net.StandardProtocolFamily;
 
 public interface InternalDnsResolver {
     /**
      * using fallback udp dns server
-     * which 114.114.114.114 or 8.8.8.8
+     * which 8.8.8.8
      * @param host the specified hostname
      * @return
      */

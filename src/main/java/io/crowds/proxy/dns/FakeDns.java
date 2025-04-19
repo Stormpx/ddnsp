@@ -178,6 +178,13 @@ public class FakeDns implements Handler<DnsContext> {
 
     }
 
+    public IPCIDR getIPv4cidr(){
+        return ipv4Pool.getIpcidr();
+    }
+    public IPCIDR getIPv6cidr(){
+        return ipv6Pool.getIpcidr();
+    }
+
     public boolean isFakeIp(InetAddress address){
         if (this.ipv4Pool!=null&&address instanceof Inet4Address)
             return this.ipv4Pool.isMatch(address);

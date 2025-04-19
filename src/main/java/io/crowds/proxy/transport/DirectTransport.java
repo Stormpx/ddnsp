@@ -103,7 +103,10 @@ public class DirectTransport implements Transport {
                               .addLast(new DynamicRecipientLookupHandler(Ddnsp.dnsResolver()));
                         }
                     });
-                    var future = channelCreator.createDatagramChannel(new DatagramOption().setBindAddr(getLocalAddr(dest.isIpv6())),initializer);
+                    DatagramOption datagramOption = new DatagramOption()
+                            .setEventLoop(eventLoop)
+                            .setBindAddr(getLocalAddr(dest.isIpv6()));
+                    var future = channelCreator.createDatagramChannel(datagramOption,initializer);
                     PromiseNotifier.cascade(future,promise);
                 });
         return promise;

@@ -6,20 +6,33 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.InternetProtocolFamily;
+import io.netty.resolver.AddressResolverGroup;
 import io.vertx.core.impl.VertxImpl;
+import io.vertx.core.internal.VertxInternal;
+import org.stormpx.net.PartialNetStack;
+
+import java.net.InetSocketAddress;
 
 public class Context {
-    private final VertxImpl vertx;
+    private final VertxInternal vertx;
+    private final PartialNetStack netStack;
+    private final AddressResolverGroup<?> nettyResolver;
 
-    public Context(VertxImpl vertx) {
+    public Context(VertxInternal vertx, PartialNetStack netStack, AddressResolverGroup<?> nettyResolver) {
         this.vertx = vertx;
+        this.netStack = netStack;
+        this.nettyResolver = nettyResolver;
+    }
+
+    public VertxInternal getVertx() {
+        return vertx;
     }
 
     public EventLoopGroup getAcceptor(){
-        return vertx.getAcceptorEventLoopGroup();
+        return vertx.acceptorEventLoopGroup();
     }
     public EventLoopGroup getEventLoopGroup(){
-        return vertx.getEventLoopGroup();
+        return vertx.eventLoopGroup();
     }
     public DatagramChannel getDatagramChannel(InternetProtocolFamily family){
         return vertx.transport().datagramChannel(family);
@@ -34,4 +47,11 @@ public class Context {
         return vertx.transport().channelFactory(false);
     }
 
+    public PartialNetStack getNetStack() {
+        return netStack;
+    }
+
+    public AddressResolverGroup<?> getNettyResolver() {
+        return nettyResolver;
+    }
 }

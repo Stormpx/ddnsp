@@ -1,25 +1,23 @@
 package io.crowds.dns;
 
-import io.crowds.proxy.NetAddr;
+import io.crowds.compoments.dns.InternalDnsResolver;
 import io.crowds.util.Inet;
 import io.netty.buffer.*;
 import io.netty.handler.codec.dns.*;
 import io.netty.util.ReferenceCountUtil;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
-import io.vertx.core.buffer.Buffer;
 import io.vertx.core.buffer.impl.BufferImpl;
 import io.vertx.core.http.*;
+import io.vertx.core.internal.buffer.BufferInternal;
 import io.vertx.core.net.SocketAddress;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.Objects;
 
 
@@ -30,10 +28,10 @@ public class DohUpstream extends AbstractDnsUpstream {
     private java.net.InetSocketAddress remoteAddr;
     private HttpClient httpClient;
 
-    private DnsRecordEncoder encoder=DnsRecordEncoder.DEFAULT;
-    private DnsRecordDecoder decoder=DnsRecordDecoder.DEFAULT;
+    private final DnsRecordEncoder encoder=DnsRecordEncoder.DEFAULT;
+    private final DnsRecordDecoder decoder=DnsRecordDecoder.DEFAULT;
 
-    public DohUpstream(Vertx vertx,URI target,InternalDnsResolver resolver) {
+    public DohUpstream(Vertx vertx, URI target, InternalDnsResolver resolver) {
         super(resolver);
         try {
             this.target=target.toURL();
@@ -49,7 +47,7 @@ public class DohUpstream extends AbstractDnsUpstream {
                 .setShared(true)
                 .setUseAlpn(true)
                 .setProtocolVersion(HttpVersion.HTTP_2)
-        );
+                        );
     }
 
     private Future<SocketAddress> getServerAddress(){
@@ -110,6 +108,7 @@ public class DohUpstream extends AbstractDnsUpstream {
     @Override
     public Future<DnsResponse> lookup(DnsQuery query) {
         try {
+            logger.info("query {}",query);
             var buf = encodeQuery(query, UnpooledByteBufAllocator.DEFAULT);
             return getServerAddress()
                     .compose(server-> httpClient.request(new RequestOptions()
@@ -123,7 +122,7 @@ public class DohUpstream extends AbstractDnsUpstream {
                                     .setFollowRedirects(true)
                     ))
                     .onFailure(t-> ReferenceCountUtil.safeRelease(buf))
-                    .compose(req->req.send(BufferImpl.buffer(buf)))
+                    .compose(req->req.send(BufferInternal.buffer(buf)))
                     .compose(resp->{
                         if (resp.statusCode()!=200){
                             if (logger.isDebugEnabled()){

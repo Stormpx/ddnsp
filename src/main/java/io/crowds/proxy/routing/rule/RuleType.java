@@ -15,7 +15,7 @@ public enum  RuleType {
     DEFAULT("default"),
     ;
 
-    private String rule;
+    private final String rule;
     RuleType(String s) {
         this.rule=s;
     }

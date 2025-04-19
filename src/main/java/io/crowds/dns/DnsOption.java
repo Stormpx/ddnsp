@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 public class DnsOption {
-    private boolean enable=true;
+    private boolean enable=false;
 
     private List<URI> dnsServers;
 

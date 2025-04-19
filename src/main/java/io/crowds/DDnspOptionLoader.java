@@ -8,10 +8,9 @@ import io.crowds.proxy.dns.FakeOption;
 import io.crowds.proxy.services.http.HttpOption;
 import io.crowds.proxy.services.socks.SocksOption;
 import io.crowds.proxy.services.transparent.TransparentOption;
+import io.crowds.proxy.services.tun.TunServerOption;
 import io.crowds.proxy.transport.ProtocolOption;
 import io.crowds.proxy.transport.proxy.ProtocolOptionFactory;
-import io.crowds.tun.TunOption;
-import io.crowds.tun.TunOptionFactory;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.dns.DefaultDnsPtrRecord;
 import io.netty.handler.codec.dns.DefaultDnsRawRecord;
@@ -24,8 +23,7 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.dns.AddressResolverOptions;
-import io.vertx.core.impl.VertxInternal;
-import io.vertx.core.impl.resolver.DnsResolverProvider;
+import io.vertx.core.dns.impl.DnsAddressResolverProvider;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
@@ -91,7 +89,7 @@ public class DDnspOptionLoader {
     public Future<DDnspOption> load(){
 
         if (configRetriever==null){
-            DnsResolverProvider provider = DnsResolverProvider.create((VertxInternal) vertx,  new AddressResolverOptions());
+            DnsAddressResolverProvider provider = DnsAddressResolverProvider.create((io.vertx.core.internal.VertxInternal) vertx, new AddressResolverOptions());
             if (provider.nameServerAddresses().isEmpty()){
                 throw new IllegalStateException("can not found default nameServers");
             }
@@ -199,15 +197,14 @@ public class DDnspOptionLoader {
                     .setPort(transparentJson.getInteger("port",13452));
             proxy.setTransparent(transparentOption);
         }
-        JsonArray tuns = json.getJsonArray("tuns");
-        if (tuns!=null){
-            List<TunOption> options = tuns.stream()
-                    .filter(o -> o instanceof JsonObject)
-                    .map(o -> TunOptionFactory.newTunOption((JsonObject) o))
-                    .toList();
-            if (!options.isEmpty()){
-                proxy.setTuns(options);
-            }
+        JsonObject tunJson = json.getJsonObject("tun");
+        if (tunJson!=null){
+            TunServerOption tunServerOption = new TunServerOption();
+            tunServerOption.setEnable(tunJson.getBoolean("enable",false));
+            tunServerOption.setName(tunJson.getString("name","tun0"))
+                           .setMtu(tunJson.getInteger("mtu",1500))
+                           .setIgnoreAddress(tunJson.getJsonArray("ignoreAddress"));
+            proxy.setTun(tunServerOption);
         }
 
         JsonArray proxiesArray = json.getJsonArray("proxies");

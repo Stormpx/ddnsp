@@ -8,6 +8,7 @@ import io.crowds.proxy.transport.Transport;
 import io.crowds.proxy.transport.proxy.AbstractProxyTransport;
 import io.crowds.proxy.transport.proxy.ProxyTransportProvider;
 import io.crowds.proxy.transport.proxy.direct.DirectProxyTransport;
+import io.crowds.proxy.transport.proxy.wireguard.WireguardProxyTransport;
 import io.crowds.util.AddrType;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelPipeline;
@@ -42,7 +43,7 @@ public class ChainProxyTransport extends AbstractProxyTransport {
             if (!(pt instanceof AbstractProxyTransport proxyTransport)){
                 throw new IllegalArgumentException("unsupported proxyTransport node: "+pt.getTag());
             }
-            if (proxyTransport instanceof DirectProxyTransport){
+            if (proxyTransport instanceof DirectProxyTransport || proxyTransport instanceof WireguardProxyTransport){
                 throw new IllegalArgumentException("unsupported proxyTransport node: "+pt.getTag());
             }
             if (proxyTransport==this){

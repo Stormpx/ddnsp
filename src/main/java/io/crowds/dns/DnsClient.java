@@ -1,6 +1,8 @@
 package io.crowds.dns;
 
 
+import io.crowds.Context;
+import io.crowds.compoments.dns.InternalDnsResolver;
 import io.crowds.dns.cache.CacheKey;
 import io.crowds.dns.cache.DnsCache;
 import io.crowds.util.AddrType;
@@ -10,10 +12,8 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.InternetProtocolFamily;
 import io.netty.handler.codec.dns.*;
 import io.netty.util.ReferenceCountUtil;
-import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
-import io.vertx.core.Vertx;
-import io.vertx.core.impl.VertxImpl;
+import io.vertx.core.internal.VertxInternal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,9 +23,9 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-public class DnsClient implements InternalDnsResolver{
+public class DnsClient implements InternalDnsResolver {
     private final Logger logger= LoggerFactory.getLogger(DnsClient.class);
-    private final VertxImpl vertx;
+    private final VertxInternal vertx;
     private final EventLoopGroup eventLoopGroup;
     private final DnsCache dnsCache;
 
@@ -34,9 +34,9 @@ public class DnsClient implements InternalDnsResolver{
     private List<DnsUpstream> upStreams;
 
 
-    public DnsClient(Vertx vertx, ClientOption option) {
-        this.vertx= (VertxImpl) vertx;
-        this.eventLoopGroup= ((VertxImpl)vertx).getEventLoopGroup();
+    public DnsClient(Context context, ClientOption option) {
+        this.vertx= context.getVertx();
+        this.eventLoopGroup= context.getEventLoopGroup();
         this.tryIpv6= option.isTryIpv6();
         this.dnsCache=new DnsCache(eventLoopGroup.next());
         initDefaultUpstream();
@@ -56,7 +56,7 @@ public class DnsClient implements InternalDnsResolver{
     private void initDefaultUpstream(){
         String server = System.getProperty("ddnsp.dns.default.server");
         if (Strs.isBlank(server)){
-            server=Locale.getDefault()==Locale.CHINA?"114.114.114.114:53":"8.8.8.8:53";
+            server="8.8.8.8:53";
         }
         InetSocketAddress address = Inet.parseInetAddress(server);
         this.defaultStream = newUdpUpstream(address);
@@ -106,7 +106,7 @@ public class DnsClient implements InternalDnsResolver{
     }
 
     private Future<DnsResponse> scheduleUpStreams(DnsQuery dnsQuery){
-        return CompositeFuture.any(
+        return Future.any(
                 this.upStreams
                         .stream()
                         .map(upStreams->upStreams.lookup(dnsQuery).map(this::copyResp)
@@ -197,10 +197,10 @@ public class DnsClient implements InternalDnsResolver{
                 .compose(it->it==null?Future.failedFuture(new UnknownHostException("resolve %s type %s failed".formatted(target,type.name()))):Future.succeededFuture(it));
     }
     public Future<List<InetAddress>> requestAll(String target, boolean useDefault){
-        List<Future> fs=(Inet.isSupportsIpV6()?Stream.of(DnsRecordType.A,DnsRecordType.AAAA):Stream.of(DnsRecordType.A))
+        List<Future<?>> fs=(Inet.isSupportsIpV6()?Stream.of(DnsRecordType.A,DnsRecordType.AAAA):Stream.of(DnsRecordType.A))
                 .map(type -> requestAll(target,type,useDefault))
                 .collect(Collectors.toList());
-        return CompositeFuture.any(fs)
+        return Future.any(fs)
                 .map(cf-> IntStream.range(0,cf.size())
                                    .filter(cf::succeeded)
                                    .mapToObj(cf::<List<InetAddress>>resultAt)
@@ -217,10 +217,10 @@ public class DnsClient implements InternalDnsResolver{
     }
 
     public Future<InetAddress> requestIp(String target, boolean useDefault){
-        List<Future> fs=(Inet.isSupportsIpV6()?Stream.of(DnsRecordType.A,DnsRecordType.AAAA):Stream.of(DnsRecordType.A))
+        List<Future<?>> fs=(Inet.isSupportsIpV6()?Stream.of(DnsRecordType.A,DnsRecordType.AAAA):Stream.of(DnsRecordType.A))
                 .map(type -> requestIp(target,type,useDefault))
                 .collect(Collectors.toList());
-        return CompositeFuture.any(fs)
+        return Future.any(fs)
                 .compose(cf-> IntStream.range(0,cf.size())
                         .filter(cf::succeeded)
                         .mapToObj(cf::<InetAddress>resultAt)

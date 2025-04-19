@@ -12,13 +12,9 @@ import io.crowds.util.Mmdb;
 import io.crowds.util.Strs;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
-import io.vertx.core.cli.CLI;
-import io.vertx.core.cli.CommandLine;
-import io.vertx.core.cli.Option;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
-import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 
@@ -26,17 +22,29 @@ public class Main {
 
     private static String mmdbTarget;
 
+    private static String getConfigPath(String[] args){
+        String configFile = null;
+        for (int i = 0; i < args.length; i++) {
+            String arg = args[i];
+            switch (arg) {
+                case "-c", "--config"->{
+                    if (i+1 < args.length) {
+                        configFile = args[i + 1];
+                    }
+                }
+            }
+        }
+        return configFile;
+    }
+
     public static void main(String[] args) {
+        Ddnsp.netStack().newTcpSocket();
 //        ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.PARANOID);
         System.getProperties().setProperty("vertx.disableDnsResolver","true");
         Vertx vertx = Ddnsp.vertx();
         Context context = Ddnsp.context();
 
-        CLI cli = CLI.create("ddnsp")
-                .addOption(new Option().setShortName("c").setLongName("config").setMultiValued(false).setRequired(false));
-
-        CommandLine line = cli.parse(Arrays.asList(args));
-        String configFile=line.getOptionValue("c");
+        String configFile=getConfigPath(args);
 
         DDnspOptionLoader loader = new DDnspOptionLoader(vertx);
 
@@ -47,7 +55,7 @@ public class Main {
                 .compose(option->{
                     ProxyOption proxyOption = option.getProxy();
                     DnsOption dnsOption = option.getDns();
-                    var dnsClient=new DnsClient(vertx, dnsOption.genClientOption());
+                    var dnsClient=new DnsClient(context, dnsOption.genClientOption());
                     Ddnsp.initDnsResolver(dnsClient);
                     InetSocketAddress socketAddress = new InetSocketAddress(dnsOption.getHost(), dnsOption.getPort());
                     DnsServer dnsServer = new DnsServer(context,dnsClient).setOption(dnsOption);

@@ -29,6 +29,10 @@ public class IpPool {
             this.seq=this.address[seqIndex];
     }
 
+    public IPCIDR getIpcidr() {
+        return ipcidr;
+    }
+
     public boolean isMatch(InetAddress address){
         return this.ipcidr.isMatch(address.getAddress());
     }

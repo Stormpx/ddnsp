@@ -1,7 +1,6 @@
 package io.crowds.proxy.common;
 
-import io.crowds.ddns.resolve.DDnsResolver;
-import io.crowds.dns.InternalDnsResolver;
+import io.crowds.compoments.dns.InternalDnsResolver;
 import io.crowds.util.AddrType;
 import io.crowds.util.Async;
 import io.netty.channel.ChannelHandlerContext;
@@ -16,7 +15,7 @@ import java.net.InetSocketAddress;
 
 public class DynamicRecipientLookupHandler extends ChannelOutboundHandlerAdapter {
 
-    private InternalDnsResolver resolver;
+    private final InternalDnsResolver resolver;
 
     public DynamicRecipientLookupHandler(InternalDnsResolver resolver) {
         this.resolver = resolver;
@@ -27,8 +26,9 @@ public class DynamicRecipientLookupHandler extends ChannelOutboundHandlerAdapter
         if (msg instanceof DatagramPacket packet){
             InetSocketAddress recipient = packet.recipient();
             if (recipient.isUnresolved()){
-                if (ctx.channel().localAddress() instanceof InetSocketAddress address){
-                    boolean ipv4 = address.getAddress() instanceof Inet4Address;
+                if (ctx.channel().localAddress() instanceof InetSocketAddress inetSocketAddress){
+                    InetAddress address = inetSocketAddress.getAddress();
+                    boolean ipv4 = address.isAnyLocalAddress()|| address instanceof Inet4Address;
 
                     Async.toCallback(
                             ctx.channel().eventLoop(),

@@ -47,8 +47,7 @@ public class HttpServer {
         ServerBootstrap bootstrap = serverBootstrap.group(context.getAcceptor(), context.getEventLoopGroup())
                 .channelFactory(context.getServerChannelFactory());
         if (Epoll.isAvailable()){
-            bootstrap.option(UnixChannelOption.SO_REUSEPORT,true)
-                     .childOption(EpollChannelOption.EPOLL_MODE, EpollMode.LEVEL_TRIGGERED);
+            bootstrap.option(UnixChannelOption.SO_REUSEPORT,true);
         }
         bootstrap
                 .option(ChannelOption.SO_REUSEADDR,true)
