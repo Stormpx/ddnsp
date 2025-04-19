@@ -1,4 +1,4 @@
-package io.crowds.tun.wireguard;
+package io.crowds.compoments.wireguard;
 
 public enum WireGuardError {
 
