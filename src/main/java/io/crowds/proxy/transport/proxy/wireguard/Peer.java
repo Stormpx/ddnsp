@@ -89,7 +89,8 @@ public class Peer {
             if (!channelOpening.compareAndSet(false,true)){
                 return;
             }
-            logger.info("{} {}",destination,AddrType.of(option.endpoint()));
+            if (logger.isDebugEnabled())
+                logger.debug("wireguard peer open channel for {}",destination);
             transport.openChannel(eventLoop, destination, AddrType.of(option.endpoint()))
                      .addListener(f->{
                          try {

@@ -129,14 +129,16 @@ public class WireguardProxyTransport extends FullConeProxyTransport {
 
     public Future<Channel> createChannel(EventLoop eventLoop, NetLocation netLocation, Transport ignore) throws Exception {
         Promise<Channel> promise = eventLoop.newPromise();
-        Class<? extends AbstractPartialChannel> klass = netLocation.getTp()== TP.TCP? PartialSocketChannel.class: PartialDatagramChannel.class ;
-        var cf=  new Bootstrap()
+        Class<? extends AbstractPartialChannel> klass = netLocation.getTp()== TP.TCP? PartialSocketChannel.class: PartialDatagramChannel.class;
+        var bootstrap = new Bootstrap()
                 .group(eventLoopGroup)
                 .resolver(variantResolver.getNettyResolver())
-                .option(PartialChannelOption.of(PartialSocketOptions.TCP_CONNECT_TIMEOUT),30000)
                 .channel(klass)
-                .handler(new DynamicRecipientLookupHandler(variantResolver.getInternalDnsResolver()))
-                .connect(netLocation.getDst().getAddress(),new InetSocketAddress(InetAddress.getByAddress(wireguardOption.getAddress().address().getBytes()),0));
+                .handler(new DynamicRecipientLookupHandler(variantResolver.getInternalDnsResolver()));
+        if (netLocation.getTp()==TP.TCP){
+            bootstrap.option(PartialChannelOption.of(PartialSocketOptions.TCP_CONNECT_TIMEOUT),30000);
+        }
+        var cf=  bootstrap.connect(netLocation.getDst().getAddress(),new InetSocketAddress(InetAddress.getByAddress(wireguardOption.getAddress().address().getBytes()),0));
         cf.addListener(f->{
             if (!f.isSuccess()){
                 promise.tryFailure(f.cause());
