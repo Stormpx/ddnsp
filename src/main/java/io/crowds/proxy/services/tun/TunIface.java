@@ -46,7 +46,6 @@ public class TunIface implements Iface {
                         @Override
                         public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
                             ifaceEntry.callback();
-                            super.channelReadComplete(ctx);
                         }
                     });
              tunChannel = (TunChannel) b.bind(new TunAddress(name)).sync().channel();

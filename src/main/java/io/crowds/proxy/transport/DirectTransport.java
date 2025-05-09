@@ -7,6 +7,7 @@ import io.crowds.proxy.common.DynamicRecipientLookupHandler;
 import io.crowds.util.AddrType;
 import io.crowds.util.Async;
 import io.crowds.util.Inet;
+import io.crowds.util.Strs;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoop;
@@ -16,47 +17,81 @@ import io.netty.util.concurrent.PromiseNotifier;
 import io.netty.util.concurrent.SucceededFuture;
 
 import javax.net.ssl.SSLException;
+import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
+import java.util.Objects;
 
 public class DirectTransport implements Transport {
 
     protected ProtocolOption protocolOption;
     protected ChannelCreator channelCreator;
-    private InetAddress localAddr4;
-    private InetAddress localAddr6;
+    private final String dev;
+    private volatile InetSocketAddress localAddressV4;
+    private volatile InetSocketAddress localAddressV6;
 
     public DirectTransport(ProtocolOption protocolOption, ChannelCreator channelCreator) {
+        Objects.requireNonNull(protocolOption);
+        Objects.requireNonNull(channelCreator);
         this.protocolOption = protocolOption;
         this.channelCreator = channelCreator;
+        TransportOption transport = protocolOption.getTransport();
+        this.dev = transport != null ? transport.getDev() : null;
     }
 
-    private InetSocketAddress getLocalAddr(boolean ipv6) throws SocketException {
-        TransportOption transportOption = protocolOption.getTransport();
-        if (transportOption==null)
-            return null;
-        String dev = transportOption.getDev();
-        if (dev==null)
-            return null;
-        InetAddress devAddr;
-        if (!ipv6) {
-            devAddr = localAddr4;
-            if (devAddr==null){
-                devAddr = Inet.getDeviceAddress(dev, false);
-                this.localAddr4 = devAddr;
-            }
-        } else {
-            devAddr = localAddr6;
-            if (devAddr==null){
-                devAddr = Inet.getDeviceAddress(dev, true);
-                this.localAddr6 = devAddr;
+    private InetSocketAddress getLocalAddressV4(){
+        InetSocketAddress localAddress = this.localAddressV4;
+        if (localAddress==null){
+            synchronized(this){
+                localAddress = this.localAddressV4;
+                if (localAddress==null) {
+                    var deviceAddress = Inet.getDeviceAddress(dev, false);
+                    if (deviceAddress == null) {
+                        //fallback address, means null
+                        deviceAddress = Inet.ANY_ADDRESS_V4;
+                    }
+                    localAddress = new InetSocketAddress(deviceAddress,0);
+                    this.localAddressV4 = localAddress;
+                }
             }
         }
-        if (devAddr==null){
-            throw new SocketException("network interface %s does not have %s address".formatted(dev,ipv6?"v6":"v4"));
+        return localAddress;
+    }
+
+    private InetSocketAddress getLocalAddressV6(){
+        InetSocketAddress localAddress = this.localAddressV6;
+        if (localAddress==null){
+            synchronized(this){
+                localAddress = this.localAddressV6;
+                if (localAddress==null) {
+                    var deviceAddress = Inet.getDeviceAddress(dev, true);
+                    if (deviceAddress == null) {
+                        //fallback address, means null
+                        deviceAddress = Inet.ANY_ADDRESS_V6;
+                    }
+                    localAddress = new InetSocketAddress(deviceAddress,0);
+                    this.localAddressV6 = localAddress;
+                }
+            }
         }
-        return new InetSocketAddress(devAddr,0);
+        return localAddress;
+    }
+
+    private InetSocketAddress getLocalAddress(boolean ipv6) throws SocketException {
+        if (dev==null){
+            return null;
+        }
+        InetSocketAddress localAddress;
+        if (ipv6){
+            localAddress = getLocalAddressV6();
+        }else{
+            localAddress = getLocalAddressV4();
+        }
+        if (localAddress.getAddress().isAnyLocalAddress()){
+            throw new SocketException("Network interface %s does not have %s address".formatted(dev,ipv6?"v6":"v4"));
+        }
+        return localAddress;
     }
 
     private Future<NetAddr> resolve(EventLoop eventLoop,AddrType preferType,NetAddr addr){
@@ -81,7 +116,8 @@ public class DirectTransport implements Transport {
         }
         Async.cascadeFailure(resolve(eventLoop,preferType,dst),promise,resolveFuture->{
             NetAddr dest = resolveFuture.get();
-            var cf= channelCreator.createSocketChannel(eventLoop,getLocalAddr(dest.isIpv6()),dest.getAddress(), initializer);
+            initializer.bindToDevice(dev);
+            var cf= channelCreator.createSocketChannel(eventLoop, getLocalAddress(dest.isIpv6()),dest.getAddress(), initializer);
             PromiseNotifier.cascade(cf,promise);
         });
         return promise;
@@ -103,9 +139,10 @@ public class DirectTransport implements Transport {
                               .addLast(new DynamicRecipientLookupHandler(Ddnsp.dnsResolver()));
                         }
                     });
+                    initializer.bindToDevice(dev);
                     DatagramOption datagramOption = new DatagramOption()
                             .setEventLoop(eventLoop)
-                            .setBindAddr(getLocalAddr(dest.isIpv6()));
+                            .setBindAddr(getLocalAddress(dest.isIpv6()));
                     var future = channelCreator.createDatagramChannel(datagramOption,initializer);
                     PromiseNotifier.cascade(future,promise);
                 });

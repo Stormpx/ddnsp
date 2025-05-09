@@ -28,10 +28,7 @@ import org.stormpx.net.socket.PartialSocketOptions;
 import org.stormpx.net.util.*;
 import org.stormpx.net.netty.*;
 
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
-import java.net.UnknownHostException;
+import java.net.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -176,9 +173,10 @@ public class TunServer {
             NetworkParams params = new NetworkParams()
                     .setMtu(option.getMtu())
                     .setSubNet(new SubNet(IPv4.LOOPBACK,8))
+                    .setVerifyChecksum(false)
                     .setIfType(IfType.INTERNET);
             netStack.addNetwork(option.getName(), params,()->new TunIface(executor, option.getName()));
-            netStack.addRoute(new RouteItem().setDestination(new SubNet(IPv4.UNSPECIFIED,0)));
+            netStack.addRoute(new RouteItem().setDestination(new SubNet(IPv4.UNSPECIFIED,0)).setNetwork(option.getName()));
 
             return Future.any(startTcpServer(bindAddress),startUdpServer(bindAddress)).map((v)->null);
         } catch (UnknownHostException e) {

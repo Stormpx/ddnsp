@@ -7,11 +7,16 @@ import java.io.IOException;
 import java.net.UnknownHostException;
 import java.nio.channels.ClosedChannelException;
 import java.util.Objects;
+import java.util.concurrent.CompletionException;
 import java.util.regex.Pattern;
 
 public class Exceptions {
     private static final Pattern IGNORABLE_SOCKET_ERROR_MESSAGE = Pattern.compile(
             "(?:connection.*(?:reset|closed|abort|broken)|broken.*pipe)", Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern IGNORABLE_PARTIAL_ERROR_MESSAGE = Pattern.compile(
+            "(?:Closed)", Pattern.CASE_INSENSITIVE);
+
 
     private static final Pattern IGNORABLE_TLS_ERROR_MESSAGE = Pattern.compile(
             "(?:closed already)", Pattern.CASE_INSENSITIVE);
@@ -30,10 +35,14 @@ public class Exceptions {
             return true;
         }
 
+        if (cause instanceof CompletionException){
+            return isExpected(cause.getCause());
+        }
+
         final String msg = cause.getMessage();
         if (msg != null) {
             if ((cause instanceof IOException || cause instanceof ChannelException) &&
-                    IGNORABLE_SOCKET_ERROR_MESSAGE.matcher(msg).find()) {
+                    (IGNORABLE_SOCKET_ERROR_MESSAGE.matcher(msg).find()||IGNORABLE_PARTIAL_ERROR_MESSAGE.matcher(msg).find())) {
                 // Can happen when socket error occurs.
                 return true;
             }
