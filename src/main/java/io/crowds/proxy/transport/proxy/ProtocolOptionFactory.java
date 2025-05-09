@@ -174,7 +174,7 @@ public class ProtocolOptionFactory {
         return sshOption;
     }
 
-    private static SubNet parseAddress(String address){
+    private static SubNet parseSubNet(String address){
         int index = address.indexOf("/");
         if (index==-1){
             return new SubNet(IP.parse(address),32);
@@ -209,6 +209,7 @@ public class ProtocolOptionFactory {
         WireguardOption wireguardOption = new WireguardOption();
         String privateKey = json.getString("privateKey");
         String address = json.getString("address");
+        String dns = json.getString("dns");
         if (Strs.isBlank(privateKey)){
             throw new IllegalArgumentException("wireGuard privateKey is required.");
         }
@@ -216,7 +217,14 @@ public class ProtocolOptionFactory {
             throw new IllegalArgumentException("wireGuard address is required.");
         }
         wireguardOption.setPrivateKey(privateKey);
-        wireguardOption.setAddress(parseAddress(address));
+        wireguardOption.setAddress(parseSubNet(address));
+        if (!Strs.isBlank(dns)){
+            try {
+                wireguardOption.setDns(Inet.parseInetAddress(dns));
+            } catch (Exception e) {
+                logger.error("Exception during parse wireguard dns: {}",e.getMessage());
+            }
+        }
 
         JsonArray peersArray = json.getJsonArray("peers");
         var peers = IntStream.range(0,peersArray.size())

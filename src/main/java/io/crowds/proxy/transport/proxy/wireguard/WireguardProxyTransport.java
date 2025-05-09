@@ -1,64 +1,80 @@
 package io.crowds.proxy.transport.proxy.wireguard;
 
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.crowds.Context;
 import io.crowds.Ddnsp;
+import io.crowds.compoments.dns.VariantResolver;
+import io.crowds.dns.DnsCli;
+import io.crowds.dns.UdpUpstream;
+import io.crowds.dns.cache.DnsCache;
 import io.crowds.proxy.Axis;
 import io.crowds.proxy.NetLocation;
 import io.crowds.proxy.TP;
 import io.crowds.proxy.common.DynamicRecipientLookupHandler;
 import io.crowds.proxy.transport.Transport;
 import io.crowds.proxy.transport.proxy.FullConeProxyTransport;
-import io.crowds.util.Async;
-import io.crowds.util.IPCIDR;
 import io.crowds.util.Pkts;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.EventLoop;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.MultiThreadIoEventLoopGroup;
+import io.netty.channel.nio.NioIoHandler;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.Promise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.stormpx.net.PartialNetStack;
 import org.stormpx.net.RouteItem;
-import org.stormpx.net.netty.AbstractPartialChannel;
-import org.stormpx.net.netty.PartialChannelOption;
-import org.stormpx.net.netty.PartialDatagramChannel;
-import org.stormpx.net.netty.PartialSocketChannel;
-import org.stormpx.net.network.IfSocketPlaceholder;
+import org.stormpx.net.netty.*;
 import org.stormpx.net.network.IfType;
 import org.stormpx.net.network.NetworkParams;
 import org.stormpx.net.socket.PartialSocketOptions;
 import org.stormpx.net.util.IP;
 import org.stormpx.net.util.IPv4;
+import org.stormpx.net.util.IPv6;
 import org.stormpx.net.util.SubNet;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.Comparator;
+import java.util.HexFormat;
 import java.util.List;
 
 public class WireguardProxyTransport extends FullConeProxyTransport {
     private static final Logger logger = LoggerFactory.getLogger(WireguardProxyTransport.class);
     private final WireguardOption wireguardOption;
+    private final PartialNetStack netStack;
+    private final EventLoopGroup eventLoopGroup;
+    private final VariantResolver variantResolver;
+
     private WireguardIface iface;
     private List<Peer> peers;
 
     public WireguardProxyTransport(Axis axis, WireguardOption wireguardOption) {
         super(axis.getChannelCreator(), wireguardOption);
         this.wireguardOption = wireguardOption;
-        init(axis.getContext());
+        this.netStack = new PartialNetStack();
+        this.eventLoopGroup = new MultiThreadIoEventLoopGroup(1,PartialIoHandler.newFactory(netStack, NioIoHandler.newFactory()));
+
+        if (wireguardOption.getDns()!=null) {
+            var upstream = new UdpUpstream(eventLoopGroup.next(), new PartialDatagramChannel(), wireguardOption.getDns());
+            var dnsCli = new DnsCli(eventLoopGroup, new DnsCache(eventLoopGroup.next()), upstream, List.of(upstream),
+                    wireguardOption.getAddress().address() instanceof IPv6);
+            this.variantResolver = new VariantResolver(dnsCli);
+        }else{
+            this.variantResolver = new VariantResolver(Ddnsp.dnsResolver());
+        }
+
+        initNetStack(axis.getContext());
     }
 
-    private void init(Context context){
-        EventLoopGroup eventLoopGroup = context.getEventLoopGroup();
-        PartialNetStack netStack = context.getNetStack();
+    private void initNetStack(Context context){
+        PartialNetStack netStack = this.netStack;
 
         WireguardIface iface = new WireguardIface();
         List<Peer> peers = wireguardOption.getPeers().stream()
-                                          .map(option->new Peer(eventLoopGroup.next(), wireguardOption.getPrivateKey(), option))
+                                          .map(option->new Peer(context.getEventLoopGroup().next(), wireguardOption.getPrivateKey(), option))
                                           .toList();
         iface.packetHandler(packet->{
             //write to network
@@ -114,11 +130,13 @@ public class WireguardProxyTransport extends FullConeProxyTransport {
     public Future<Channel> createChannel(EventLoop eventLoop, NetLocation netLocation, Transport ignore) throws Exception {
         Promise<Channel> promise = eventLoop.newPromise();
         Class<? extends AbstractPartialChannel> klass = netLocation.getTp()== TP.TCP? PartialSocketChannel.class: PartialDatagramChannel.class ;
-        var cf=  channelCreator.getBootstrap(eventLoop)
-                               .option(PartialChannelOption.of(PartialSocketOptions.TCP_CONNECT_TIMEOUT),30000)
-                               .channel(klass)
-                               .handler(new DynamicRecipientLookupHandler(Ddnsp.dnsResolver()))
-                               .connect(netLocation.getDst().getAddress(),new InetSocketAddress(InetAddress.getByAddress(wireguardOption.getAddress().address().getBytes()),0));
+        var cf=  new Bootstrap()
+                .group(eventLoopGroup)
+                .resolver(variantResolver.getNettyResolver())
+                .option(PartialChannelOption.of(PartialSocketOptions.TCP_CONNECT_TIMEOUT),30000)
+                .channel(klass)
+                .handler(new DynamicRecipientLookupHandler(variantResolver.getInternalDnsResolver()))
+                .connect(netLocation.getDst().getAddress(),new InetSocketAddress(InetAddress.getByAddress(wireguardOption.getAddress().address().getBytes()),0));
         cf.addListener(f->{
             if (!f.isSuccess()){
                 promise.tryFailure(f.cause());

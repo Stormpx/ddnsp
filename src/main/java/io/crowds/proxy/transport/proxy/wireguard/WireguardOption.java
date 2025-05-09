@@ -4,12 +4,14 @@ import io.crowds.compoments.wireguard.PeerOption;
 import io.crowds.proxy.transport.ProtocolOption;
 import org.stormpx.net.util.SubNet;
 
+import java.net.InetSocketAddress;
 import java.util.List;
 
 public class WireguardOption extends ProtocolOption {
 
-    private SubNet address;
     private String privateKey;
+    private SubNet address;
+    private InetSocketAddress dns;
     private List<PeerOption> peers;
 
     public SubNet getAddress() {
@@ -36,6 +38,15 @@ public class WireguardOption extends ProtocolOption {
 
     public WireguardOption setPeers(List<PeerOption> peers) {
         this.peers = peers;
+        return this;
+    }
+
+    public InetSocketAddress getDns() {
+        return dns;
+    }
+
+    public WireguardOption setDns(InetSocketAddress dns) {
+        this.dns = dns;
         return this;
     }
 }

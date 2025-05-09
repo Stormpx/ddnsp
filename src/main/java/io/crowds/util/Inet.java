@@ -7,6 +7,19 @@ import java.util.Enumeration;
 import java.util.Iterator;
 
 public class Inet {
+    public final static Inet4Address ANY_ADDRESS_V4;
+    public final static Inet6Address ANY_ADDRESS_V6;
+
+    static {
+         try {
+             ANY_ADDRESS_V4 = (Inet4Address) Inet4Address.getByName("0.0.0.0");
+             ANY_ADDRESS_V6 = (Inet6Address) Inet6Address.getByName("::");
+        } catch (UnknownHostException e) {
+             //should not happen
+             throw new RuntimeException(e);
+        }
+    }
+
     private static Boolean ipv6 = null;
 
     private static boolean is0SupportsIpV6(){
@@ -39,19 +52,19 @@ public class Inet {
             if (hostAndIp.startsWith("[")){
                 int index = hostAndIp.lastIndexOf("]");
                 if (index==-1){
-                    throw new IllegalArgumentException("invalid host and ip");
+                    throw new IllegalArgumentException(hostAndIp+": Invalid host and ip");
                 }
                 if (index==hostAndIp.length()-1){
-                    throw new IllegalArgumentException("must have port parts");
+                    throw new IllegalArgumentException(hostAndIp+": Must have port parts");
                 }
                 host = hostAndIp.substring(1, index);
                 if (!NetUtil.isValidIpV6Address(host)){
-                    throw new IllegalArgumentException("invalid ipv6 address");
+                    throw new IllegalArgumentException(hostAndIp+": Invalid ipv6 address");
                 }
             }
             int index = hostAndIp.lastIndexOf(":");
             if (index==-1){
-                throw new IllegalArgumentException("must have port parts");
+                throw new IllegalArgumentException(hostAndIp+": Must have port parts");
             }
             if (host==null){
                 host = hostAndIp.substring(0,index);
@@ -59,9 +72,9 @@ public class Inet {
             String portStr = hostAndIp.substring(index+1);
             return createSocketAddress(host,Integer.parseInt(portStr));
         } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("parse %s failed cause:invalid host and ip".formatted(hostAndIp));
+            throw new IllegalArgumentException("%s: Invalid host and ip".formatted(hostAndIp));
         } catch (Exception e){
-            throw new IllegalArgumentException("parse %s failed cause:%s".formatted(hostAndIp,e.getMessage()));
+            throw new IllegalArgumentException("%s: %s".formatted(hostAndIp,e.getMessage()));
         }
 
     }
