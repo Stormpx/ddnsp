@@ -1,6 +1,7 @@
 package io.crowds.compoments.dns;
 
 import io.crowds.dns.DnsClient;
+import io.crowds.util.AddrType;
 import io.netty.handler.codec.dns.DnsRecordType;
 import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
@@ -24,17 +25,17 @@ public class DdnspInetAddressResolver implements InetAddressResolver {
         this.internalDnsResolver = internalDnsResolver;
     }
 
-    private CompositeFuture lookupWithPolicy(DnsClient dnsClient, String host, LookupPolicy lookupPolicy){
+    private CompositeFuture lookupWithPolicy(InternalDnsResolver resolver, String host, LookupPolicy lookupPolicy){
         List<Future<?>> r=new ArrayList<>(2);
         if ((lookupPolicy.characteristics()&LookupPolicy.IPV4_FIRST)!=0){
-            r.add(dnsClient.requestAll(host, DnsRecordType.A,false).map(List::stream));
+            r.add(resolver.resolveAll(host, AddrType.IPV4).map(List::stream));
             if ((lookupPolicy.characteristics()&LookupPolicy.IPV6)!=0){
-                r.add(dnsClient.requestAll(host, DnsRecordType.AAAA,false).map(List::stream));
+                r.add(resolver.resolveAll(host, AddrType.IPV6).map(List::stream));
             }
         }else{
-            r.add(dnsClient.requestAll(host, DnsRecordType.AAAA,false).map(List::stream));
+            r.add(resolver.resolveAll(host, AddrType.IPV6).map(List::stream));
             if ((lookupPolicy.characteristics()&LookupPolicy.IPV4)!=0){
-                r.add(dnsClient.requestAll(host, DnsRecordType.A,false).map(List::stream));
+                r.add(resolver.resolveAll(host, AddrType.IPV4).map(List::stream));
             }
         }
         return Future.all(r);

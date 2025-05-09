@@ -32,10 +32,7 @@ public class DdnspNameResolver extends DefaultNameResolver {
     @Override
     protected void doResolveAll(String inetHost, Promise<List<InetAddress>> promise) throws Exception {
         InternalDnsResolver resolver = dnsResolver;
-        var future = switch (resolver){
-            case DnsClient dnsClient->dnsClient.requestAll(inetHost,false);
-            default -> resolver.resolve(inetHost,null).map(List::of);
-        };
+        var future = resolver.resolveAll(inetHost,null);
         future.onComplete(ar->{
             if (ar.succeeded()){
                 promise.trySuccess(ar.result());

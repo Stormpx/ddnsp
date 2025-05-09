@@ -1,9 +1,8 @@
 package io.crowds.dns;
 
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.channel.*;
 import io.netty.channel.socket.DatagramChannel;
+import io.netty.channel.socket.DatagramPacket;
 import io.netty.handler.codec.dns.*;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.ScheduledFuture;
@@ -12,7 +11,6 @@ import io.vertx.core.Promise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.Inet6Address;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Map;
@@ -23,19 +21,19 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class UdpUpstream extends AbstractDnsUpstream {
     private final static Logger logger= LoggerFactory.getLogger(UdpUpstream.class);
 
-    private final EventLoopGroup eventLoopGroup;
+    private final EventLoop eventLoop;
     private final DatagramChannel channel;
 
     private InetSocketAddress defaultAddr;
     private Map<Integer,QueryContext> queryContextMap;
 
     private final AtomicInteger reqId=new AtomicInteger(0);
-    public UdpUpstream(EventLoopGroup eventLoopGroup, DatagramChannel channel,InetSocketAddress defaultAddr) {
+    public UdpUpstream(EventLoop eventLoop, DatagramChannel channel, InetSocketAddress defaultAddr) {
         super(null);
         if (defaultAddr.isUnresolved()){
             throw new RuntimeException("unresolved address");
         }
-        this.eventLoopGroup = eventLoopGroup;
+        this.eventLoop = eventLoop;
         this.channel=channel;
         this.queryContextMap=new HashMap<>();
         init(defaultAddr);
@@ -66,7 +64,7 @@ public class UdpUpstream extends AbstractDnsUpstream {
                         }
                     }
                 });
-        this.eventLoopGroup.register(channel);
+        this.eventLoop.register(channel);
         this.channel.bind(new InetSocketAddress(0));
     }
 
@@ -102,13 +100,13 @@ public class UdpUpstream extends AbstractDnsUpstream {
     }
 
     class QueryContext{
-        private Promise<DnsResponse> promise;
-        private ScheduledFuture<?> schedule;
+        private final Promise<DnsResponse> promise;
+        private final ScheduledFuture<?> schedule;
 
 
         public QueryContext(Promise<DnsResponse> promise) {
             this.promise = promise;
-            this.schedule = eventLoopGroup.schedule(() -> {
+            this.schedule = eventLoop.schedule(() -> {
                 promise.tryFail("timeout..");
             }, 5, TimeUnit.SECONDS);
         }
