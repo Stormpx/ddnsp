@@ -1,23 +1,22 @@
 package io.crowds.proxy;
 
 import io.crowds.Context;
-import io.crowds.Ddnsp;
+import io.crowds.compoments.dns.VariantResolver;
+import io.crowds.util.AddrType;
 import io.crowds.util.Async;
+import io.crowds.util.ChannelFactoryProvider;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.*;
-import io.netty.channel.epoll.Epoll;
 import io.netty.channel.epoll.EpollChannelOption;
 import io.netty.channel.epoll.EpollDatagramChannel;
-import io.netty.channel.epoll.EpollMode;
 import io.netty.channel.socket.DatagramChannel;
-import io.netty.channel.socket.InternetProtocolFamily;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.FutureListener;
 import io.netty.util.concurrent.Promise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.stormpx.net.netty.PartialDatagramChannel;
 
-import java.net.Inet4Address;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.HashMap;
@@ -26,31 +25,43 @@ import java.util.Map;
 public class ChannelCreator {
     private final static Logger logger= LoggerFactory.getLogger(ChannelCreator.class);
 
-    private final Context context;
+    private final VariantResolver variantResolver;
+    private final EventLoopGroup eventLoopGroup;
     private final EventLoop executor;
+    private final ChannelFactoryProvider channelFactoryProvider;
     private final Map<InetSocketAddress,Future<DatagramChannel>> foreignChannelLookups;
 
     public ChannelCreator(Context context) {
-        this.context = context;
+        this.eventLoopGroup = context.getEventLoopGroup();
         this.executor =context.getEventLoopGroup().next();
+        this.channelFactoryProvider = context.getChannelFactoryProvider();
+        this.variantResolver = context.getVariantResolver();
+        this.foreignChannelLookups=new HashMap<>();
+    }
+
+    public ChannelCreator(EventLoopGroup eventLoopGroup, ChannelFactoryProvider channelFactoryProvider, VariantResolver variantResolver) {
+        this.eventLoopGroup = eventLoopGroup;
+        this.executor = eventLoopGroup.next();
+        this.channelFactoryProvider = channelFactoryProvider;
+        this.variantResolver = variantResolver;
         this.foreignChannelLookups=new HashMap<>();
     }
 
     public Bootstrap getBootstrap(EventLoop eventLoop){
         return new Bootstrap()
                 .group(eventLoop==null?getEventLoopGroup().next():eventLoop)
-                .resolver(context.getNettyResolver());
+                .resolver(variantResolver.getNettyResolver());
     }
 
     public EventLoopGroup getEventLoopGroup() {
-        return context.getEventLoopGroup();
+        return eventLoopGroup;
     }
 
 
     public Future<Channel> createSocketChannel(EventLoop eventLoop, SocketAddress local, SocketAddress remote, ChannelInitializer<Channel> initializer) {
         Promise<Channel> promise = eventLoop.newPromise();
         var cf=getBootstrap(eventLoop)
-                        .channelFactory(context.getSocketChannelFactory())
+                        .channelFactory(channelFactoryProvider.getSocketChannelFactory())
                         .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
                         .handler(initializer)
                         .connect(remote,local);
@@ -71,11 +82,13 @@ public class ChannelCreator {
         assert eventLoop!=null;
         DatagramChannel udpChannel;
         if (bindAddr instanceof InetSocketAddress inetSocketAddress){
-            udpChannel= context.getDatagramChannel(inetSocketAddress.getAddress() instanceof Inet4Address? InternetProtocolFamily.IPv4:InternetProtocolFamily.IPv6);
+            udpChannel= channelFactoryProvider.getDatagramChannelFactory().newChannel(AddrType.of(inetSocketAddress.getAddress()).toNettyFamily());
         }else{
-            udpChannel= context.getDatagramChannel();
+            udpChannel= channelFactoryProvider.getDatagramChannelFactory().newChannel();
         }
-        udpChannel.config().setOption(ChannelOption.SO_REUSEADDR,true);
+        if (!(udpChannel instanceof PartialDatagramChannel)) {
+            udpChannel.config().setOption(ChannelOption.SO_REUSEADDR, true);
+        }
         if (ipTransparent && udpChannel instanceof EpollDatagramChannel){
             udpChannel.config().setOption(EpollChannelOption.IP_TRANSPARENT,true);
         }
@@ -127,7 +140,7 @@ public class ChannelCreator {
     public Future<DatagramChannel> createDatagramChannel(DatagramOption option, ChannelInitializer<Channel> initializer) {
         SocketAddress bindAddr = option.getBindAddr();
         boolean ipTransparent = option.isIpTransparent();
-        EventLoop eventLoop = option.getEventLoop()!=null? option.getEventLoop():context.getEventLoopGroup().next();
+        EventLoop eventLoop = option.getEventLoop()!=null? option.getEventLoop():eventLoopGroup.next();
 
         if (ipTransparent&&bindAddr==null){
             return eventLoop.newFailedFuture(new IllegalArgumentException("IP_TRANSPARENT must specify Bind Address"));

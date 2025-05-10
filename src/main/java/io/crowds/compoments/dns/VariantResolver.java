@@ -1,19 +1,21 @@
 package io.crowds.compoments.dns;
 
+import java.util.function.Supplier;
+
 public class VariantResolver {
 
-    private final InternalDnsResolver internalDnsResolver;
+    private final Supplier<InternalDnsResolver> internalDnsResolver;
     private final DdnspAddressResolverGroup nettyResolverGroup;
 
 
-    public VariantResolver(InternalDnsResolver internalDnsResolver) {
+    public VariantResolver(Supplier<InternalDnsResolver> internalDnsResolver) {
         this.internalDnsResolver = internalDnsResolver;
-        this.nettyResolverGroup = new DdnspAddressResolverGroup(()->internalDnsResolver);
+        this.nettyResolverGroup = new DdnspAddressResolverGroup(internalDnsResolver);
     }
 
 
     public InternalDnsResolver getInternalDnsResolver() {
-        return internalDnsResolver;
+        return internalDnsResolver.get();
     }
 
     public DdnspAddressResolverGroup getNettyResolver() {

@@ -4,7 +4,6 @@ import io.crowds.compoments.dns.InternalDnsResolver;
 import io.crowds.dns.cache.CacheKey;
 import io.crowds.dns.cache.DnsCache;
 import io.crowds.util.AddrType;
-import io.crowds.util.Inet;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.dns.*;
 import io.netty.util.ReferenceCountUtil;
@@ -13,7 +12,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -37,6 +35,10 @@ public class DnsCli implements InternalDnsResolver {
         this.defaultStream = defaultStream;
         this.upStreams = upStreams;
         this.useIPV6 = useIPV6;
+    }
+
+    public DnsCli(EventLoopGroup eventLoopGroup, DnsCache dnsCache, DnsUpstream dnsUpStream, boolean useIPV6) {
+        this(eventLoopGroup,dnsCache,dnsUpStream,List.of(dnsUpStream),useIPV6);
     }
 
 

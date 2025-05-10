@@ -1,5 +1,7 @@
 package io.crowds.util;
 
+import io.netty.channel.socket.InternetProtocolFamily;
+
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
@@ -29,4 +31,10 @@ public enum AddrType {
         return inetSocketAddress==null?null:of(inetSocketAddress.getAddress());
     }
 
+    public InternetProtocolFamily toNettyFamily(){
+        return switch (this){
+            case IPV4 -> InternetProtocolFamily.IPv4;
+            case IPV6 -> InternetProtocolFamily.IPv6;
+        };
+    }
 }

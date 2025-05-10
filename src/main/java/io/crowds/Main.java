@@ -38,11 +38,10 @@ public class Main {
     }
 
     public static void main(String[] args) {
-        Ddnsp.netStack().newTcpSocket();
 //        ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.PARANOID);
         System.getProperties().setProperty("vertx.disableDnsResolver","true");
-        Vertx vertx = Ddnsp.vertx();
-        Context context = Ddnsp.context();
+        Context context = Ddnsp.newContext(Ddnsp::dnsResolver);
+        Vertx  vertx = context.getVertx();
 
         String configFile=getConfigPath(args);
 

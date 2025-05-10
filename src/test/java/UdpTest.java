@@ -1,4 +1,3 @@
-import io.crowds.Platform;
 import io.crowds.proxy.ChannelCreator;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;

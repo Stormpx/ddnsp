@@ -1,6 +1,7 @@
 package proxy;
 
 import io.crowds.Context;
+import io.crowds.Ddnsp;
 import io.crowds.proxy.*;
 import io.crowds.proxy.transport.EndPoint;
 import io.crowds.proxy.transport.ProxyTransport;
@@ -19,6 +20,8 @@ import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.impl.VertxImpl;
+import io.vertx.core.internal.VertxInternal;
+import org.stormpx.net.PartialNetStack;
 
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
@@ -30,9 +33,10 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 public abstract class ProxyTest {
-    protected Vertx vertx = Vertx.vertx();
+    protected Context context = Ddnsp.newContext(Ddnsp::dnsResolver);
+    protected VertxInternal vertx = context.getVertx();
     protected EventLoopGroup eventLoopGroup=vertx.nettyEventLoopGroup();
-    protected ChannelCreator channelCreator=new ChannelCreator(new Context((VertxImpl) vertx));
+    protected ChannelCreator channelCreator=new ChannelCreator(context);
 
     private static volatile boolean setupHttpServer=false;
 

@@ -4,10 +4,8 @@ package io.crowds.dns;
 import io.crowds.Context;
 import io.crowds.compoments.dns.InternalDnsResolver;
 import io.crowds.dns.cache.DnsCache;
-import io.crowds.util.AddrType;
-import io.crowds.util.Inet;
-import io.crowds.util.Strs;
-import io.netty.channel.socket.InternetProtocolFamily;
+import io.crowds.util.*;
+import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.dns.*;
 import io.vertx.core.Future;
 import org.slf4j.Logger;
@@ -19,29 +17,40 @@ import java.util.stream.Collectors;
 
 public class DnsClient implements InternalDnsResolver {
     private final Logger logger= LoggerFactory.getLogger(DnsClient.class);
-    private final Context context;
+    private final EventLoopGroup eventLoopGroup;
+
+    private final DatagramChannelFactory datagramChannelFactory;
     private final DnsCache dnsCache;
 
     private final DnsCli dnsCli;
 
 
     public DnsClient(Context context, ClientOption option) {
-        this.context = context;
-        var eventLoopGroup= context.getEventLoopGroup();
+        Objects.requireNonNull(context);
+        Objects.requireNonNull(option);
+        this.eventLoopGroup= context.getEventLoopGroup();
+        this.datagramChannelFactory = context.getChannelFactoryProvider().getDatagramChannelFactory();
         this.dnsCache=new DnsCache(eventLoopGroup.next());
         var defaultStream = newDefaultUpstream();
         var upStreams = newUpStreams(context,option.getUpstreams());
         this.dnsCli = new DnsCli(eventLoopGroup,this.dnsCache,defaultStream,upStreams, option.isTryIpv6()&&Inet.isSupportsIpV6());
+    }
+    public DnsClient(EventLoopGroup eventLoopGroup, DatagramChannelFactory datagramChannelFactory) {
+        Objects.requireNonNull(eventLoopGroup);
+        Objects.requireNonNull(datagramChannelFactory);
+        this.eventLoopGroup = eventLoopGroup;
+        this.datagramChannelFactory = datagramChannelFactory;
+        this.dnsCache=new DnsCache(eventLoopGroup.next());
+        var defaultStream = newDefaultUpstream();
+        this.dnsCli = new DnsCli(eventLoopGroup,this.dnsCache,defaultStream, Inet.isSupportsIpV6());
     }
 
     private UdpUpstream newUdpUpstream(InetSocketAddress address){
         if (address.isUnresolved()){
             return null;
         }
-        var channel = context.getDatagramChannel(
-                (address.getAddress() instanceof Inet4Address)? InternetProtocolFamily.IPv4:InternetProtocolFamily.IPv6
-        );
-        return new UdpUpstream(context.getEventLoopGroup().next(),channel,address);
+        var channel = datagramChannelFactory.newChannel(AddrType.of(address.getAddress()));
+        return new UdpUpstream(eventLoopGroup.next(),channel,address);
     }
 
     private UdpUpstream newDefaultUpstream(){

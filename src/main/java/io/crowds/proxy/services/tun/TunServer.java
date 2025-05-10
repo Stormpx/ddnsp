@@ -3,11 +3,14 @@ package io.crowds.proxy.services.tun;
 import io.crowds.Context;
 import io.crowds.Ddnsp;
 import io.crowds.proxy.Axis;
+import io.crowds.proxy.ChannelCreator;
+import io.crowds.proxy.DatagramOption;
 import io.crowds.proxy.common.BaseChannelInitializer;
 import io.crowds.proxy.dns.FakeContext;
 import io.crowds.proxy.dns.FakeDns;
 import io.crowds.util.AddrType;
 import io.crowds.util.Async;
+import io.crowds.util.ChannelFactoryProvider;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
@@ -44,17 +47,19 @@ public class TunServer {
     private final DefaultEventLoop executor;
     private final List<SubNet> ignoreAddresses;
 
+    private final ChannelCreator paritialChannelCreator;
+
     private PartialServerSocketChannel tcpServer;
     private PartialDatagramChannel udpServer;
 
-    private final Map<InetSocketAddress, io.netty.util.concurrent.Future<DatagramChannel>> foreignChannelLookups;
 
     public TunServer(TunServerOption option, Axis axis) {
         this.option = option;
         this.axis = axis;
-        this.foreignChannelLookups=new ConcurrentHashMap<>();
         this.executor = new DefaultEventLoop();
         this.ignoreAddresses = parseIgnoreAddresses(option);
+
+        this.paritialChannelCreator = new ChannelCreator(axis.getContext().getEventLoopGroup(), ChannelFactoryProvider.ofPartial(),axis.getContext().getVariantResolver());
     }
 
 
@@ -84,7 +89,7 @@ public class TunServer {
             try {
                 mask = Integer.parseInt(strings[1]);
             } catch (NumberFormatException e) {
-                logger.warn("mask can not found:{}",ignoreAddress);
+                logger.warn("Mask can not found:{}",ignoreAddress);
                 continue;
             }
             result.add(new SubNet(ip,mask));
@@ -213,49 +218,11 @@ public class TunServer {
             super(false);
         }
 
-        private io.netty.util.concurrent.Future<DatagramChannel> doCreateDatagramChannel(SocketAddress bindAddr){
-            PartialDatagramChannel datagramChannel = new PartialDatagramChannel();
-            datagramChannel.pipeline().addLast(new BaseChannelInitializer().connIdle(300,(ch,idleStateEvent) -> ch.close()));
-            var eventLoop = axis.getContext().getEventLoopGroup().next();
-            eventLoop.register(datagramChannel);
-
-            io.netty.util.concurrent.Promise<DatagramChannel> promise=eventLoop.newPromise();
-            datagramChannel.bind(bindAddr)
-                           .addListener(future -> {
-                               if (!future.isSuccess()){
-                                   promise.tryFailure(future.cause());
-                                   return;
-                               }
-                               promise.trySuccess(datagramChannel);
-                           });
-            return promise;
-        }
 
         private io.netty.util.concurrent.Future<DatagramChannel> createForeignChannel(InetSocketAddress address)  {
-            if (executor.inEventLoop()){
-                io.netty.util.concurrent.Future<DatagramChannel> result = foreignChannelLookups.get(address);
-                if (result!=null){
-                    return result;
-                }
-                var future = doCreateDatagramChannel(address);
-                if (future.isDone()&&!future.isSuccess()){
-                    return future;
-                }
-                foreignChannelLookups.put(address,future);
-                future.addListener((FutureListener<DatagramChannel>) f->{
-                    if (!f.isSuccess()){
-                        foreignChannelLookups.remove(address,future);
-                        return;
-                    }
-                    f.get().closeFuture().addListener(it->foreignChannelLookups.remove(address,future));
-                });
-                return future;
-            }else{
-                io.netty.util.concurrent.Promise<DatagramChannel> promise = TunServer.this.executor.newPromise();
-                TunServer.this.executor.submit(()-> createForeignChannel(address).addListener(
-                        Async.cascade(promise)));
-                return promise;
-            }
+            return paritialChannelCreator.createDatagramChannel(
+                    new DatagramOption().setBindAddr(address).setIpTransport(true),
+                    new BaseChannelInitializer().connIdle(300,(ch,idleStateEvent) -> ch.close()));
         }
 
         private void handleFallbackPacket(DatagramPacket packet)  {

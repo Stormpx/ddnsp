@@ -38,7 +38,6 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.Comparator;
-import java.util.HexFormat;
 import java.util.List;
 
 public class WireguardProxyTransport extends FullConeProxyTransport {
@@ -59,11 +58,10 @@ public class WireguardProxyTransport extends FullConeProxyTransport {
 
         if (wireguardOption.getDns()!=null) {
             var upstream = new UdpUpstream(eventLoopGroup.next(), new PartialDatagramChannel(), wireguardOption.getDns());
-            var dnsCli = new DnsCli(eventLoopGroup, new DnsCache(eventLoopGroup.next()), upstream, List.of(upstream),
-                    wireguardOption.getAddress().address() instanceof IPv6);
-            this.variantResolver = new VariantResolver(dnsCli);
+            var dnsCli = new DnsCli(eventLoopGroup, new DnsCache(eventLoopGroup.next()), upstream, wireguardOption.getAddress().address() instanceof IPv6);
+            this.variantResolver = new VariantResolver(()->dnsCli);
         }else{
-            this.variantResolver = new VariantResolver(Ddnsp.dnsResolver());
+            this.variantResolver = new VariantResolver(Ddnsp::dnsResolver);
         }
 
         initNetStack(axis.getContext());
