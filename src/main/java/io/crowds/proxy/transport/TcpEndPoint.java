@@ -5,19 +5,24 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.socket.DatagramPacket;
-import io.netty.handler.timeout.IdleStateEvent;
+import io.netty.handler.codec.http2.Http2Exception;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.Future;
 
-import java.util.function.Consumer;
+import java.util.Collection;
+import java.util.List;
 
 public class TcpEndPoint extends EndPoint {
 
     private final Channel channel;
+    private final Collection<Class<? extends Throwable>> ignoreExceptions;
+    private final boolean closeOnException;
     private boolean closed;
 
     public TcpEndPoint(Channel channel) {
         this.channel = channel;
+        this.ignoreExceptions = List.of(Http2Exception.class);
+        this.closeOnException = false;
         setAutoRead(false);
         init();
     }
@@ -43,9 +48,27 @@ public class TcpEndPoint extends EndPoint {
                 }
                 fireBuf(msg);
             }
+
+            private boolean ignore(Throwable cause){
+                for (Class<? extends Throwable> exKlass : ignoreExceptions) {
+                    if (exKlass.isInstance(cause)){
+                        return true;
+                    }
+                }
+                return false;
+            }
+
             @Override
             public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-                fireException(cause);
+                if (ignore(cause)){
+                    ctx.fireExceptionCaught(cause);
+                }else{
+                    fireException(cause);
+                    if (closeOnException){
+                        ctx.close();
+                    }
+                }
+
             }
         });
 

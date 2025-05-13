@@ -30,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.*;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -174,8 +175,11 @@ public class DDnspOptionLoader {
         if (httpJson!=null){
             HttpOption httpOption = new HttpOption();
             httpOption.setEnable(httpJson.getBoolean("enable",false))
-                    .setHost(httpJson.getString("host","127.0.0.1"))
-                    .setPort(httpJson.getInteger("port",13448));
+                      .setHost(httpJson.getString("host","127.0.0.1"))
+                      .setPort(httpJson.getInteger("port",13448))
+                      .setCert(Optional.ofNullable(httpJson.getString("cert")).map(Path::of).orElse(null))
+                      .setKey(Optional.ofNullable(httpJson.getString("key")).map(Path::of).orElse(null))
+                      .setKeyPassword(httpJson.getString("keyPass"));
             proxy.setHttp(httpOption);
         }
         JsonObject socksJson = json.getJsonObject("socks");

@@ -84,7 +84,7 @@ dependencies {
     logger.info("os is ${os.toFamilyName()}")
     logger.info("arch is ${arch.name}")
     implementation 'com.maxmind.geoip2:geoip2:3.0.0'
-    implementation 'org.bouncycastle:bcprov-jdk18on:1.78.1'
+    implementation 'org.bouncycastle:bcpkix-jdk18on:1.80'
     implementation 'io.vertx:vertx-core:5.0.0.CR6'
     implementation 'io.vertx:vertx-web:5.0.0.CR6'
     implementation 'io.vertx:vertx-config:5.0.0.CR6'

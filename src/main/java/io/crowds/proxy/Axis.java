@@ -6,8 +6,8 @@ import io.crowds.proxy.dns.FakeDns;
 import io.crowds.proxy.dns.FakeOption;
 import io.crowds.proxy.routing.CachedRouter;
 import io.crowds.proxy.routing.Router;
-import io.crowds.proxy.select.TransportProvider;
 import io.crowds.proxy.select.Transport;
+import io.crowds.proxy.select.TransportProvider;
 import io.crowds.proxy.transport.EndPoint;
 import io.crowds.proxy.transport.ProxyTransport;
 import io.crowds.proxy.transport.TcpEndPoint;
@@ -17,7 +17,6 @@ import io.crowds.util.IPCIDR;
 import io.crowds.util.Lambdas;
 import io.netty.channel.Channel;
 import io.netty.channel.EventLoop;
-import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.DatagramPacket;
 import io.netty.util.ReferenceCountUtil;
@@ -207,9 +206,10 @@ public class Axis {
             NetAddr recipient = getNetAddr(packet.recipient());
             NetAddr sender = getNetAddr(packet.sender());
             FakeContext fakeContext=getFakeContext(recipient);
-            NetLocation netLocation = new NetLocation(sender,
-                    fakeContext!=null?fakeContext.getNetAddr(recipient.getPort()):recipient,
-                    TP.UDP);
+            if (fakeContext!=null){
+                recipient = fakeContext.getNetAddr(recipient.getPort());
+            }
+            NetLocation netLocation = new NetLocation(sender, recipient, TP.UDP);
 
             mappings.getOrCreate(netLocation, Lambdas.rethrowSupplier(()->{
                 ProxyContext proxyContext = new ProxyContext(datagramChannel.eventLoop(), netLocation)
