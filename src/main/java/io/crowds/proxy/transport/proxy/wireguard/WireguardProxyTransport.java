@@ -1,7 +1,6 @@
 package io.crowds.proxy.transport.proxy.wireguard;
 
 import io.crowds.Context;
-import io.crowds.Ddnsp;
 import io.crowds.compoments.dns.VariantResolver;
 import io.crowds.dns.DnsCli;
 import io.crowds.dns.UdpUpstream;
@@ -56,15 +55,16 @@ public class WireguardProxyTransport extends FullConeProxyTransport {
         this.netStack = new PartialNetStack();
         this.eventLoopGroup = new MultiThreadIoEventLoopGroup(1,PartialIoHandler.newFactory(netStack, NioIoHandler.newFactory()));
 
+        initNetStack(axis.getContext());
+
         if (wireguardOption.getDns()!=null) {
             var upstream = new UdpUpstream(eventLoopGroup.next(), new PartialDatagramChannel(), wireguardOption.getDns());
             var dnsCli = new DnsCli(eventLoopGroup, new DnsCache(eventLoopGroup.next()), upstream, wireguardOption.getAddress().address() instanceof IPv6);
             this.variantResolver = new VariantResolver(()->dnsCli);
         }else{
-            this.variantResolver = new VariantResolver(Ddnsp::dnsResolver);
+            this.variantResolver = axis.getContext().getVariantResolver();
         }
 
-        initNetStack(axis.getContext());
     }
 
     private void initNetStack(Context context){
@@ -109,7 +109,6 @@ public class WireguardProxyTransport extends FullConeProxyTransport {
         this.iface = iface;
         this.peers = peers;
     }
-
 
     public WireguardProxyTransport setTransport(Transport transport) {
         this.transport = transport;
