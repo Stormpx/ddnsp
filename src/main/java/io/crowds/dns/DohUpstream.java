@@ -108,7 +108,6 @@ public class DohUpstream extends AbstractDnsUpstream {
     @Override
     public Future<DnsResponse> lookup(DnsQuery query) {
         try {
-            logger.info("query {}",query);
             var buf = encodeQuery(query, UnpooledByteBufAllocator.DEFAULT);
             return getServerAddress()
                     .compose(server-> httpClient.request(new RequestOptions()
