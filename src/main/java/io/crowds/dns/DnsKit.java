@@ -7,12 +7,8 @@ import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.CorruptedFrameException;
 import io.netty.handler.codec.dns.*;
 import io.netty.util.CharsetUtil;
-import io.vertx.core.Vertx;
-import io.vertx.core.VertxOptions;
 
 import java.net.InetAddress;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -144,10 +140,7 @@ public class DnsKit {
             content = !copyContent?content.slice():Unpooled.copiedBuffer(content);
             return new DefaultDnsRawRecord(record.name(),record.type(),record.dnsClass(),ttl,content);
         } else if (record instanceof DnsPtrRecord) {
-            String hostname = ((DnsPtrRecord) record).hostname();
-            ByteBuf content = encodeDomainName(hostname, Unpooled.buffer());
-            return new DefaultDnsRawRecord(record.name(),DnsRecordType.PTR,record.dnsClass(),ttl,content);
-            //            return new DefaultDnsPtrRecord(record.name(),record.dnsClass(),ttl,((DnsPtrRecord) record).hostname());
+            return new DefaultDnsPtrRecord(record.name(),record.dnsClass(),ttl,((DnsPtrRecord) record).hostname());
         } else if (record instanceof DnsOptEcsRecord) {
             return record;
         } else if (record instanceof DnsOptPseudoRecord) {
