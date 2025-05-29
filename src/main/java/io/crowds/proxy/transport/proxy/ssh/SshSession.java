@@ -5,10 +5,7 @@ import io.crowds.proxy.common.BaseChannelInitializer;
 import io.crowds.util.Async;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.netty.channel.ChannelInitializer;
+import io.netty.channel.*;
 import io.netty.channel.group.ChannelGroup;
 import io.netty.channel.group.DefaultChannelGroup;
 import io.netty.channel.local.LocalAddress;
@@ -24,16 +21,18 @@ import java.util.Map;
 import java.util.UUID;
 
 public class SshSession {
-    private  Channel parent;
-    private  ClientSession clientSession;
-    private  ChannelGroup channelGroup;
+    private final Channel parent;
+    private final ClientSession clientSession;
+    private final ChannelGroup channelGroup;
+    private final IoEventLoopGroup eventLoopGroup;
     private final LocalAddress localServer =new LocalAddress(UUID.randomUUID().toString());
     private LocalServerChannel localServerChannel;
     private final Map<LocalAddress, SshSessionContext> contexts = new HashMap<>();
-    public SshSession(Channel parent,ClientSession clientSession) {
+    public SshSession(Channel parent, ClientSession clientSession, IoEventLoopGroup eventLoopGroup) {
         this.parent=parent;
         this.clientSession = clientSession;
-        this.channelGroup = new DefaultChannelGroup(parent.eventLoop());
+        this.eventLoopGroup = eventLoopGroup;
+        this.channelGroup = new DefaultChannelGroup(eventLoopGroup.next());
         clientSession.addCloseFutureListener(it -> close());
         parent.pipeline()
               .addLast(new ChannelInboundHandlerAdapter(){
@@ -63,9 +62,9 @@ public class SshSession {
     }
 
     public Promise<Void> start(){
-        Promise<Void> promise = parent.eventLoop().newPromise();
+        Promise<Void> promise = eventLoopGroup.next().newPromise();
         var cf = new ServerBootstrap()
-                .group(parent.eventLoop())
+                .group(eventLoopGroup)
                 .channel(LocalServerChannel.class)
                 .childHandler(new ChannelInitializer<LocalChannel>() {
                     @Override
@@ -86,13 +85,13 @@ public class SshSession {
     }
 
     public Future<Channel> allocTunnel(NetAddr dst){
-        Promise<Channel>  promise = parent.eventLoop().newPromise();
+        Promise<Channel>  promise = eventLoopGroup.next().newPromise();
         var key = new LocalAddress(UUID.randomUUID().toString());
-        SshSessionContext context = new SshSessionContext(parent.eventLoop(),dst);
+        SshSessionContext context = new SshSessionContext(eventLoopGroup.next(), dst);
         contexts.put(key,context);
         var cf = new Bootstrap()
                 .localAddress(key)
-                .group(parent.eventLoop())
+                .group(eventLoopGroup)
                 .channel(LocalChannel.class)
                 .handler(BaseChannelInitializer.EMPTY)
                 .connect(localServer);

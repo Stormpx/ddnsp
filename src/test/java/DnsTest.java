@@ -1,16 +1,9 @@
 import io.crowds.dns.DnsKit;
-import io.crowds.dns.DnsOption;
 import io.netty.handler.codec.dns.*;
 import io.netty.util.internal.StringUtil;
 import io.vertx.core.Vertx;
-import io.vertx.core.dns.DnsClient;
+import io.vertx.core.internal.VertxInternal;
 
-import java.net.InetSocketAddress;
-import java.net.URI;
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -54,7 +47,7 @@ public class DnsTest {
 
 
 
-        vertx.nettyEventLoopGroup().awaitTermination(6, TimeUnit.SECONDS);
+        ((VertxInternal)vertx).nettyEventLoopGroup().awaitTermination(6, TimeUnit.SECONDS);
         vertx.close();
 
     }

@@ -11,8 +11,8 @@ import io.crowds.proxy.transport.proxy.ssh.sshd.ChannelDelegateService;
 import io.crowds.proxy.transport.proxy.ssh.sshd.ChannelDelegateServiceFactoryFactory;
 import io.crowds.util.Async;
 import io.crowds.util.Lambdas;
-import io.netty.channel.Channel;
-import io.netty.channel.EventLoop;
+import io.netty.channel.*;
+import io.netty.channel.local.LocalIoHandler;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.Promise;
 import org.apache.sshd.client.SshClient;
@@ -28,7 +28,6 @@ import org.apache.sshd.common.config.keys.loader.KeyPairResourceLoader;
 import org.apache.sshd.common.future.KeyExchangeFuture;
 import org.apache.sshd.common.future.SshFuture;
 import org.apache.sshd.common.future.SshFutureListener;
-import org.apache.sshd.common.keyprovider.FileKeyPairProvider;
 import org.apache.sshd.common.session.SessionContext;
 import org.apache.sshd.common.util.io.resource.PathResource;
 import org.apache.sshd.common.util.security.SecurityUtils;
@@ -53,11 +52,13 @@ public class SshProxyTransport extends AbstractProxyTransport {
     private final SshClient sshClient;
     private final SshOption sshOption;
     private final ChannelDelegateServiceFactoryFactory channelDelegateServiceFactoryFactory;
+    private final IoEventLoopGroup eventLoopGroup;
 
     public SshProxyTransport(ChannelCreator channelCreator,SshOption sshOption) {
         super(channelCreator,sshOption);
         this.sshOption = sshOption;
         this.channelDelegateServiceFactoryFactory=new ChannelDelegateServiceFactoryFactory();
+        this.eventLoopGroup = new MultiThreadIoEventLoopGroup(1, LocalIoHandler.newFactory());
         this.sshClient = setupClient();
     }
 
@@ -184,7 +185,7 @@ public class SshProxyTransport extends AbstractProxyTransport {
                 future->{
                     ClientSession clientSession = future.getClientSession();
                     cascadeSshFuture(clientSession::auth,promise, _->{
-                        SshSession session = new SshSession(channel, clientSession);
+                        SshSession session = new SshSession(channel, clientSession,eventLoopGroup);
                         Async.cascadeFailure(
                                 session.start(),
                                 promise,

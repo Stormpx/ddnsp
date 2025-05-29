@@ -17,7 +17,7 @@ import java.io.IOException;
 
 public class SshSessionContext {
     private final EventLoop eventLoop;
-    public final NetAddr dst;
+    private final NetAddr dst;
     private final Promise<Void> openPromise;
 
     public LocalChannel client;
