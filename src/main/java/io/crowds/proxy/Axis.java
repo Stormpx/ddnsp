@@ -57,7 +57,7 @@ public class Axis {
 
         if (proxyOption.getRules()!=null){
             if (this.proxyOption==null||!proxyOption.getRules().equals(this.proxyOption.getRules())) {
-                this.router = new CachedRouter(proxyOption.getRules(),2,6,12);
+                this.router = new CachedRouter(proxyOption.getRules(),2,12,12);
                 if (this.fakeDns != null) this.fakeDns.setRouter(router);
                 logger.info("router rules setup.");
             }

@@ -37,10 +37,11 @@ public class CachedRouter extends AbstractRouter {
     record SequencedRule(int seq,Rule rule){}
 
     class Slot{
-        private RuleType type;
-        private List<SequencedRule> rules;
-        private LRUK<Object,?> missCache;
-        private LRUK<Object,SequencedRule> hitCache;
+        private final static Object NULL=new Object();
+        private final RuleType type;
+        private final List<SequencedRule> rules;
+        private final LRUK<Object,Object> missCache;
+        private final LRUK<Object,SequencedRule> hitCache;
 
         public Slot(RuleType type,int k,int missSize,int hitSize) {
             this.type = type;
@@ -57,16 +58,18 @@ public class CachedRouter extends AbstractRouter {
             Object key = type.getMatchKey(netLocation);
             if (missCache.exists(key))
                 return null;
-            if (hitCache.exists(key)){
-                return hitCache.get(key);
+
+            var hit = hitCache.get(key);
+            if (hit!=null){
+                return hit;
             }
             for (SequencedRule sequencedRule : rules) {
                 if (sequencedRule.rule().match(netLocation)){
-                    hitCache.access(key,sequencedRule);
+                    hitCache.put(key,sequencedRule);
                     return sequencedRule;
                 }
             }
-            missCache.access(key,null);
+            missCache.put(key,NULL);
             return null;
         }
 

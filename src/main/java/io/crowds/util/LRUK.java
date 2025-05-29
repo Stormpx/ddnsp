@@ -1,34 +1,60 @@
 package io.crowds.util;
 
 import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Objects;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class LRUK<K,V>  {
-    private ReentrantLock lock;
-    private int k;
-    private SizedMap<V> pool;
-    private Map<K,Integer> history;
+    private final int maxSize;
+    private final int k;
+    private final ReentrantLock lock;
+    private final LinkedHashMap<K,V> pool;
+    private final LinkedHashMap<K,Integer> history;
 
     public LRUK(int k, int maxSize) {
-        this.lock=new ReentrantLock();
+        this.maxSize = maxSize;
         this.k = k;
-        this.pool=new SizedMap<>(maxSize);
-        this.history= new SizedMap<>(k * maxSize);
+        this.lock=new ReentrantLock();
+        this.pool=new LinkedHashMap<>(16,0.75f,true);
+        this.history=new LinkedHashMap<>();
     }
 
-    public void access(K key,V val){
+    private void evict(){
+        if (!history.isEmpty()){
+            pool.remove(history.pollFirstEntry().getKey());
+        }else{
+            pool.pollFirstEntry();
+        }
+    }
+
+    //promote if key.access_count < k
+    private void tryPromote(K key){
+        Integer count = history.computeIfPresent(key,(k,c)->c+1);
+        if (count!=null&&count>=k){
+            history.remove(key);
+        }
+    }
+
+    public void put(K key, V val){
+        Objects.requireNonNull(val);
         lock.lock();
         try {
-            if (exists(key)){
-                pool.access(key,val);
-                return ;
-            }
-            Integer count = history.compute(key, (k, v) -> v == null ? 1 : v + 1);
-            if (count>=k){
-                history.remove(key);
-                pool.access(key,val);
+            V v = pool.get(key);
+            if (v!=null){
+                tryPromote(key);
+
+                if (v!=val){
+                    pool.replace(key,val);
+                }
+            }else {
+                if (pool.size() == maxSize) {
+                    evict();
+                }
+                pool.put(key, val);
+                Integer count = history.compute(key, (k, c) -> c == null ? 1 : c + 1);
+                if (count >= k) {
+                    history.remove(key);
+                }
             }
         } finally {
             lock.unlock();
@@ -36,13 +62,7 @@ public class LRUK<K,V>  {
     }
 
     public boolean exists(K key){
-        lock.lock();
-
-        try {
-            return pool.containsKey(key);
-        } finally {
-            lock.unlock();
-        }
+        return get(key)!=null;
     }
 
     public V get(K key){
@@ -50,29 +70,13 @@ public class LRUK<K,V>  {
 
         try {
             V v = pool.get(key);
-            if (v!=null)
-                pool.access(key,v);
+            if (v!=null){
+                tryPromote(key);
+            }
             return v;
         } finally {
             lock.unlock();
         }
     }
 
-    class SizedMap<V> extends LinkedHashMap<K, V>{
-
-        private Integer maxSize;
-
-        public SizedMap(Integer maxSize) {
-            this.maxSize = maxSize;
-        }
-
-        public void access(K k,V val){
-            put(k,val);
-        }
-
-        @Override
-        protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {
-            return size()> maxSize;
-        }
-    }
 }

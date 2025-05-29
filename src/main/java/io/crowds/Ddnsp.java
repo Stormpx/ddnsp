@@ -1,13 +1,13 @@
 package io.crowds;
 
-import io.crowds.dns.DnsClient;
 import io.crowds.compoments.dns.InternalDnsResolver;
-import io.crowds.util.ChannelFactoryProvider;
+import io.crowds.dns.DnsClient;
 import io.crowds.util.DatagramChannelFactory;
 import io.netty.channel.MultiThreadIoEventLoopGroup;
 import io.netty.channel.nio.NioIoHandler;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.resolver.AddressResolverGroup;
+import io.netty.util.concurrent.ThreadPerTaskExecutor;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
 import io.vertx.core.internal.VertxInternal;
@@ -15,9 +15,6 @@ import io.vertx.core.internal.resolver.NameResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.stormpx.net.PartialNetStack;
-import org.stormpx.net.netty.PartialDatagramChannel;
-import org.stormpx.net.netty.PartialServerSocketChannel;
-import org.stormpx.net.netty.PartialSocketChannel;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Field;
@@ -72,7 +69,10 @@ public class Ddnsp {
         InternalDnsResolver client = INTERNAL_DNS_RESOLVER.get();
         if (client==null){
             INTERNAL_DNS_RESOLVER.compareAndSet(null,
-                    new DnsClient(new MultiThreadIoEventLoopGroup(1, NioIoHandler.newFactory()), DatagramChannelFactory.newFactory(NioDatagramChannel::new,NioDatagramChannel::new)));
+                    new DnsClient(new MultiThreadIoEventLoopGroup(1,
+                            new ThreadPerTaskExecutor((task)-> Thread.ofPlatform().daemon().unstarted(task)),
+                            NioIoHandler.newFactory()),
+                            DatagramChannelFactory.newFactory(NioDatagramChannel::new,NioDatagramChannel::new)));
             client=INTERNAL_DNS_RESOLVER.get();
         }
         return client;

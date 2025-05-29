@@ -48,3 +48,4 @@ config.yaml
 *.so
 *.dll
 *.dylib
+tmp/
