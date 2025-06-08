@@ -45,7 +45,7 @@ public class Main {
 
         String configFile=getConfigPath(args);
 
-        DDnspOptionLoader loader = new DDnspOptionLoader(vertx);
+        DdnspOptionLoader loader = new DdnspOptionLoader(vertx);
 
         if (configFile != null) {
            loader.setFilePath(configFile);

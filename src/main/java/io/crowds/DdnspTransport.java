@@ -8,7 +8,6 @@ import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.InternetProtocolFamily;
 import io.vertx.core.transport.Transport;
 import org.stormpx.net.PartialNetStack;
-import org.stormpx.net.netty.PartialIoHandler;
 
 public class DdnspTransport implements Transport {
 
@@ -22,7 +21,7 @@ public class DdnspTransport implements Transport {
             final io.vertx.core.spi.transport.Transport delegate = transport.implementation();
             @Override
             public IoHandlerFactory ioHandlerFactory() {
-                return PartialIoHandler.newFactory(netStack,delegate.ioHandlerFactory());
+                return DdnspIoHandler.newFactory(netStack,delegate.ioHandlerFactory());
             }
 
             @Override

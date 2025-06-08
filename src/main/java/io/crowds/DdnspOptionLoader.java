@@ -35,17 +35,17 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-public class DDnspOptionLoader {
+public class DdnspOptionLoader {
 
-    private final static Logger logger= LoggerFactory.getLogger(DDnspOptionLoader.class);
+    private final static Logger logger= LoggerFactory.getLogger(DdnspOptionLoader.class);
 
     private final Vertx vertx;
 
     private ConfigRetriever configRetriever;
 
-    private Handler<DDnspOption> optionChangeHandler;
+    private Handler<DdnspOption> optionChangeHandler;
 
-    public DDnspOptionLoader(Vertx vertx) {
+    public DdnspOptionLoader(Vertx vertx) {
         this.vertx = vertx;
     }
 
@@ -66,7 +66,7 @@ public class DDnspOptionLoader {
 
     }
 
-    public DDnspOptionLoader optionChangeHandler(Handler<DDnspOption> optionChangeHandler) {
+    public DdnspOptionLoader optionChangeHandler(Handler<DdnspOption> optionChangeHandler) {
         this.optionChangeHandler = optionChangeHandler;
         return this;
     }
@@ -77,7 +77,7 @@ public class DDnspOptionLoader {
 
         configRetriever.listen(cc->{
             logger.info("new configuration arrive");
-            Handler<DDnspOption> optionChangeHandler = this.optionChangeHandler;
+            Handler<DdnspOption> optionChangeHandler = this.optionChangeHandler;
             if (optionChangeHandler!=null){
                 JsonObject configuration = cc.getNewConfiguration();
 
@@ -87,7 +87,7 @@ public class DDnspOptionLoader {
 
     }
 
-    public Future<DDnspOption> load(){
+    public Future<DdnspOption> load(){
 
         if (configRetriever==null){
             DnsAddressResolverProvider provider = DnsAddressResolverProvider.create((io.vertx.core.internal.VertxInternal) vertx, new AddressResolverOptions());
@@ -95,7 +95,7 @@ public class DDnspOptionLoader {
                 throw new IllegalStateException("can not found default nameServers");
             }
             logger.info("find default nameServers: {}",provider.nameServerAddresses());
-            DDnspOption dDnspOption = new DDnspOption()
+            DdnspOption dDnspOption = new DdnspOption()
                     .setLogLevel("info");
             DnsOption dnsOption =new DnsOption()
                     .setHost("127.0.0.1")
@@ -133,8 +133,8 @@ public class DDnspOptionLoader {
         }
     }
 
-    private DDnspOption toDDnspOption(JsonObject json){
-        return new DDnspOption()
+    private DdnspOption toDDnspOption(JsonObject json){
+        return new DdnspOption()
                 .setLogLevel(json.getString("logLevel","info"))
                 .setMmdb(json.getString("mmdb"))
                 .setDns(toOption(json))

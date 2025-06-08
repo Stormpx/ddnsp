@@ -24,11 +24,11 @@ public class SshSession {
     private final Channel parent;
     private final ClientSession clientSession;
     private final ChannelGroup channelGroup;
-    private final IoEventLoopGroup eventLoopGroup;
+    private final EventLoopGroup eventLoopGroup;
     private final LocalAddress localServer =new LocalAddress(UUID.randomUUID().toString());
     private LocalServerChannel localServerChannel;
     private final Map<LocalAddress, SshSessionContext> contexts = new HashMap<>();
-    public SshSession(Channel parent, ClientSession clientSession, IoEventLoopGroup eventLoopGroup) {
+    public SshSession(Channel parent, ClientSession clientSession, EventLoopGroup eventLoopGroup) {
         this.parent=parent;
         this.clientSession = clientSession;
         this.eventLoopGroup = eventLoopGroup;
