@@ -2,7 +2,6 @@ package io.crowds.compoments.wireguard;
 
 import io.crowds.lib.boringtun.BoringTun;
 import io.crowds.lib.boringtun.wireguard_result;
-import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoop;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.ScheduledFuture;
@@ -152,7 +151,7 @@ public class WireGuardTunnel implements Closeable {
         }
 
         if (this.closeHandler!=null){
-            this.closeHandler.accept(null);
+            this.closeHandler.accept(e);
         }
 
     }
