@@ -92,8 +92,7 @@ dependencies {
     implementation 'ch.qos.logback:logback-core:1.5.13'
     implementation 'ch.qos.logback:logback-classic:1.5.13'
 
-    implementation 'org.apache.sshd:sshd-core:2.11.0'
-    implementation 'net.i2p.crypto:eddsa:0.3.0'
+    implementation 'org.apache.sshd:sshd-core:2.15.0'
 
     implementation 'org.stormpx.partialtcp:net-netty:0.0.3'
 
