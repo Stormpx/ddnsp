@@ -6,19 +6,16 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.socket.DuplexChannel;
 import io.netty.util.ReferenceCountUtil;
-import io.netty.util.internal.ResourcesUtil;
 import org.apache.sshd.common.channel.IoWriteFutureImpl;
 import org.apache.sshd.common.io.*;
 import org.apache.sshd.common.util.Readable;
 import org.apache.sshd.common.util.buffer.Buffer;
-import org.apache.sshd.common.util.buffer.ByteArrayBuffer;
 import org.apache.sshd.common.util.closeable.AbstractCloseable;
 
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ChannelDelegateIoSession extends AbstractCloseable implements IoSession {
@@ -43,13 +40,10 @@ public class ChannelDelegateIoSession extends AbstractCloseable implements IoSes
     }
 
     private void initChannel(){
-        channel.pipeline()
-                .addLast(new Adapter());
+        channel.pipeline().addLast(new Adapter());
     }
 
     class Adapter extends ChannelInboundHandlerAdapter{
-        private Buffer buffer=new ByteArrayBuffer();
-        private boolean readFlag;
 
         @Override
         public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
@@ -68,35 +62,26 @@ public class ChannelDelegateIoSession extends AbstractCloseable implements IoSes
         @Override
         public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
             if (msg instanceof ByteBuf buf){
-                ByteArrayBuffer buffer1 = new ByteArrayBuffer(buf.readableBytes());
-                buffer1.putBuffer(new Readable() {
-                    @Override
-                    public int available() {
-                        return buf.readableBytes();
-                    }
+                try {
+                    Readable readable = new Readable() {
+                        @Override
+                        public int available() {
+                            return buf.readableBytes();
+                        }
 
-                    @Override
-                    public void getRawBytes(byte[] data, int offset, int len) {
-                        buf.getBytes(0, data, offset, len);
-                    }
-                });
-                readFlag=true;
-                ReferenceCountUtil.safeRelease(buf);
-                ioHandler.messageReceived(ChannelDelegateIoSession.this,buffer1);
+                        @Override
+                        public void getRawBytes(byte[] data, int offset, int len) {
+                            buf.getBytes(0, data, offset, len);
+                        }
+                    };
+                    ioHandler.messageReceived(ChannelDelegateIoSession.this,readable);
+                } finally {
+                    ReferenceCountUtil.safeRelease(buf);
+                }
             }else{
                 super.channelRead(ctx,msg);
             }
         }
-
-//        @Override
-//        public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
-//            if (readFlag) {
-//                ioHandler.messageReceived(ChannelDelegateIoSession.this,buffer);
-//                readFlag=false;
-//            }else{
-//                super.channelReadComplete(ctx);
-//            }
-//        }
 
         @Override
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
@@ -186,6 +171,7 @@ public class ChannelDelegateIoSession extends AbstractCloseable implements IoSes
 
     @Override
     public void resumeRead() {
+        readSuspended.compareAndSet(false,true);
         channel.config().setAutoRead(true);
     }
 
