@@ -54,7 +54,7 @@ public class DnsClient implements InternalDnsResolver {
     }
 
     private UdpUpstream newDefaultUpstream(){
-        String server = System.getProperty("ddnsp.dns.default.server");
+        String server = System.getProperty("io.crowds.ddnsp.dns.default.server");
         if (Strs.isBlank(server)){
             server="8.8.8.8:53";
         }

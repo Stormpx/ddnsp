@@ -1,13 +1,8 @@
 package io.crowds;
 
 import io.crowds.compoments.dns.InternalDnsResolver;
-import io.crowds.dns.DnsClient;
-import io.crowds.util.DatagramChannelFactory;
-import io.netty.channel.MultiThreadIoEventLoopGroup;
-import io.netty.channel.nio.NioIoHandler;
-import io.netty.channel.socket.nio.NioDatagramChannel;
+import io.crowds.compoments.dns.FallbackDnsResolver;
 import io.netty.resolver.AddressResolverGroup;
-import io.netty.util.concurrent.ThreadPerTaskExecutor;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
 import io.vertx.core.internal.VertxInternal;
@@ -68,11 +63,7 @@ public class Ddnsp {
     public static InternalDnsResolver dnsResolver(){
         InternalDnsResolver client = INTERNAL_DNS_RESOLVER.get();
         if (client==null){
-            INTERNAL_DNS_RESOLVER.compareAndSet(null,
-                    new DnsClient(new MultiThreadIoEventLoopGroup(1,
-                            new ThreadPerTaskExecutor((task)-> Thread.ofPlatform().daemon().unstarted(task)),
-                            NioIoHandler.newFactory()),
-                            DatagramChannelFactory.newFactory(NioDatagramChannel::new,NioDatagramChannel::new)));
+            INTERNAL_DNS_RESOLVER.compareAndSet(null,new FallbackDnsResolver());
             client=INTERNAL_DNS_RESOLVER.get();
         }
         return client;

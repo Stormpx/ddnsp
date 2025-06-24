@@ -1,8 +1,9 @@
 package io.crowds.dns;
 
-import io.netty.channel.*;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.EventLoop;
+import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.socket.DatagramChannel;
-import io.netty.channel.socket.DatagramPacket;
 import io.netty.handler.codec.dns.*;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.ScheduledFuture;
@@ -25,7 +26,7 @@ public class UdpUpstream extends AbstractDnsUpstream {
     private final DatagramChannel channel;
 
     private InetSocketAddress defaultAddr;
-    private Map<Integer,QueryContext> queryContextMap;
+    private final Map<Integer,QueryContext> queryContextMap;
 
     private final AtomicInteger reqId=new AtomicInteger(0);
     public UdpUpstream(EventLoop eventLoop, DatagramChannel channel, InetSocketAddress defaultAddr) {
