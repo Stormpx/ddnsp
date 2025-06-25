@@ -6,6 +6,13 @@ public class WsOption {
     private String path="/";
     private HttpHeaders headers;
 
+    public WsOption() {
+    }
+
+    public WsOption(WsOption other) {
+        this.path = other.path;
+        this.headers = other.headers==null?null:other.headers.copy();
+    }
 
     public String getPath() {
         return path;

@@ -7,7 +7,16 @@ import java.util.UUID;
 
 public class VlessOption extends ProtocolOption {
     private InetSocketAddress address;
-    private UUID id;
+    private String id;
+
+    public VlessOption() {
+    }
+
+    public VlessOption(VlessOption other) {
+        super(other);
+        this.address = other.address;
+        this.id = other.id;
+    }
 
     public InetSocketAddress getAddress() {
         return address;
@@ -18,11 +27,15 @@ public class VlessOption extends ProtocolOption {
         return this;
     }
 
-    public UUID getId() {
+    public UUID getUUID(){
+        return VlessUUID.of(id);
+    }
+
+    public String getId() {
         return id;
     }
 
-    public VlessOption setId(UUID id) {
+    public VlessOption setId(String id) {
         this.id = id;
         return this;
     }

@@ -2,16 +2,18 @@ package io.crowds.proxy.transport.proxy.shadowsocks;
 
 public enum CipherAlgo {
 
-    CHACHA20_IETF_POLY1305(32,32,"chacha20-ietf-poly1305"),
+
     AES_256_GCM(32,32,"aes-256-gcm"),
     AES_192_GCM(24,24,"aes-192-gcm"),
     AES_128_GCM(16,16,"aes-128-gcm"),
-    AES_128_GCM_2022(16,16,"2022-aes-128-gcm"),
-    AES_256_GCM_2022(32,32,"2022-aes-256-gcm"),
+    CHACHA20_IETF_POLY1305(32,32,"chacha20-ietf-poly1305"),
+    CHACHA20_IETF_POLY1305_2022(32,32,"2022-blake3-chacha20-poly1305"),
+    AES_128_GCM_2022(16,16,"2022-blake3-aes-128-gcm"),
+    AES_256_GCM_2022(32,32,"2022-blake3-aes-256-gcm"),
     ;
-    private int keySize;
-    private int saltSize;
-    private String name;
+    private final int keySize;
+    private final int saltSize;
+    private final String name;
 
     CipherAlgo(int keySize, int saltSize, String name) {
         this.keySize = keySize;
@@ -27,6 +29,9 @@ public enum CipherAlgo {
         return saltSize;
     }
 
+    public String getName() {
+        return name;
+    }
 
     public static CipherAlgo of(String name){
         for (CipherAlgo value : values()) {

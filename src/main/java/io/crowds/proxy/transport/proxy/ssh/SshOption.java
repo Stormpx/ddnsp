@@ -4,8 +4,6 @@ import io.crowds.proxy.transport.ProtocolOption;
 
 import java.net.InetSocketAddress;
 import java.nio.file.Path;
-import java.util.Locale;
-import java.util.Objects;
 
 public class SshOption extends ProtocolOption {
 
@@ -18,6 +16,20 @@ public class SshOption extends ProtocolOption {
     private Path serverKey;
 
     private VerifyStrategy verifyStrategy;
+
+    public SshOption() {
+    }
+
+    public SshOption(SshOption other) {
+        super(other);
+        this.address = other.address;
+        this.user = other.user;
+        this.password = other.password;
+        this.privateKey = other.privateKey;
+        this.passphrase = other.passphrase;
+        this.serverKey = other.serverKey;
+        this.verifyStrategy = other.verifyStrategy;
+    }
 
     public enum VerifyStrategy{
         REJECT,

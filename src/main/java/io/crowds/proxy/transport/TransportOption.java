@@ -7,6 +7,15 @@ public class TransportOption {
     private String dev;
     private WsOption ws;
 
+    public TransportOption() {
+    }
+
+    public TransportOption(TransportOption other) {
+        this.dev = other.dev;
+        this.ws = other.ws==null?null:new WsOption(other.ws);
+    }
+
+
     public String getDev() {
         return dev;
     }

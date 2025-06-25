@@ -15,6 +15,17 @@ public class ShadowsocksOption extends ProtocolOption {
     private String password;
     private byte[] masterKey;
 
+    public ShadowsocksOption() {
+    }
+
+    public ShadowsocksOption(ShadowsocksOption other) {
+        super(other);
+        this.address =other.address;
+        this.cipherAlgo = other.cipherAlgo;
+        this.password = other.password;
+        this.masterKey = other.masterKey;
+    }
+
     private void genMasterKey(){
         if (this.password==null||this.cipherAlgo ==null)
             return;

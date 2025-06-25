@@ -1,12 +1,25 @@
 package io.crowds.proxy.transport;
 
-public class ProtocolOption {
+public class ProtocolOption{
     protected String name;
     protected String protocol;
     protected int connIdle;
     protected TlsOption tls;
     protected String network;
     protected TransportOption transport;
+
+    public ProtocolOption() {
+
+    }
+
+    public ProtocolOption(ProtocolOption other) {
+        this.name = other.name;
+        this.protocol = other.protocol;
+        this.connIdle = other.connIdle;
+        this.tls = other.tls==null?null:new TlsOption(other.tls);
+        this.network = other.network;
+        this.transport = other.transport==null?null:new TransportOption(other.transport);
+    }
 
     public String getName() {
         return name;
@@ -61,4 +74,5 @@ public class ProtocolOption {
         this.network = network;
         return this;
     }
+
 }

@@ -5,6 +5,7 @@ import io.crowds.proxy.transport.ProtocolOption;
 import org.stormpx.net.util.SubNet;
 
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.List;
 
 public class WireguardOption extends ProtocolOption {
@@ -13,6 +14,17 @@ public class WireguardOption extends ProtocolOption {
     private SubNet address;
     private InetSocketAddress dns;
     private List<PeerOption> peers;
+
+    public WireguardOption() {
+    }
+
+    public WireguardOption(WireguardOption other) {
+        super(other);
+        this.privateKey=other.privateKey;
+        this.address=other.address;
+        this.dns=other.dns;
+        this.peers=other.peers==null?null:new ArrayList<>(other.peers);
+    }
 
     public SubNet getAddress() {
         return address;

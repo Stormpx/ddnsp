@@ -12,7 +12,6 @@ import io.crowds.proxy.transport.proxy.socks.SocksOption;
 import io.crowds.proxy.transport.proxy.ssh.SshOption;
 import io.crowds.proxy.transport.proxy.trojan.TrojanOption;
 import io.crowds.proxy.transport.proxy.vless.VlessOption;
-import io.crowds.proxy.transport.proxy.vless.VlessUUID;
 import io.crowds.proxy.transport.proxy.vmess.Security;
 import io.crowds.proxy.transport.proxy.vmess.User;
 import io.crowds.proxy.transport.proxy.vmess.VmessOption;
@@ -144,7 +143,7 @@ public class ProtocolOptionFactory {
         String id = json.getString("id");
 
         vlessOption.setAddress(address)
-                .setId(VlessUUID.of(id));
+                .setId(id);
         return vlessOption;
     }
 

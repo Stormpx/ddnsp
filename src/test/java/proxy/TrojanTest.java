@@ -7,32 +7,41 @@ import io.crowds.proxy.transport.TransportOption;
 import io.crowds.proxy.transport.proxy.trojan.TrojanOption;
 import io.crowds.proxy.transport.proxy.trojan.TrojanProxyTransport;
 import io.crowds.proxy.transport.ws.WsOption;
+import org.junit.Rule;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 
-public class TrojanTest extends ProxyTest{
+public class TrojanTest extends ProxyTestBase {
 
-    protected ProxyTransport createProxy(ChannelCreator channelCreator) {
+    @Rule
+    public XrayRule xrayRule = new XrayRule();
+
+    protected ProxyTransport createProxy(ChannelCreator channelCreator) throws IOException {
         InetSocketAddress dest = new InetSocketAddress("127.0.0.1", 16831);
-        var option=new TrojanOption()
-                .setAddress(dest)
-                .setPassword("password")
-                .setProtocol("trojan")
-                .setTls(new TlsOption().setEnable(false))
+        var option=xrayRule.start(
+                new TrojanOption()
+                    .setAddress(dest)
+                    .setPassword("password")
+                    .setProtocol("trojan")
+                    .setTls(new TlsOption().setEnable(false))
+        )
                 ;
         return new TrojanProxyTransport(channelCreator, (TrojanOption) option);
     }
 
-    protected ProxyTransport createProxyWithWs(ChannelCreator channelCreator) {
+    protected ProxyTransport createProxyWithWs(ChannelCreator channelCreator) throws IOException {
         InetSocketAddress dest = new InetSocketAddress("127.0.0.1", 16833);
-        var option=new TrojanOption()
-                .setAddress(dest)
-                .setPassword("password")
-                .setProtocol("trojan")
-                .setNetwork("ws")
-                .setTransport(new TransportOption().setWs(new WsOption()))
-                .setTls(new TlsOption().setEnable(false))
+        var option=xrayRule.start(
+                new TrojanOption()
+                        .setAddress(dest)
+                        .setPassword("password")
+                        .setProtocol("trojan")
+                        .setNetwork("ws")
+                        .setTransport(new TransportOption().setWs(new WsOption()))
+                        .setTls(new TlsOption().setEnable(false))
+        )
                 ;
         return new TrojanProxyTransport(channelCreator, (TrojanOption) option);
 

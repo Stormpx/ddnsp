@@ -1,7 +1,6 @@
 package io.crowds.proxy.transport.proxy.vmess;
 
 import io.crowds.proxy.transport.ProtocolOption;
-import io.netty.handler.codec.http.HttpHeaders;
 
 import java.net.InetSocketAddress;
 
@@ -10,7 +9,15 @@ public class VmessOption extends ProtocolOption {
     private Security security;
     private User user;
 
+    public VmessOption() {
+    }
 
+    public VmessOption(VmessOption other) {
+        super(other);
+        this.address = other.address;
+        this.security = other.security;
+        this.user = other.user==null?null:other.user;
+    }
 
     public InetSocketAddress getAddress() {
         return address;

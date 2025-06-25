@@ -20,7 +20,6 @@ import io.crowds.proxy.transport.proxy.trojan.TrojanOption;
 import io.crowds.proxy.transport.proxy.trojan.TrojanProxyTransport;
 import io.crowds.proxy.transport.proxy.vless.VlessOption;
 import io.crowds.proxy.transport.proxy.vless.VlessProxyTransport;
-import io.crowds.proxy.transport.proxy.vless.VlessUUID;
 import io.crowds.proxy.transport.proxy.vmess.Security;
 import io.crowds.proxy.transport.proxy.vmess.User;
 import io.crowds.proxy.transport.proxy.vmess.VmessOption;
@@ -31,7 +30,9 @@ import io.crowds.util.Lambdas;
 import org.apache.sshd.server.SshServer;
 import org.apache.sshd.server.forward.AcceptAllForwardingFilter;
 import org.apache.sshd.server.keyprovider.SimpleGeneratorHostKeyProvider;
+import org.junit.Rule;
 import org.junit.Test;
+import org.testcontainers.Testcontainers;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -40,19 +41,35 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public class ChainTest extends ProxyTest {
+public class ChainTest extends ProxyTestBase {
 
-    private ProxyTransport createVmessProxy(ChannelCreator channelCreator,String name) {
+    protected record ProxyServer(ProxyTransport header,ProxyTransport node){
+
+    }
+
+    private ProxyServer createServer(XrayRule xrayRule,ProtocolOption option,Function<ProtocolOption,ProxyTransport> createTransport) throws IOException {
+        xrayRule.start(option);
+        return new ProxyServer(
+                createTransport.apply(xrayRule.getOutside()),
+                createTransport.apply(xrayRule.getInside())
+        );
+    }
+
+    @Rule
+    public XrayRule vmessRule = new XrayRule();
+    private ProxyServer createVmessProxy(ChannelCreator channelCreator,String name) throws IOException {
         InetSocketAddress dest = new InetSocketAddress("127.0.0.1", 16823);
         var option=new VmessOption()
                 .setAddress(dest)
                 .setSecurity(Security.AES_128_GCM)
                 .setUser(new User(UUID.fromString("b831381d-6324-4d53-ad4f-8cda48b30811"),0));
         option.setName(name);
-        return new VmessProxyTransport(channelCreator,option);
+        return createServer(vmessRule,option,opt->new VmessProxyTransport(channelCreator, (VmessOption) opt));
     }
 
-    protected ProxyTransport createVmessProxyWithWs(ChannelCreator channelCreator,String name) {
+    @Rule
+    public XrayRule vmessWsRule = new XrayRule();
+    protected ProxyServer createVmessProxyWithWs(ChannelCreator channelCreator,String name) throws IOException {
         InetSocketAddress dest = new InetSocketAddress("127.0.0.1", 16825);
         var option=new VmessOption()
                 .setAddress(dest)
@@ -60,22 +77,26 @@ public class ChainTest extends ProxyTest {
                 .setUser(new User(UUID.fromString("b831381d-6324-4d53-ad4f-8cda48b30811"),0))
                 .setNetwork("ws")
                 .setTransport(new TransportOption()
-                        .setWs(new WsOption()));
-        option.setName(name);
-
-        return new VmessProxyTransport(channelCreator, (VmessOption) option);
+                        .setWs(new WsOption()))
+                .setName(name);
+        return createServer(vmessWsRule,option,opt->new VmessProxyTransport(channelCreator, (VmessOption) opt));
     }
-    private ProxyTransport createSsProxy(ChannelCreator channelCreator,String name) {
+
+    @Rule
+    public XrayRule ssRule = new XrayRule();
+    private ProxyServer createSsProxy(ChannelCreator channelCreator,String name) throws IOException {
         InetSocketAddress dest = Inet.createSocketAddress("127.0.0.1", 16827);
-        ShadowsocksOption option=new ShadowsocksOption()
+        var option=new ShadowsocksOption()
                 .setAddress(dest)
                 .setCipher(CipherAlgo.CHACHA20_IETF_POLY1305)
-                .setPassword("passpasspass");
-        option.setName(name);
-        return new ShadowsocksTransport(channelCreator, option);
+                .setPassword("passpasspass")
+                .setName(name);
+        return createServer(ssRule,option,opt->new ShadowsocksTransport(channelCreator, (ShadowsocksOption) opt));
     }
 
-    protected ProxyTransport createSsProxyWithWs(ChannelCreator channelCreator,String name) {
+    @Rule
+    public XrayRule ssWsRule = new XrayRule();
+    protected ProxyServer createSsProxyWithWs(ChannelCreator channelCreator,String name) throws IOException {
         InetSocketAddress dest = new InetSocketAddress("127.0.0.1", 16829);
         var option=new ShadowsocksOption()
                 .setAddress(dest)
@@ -84,61 +105,71 @@ public class ChainTest extends ProxyTest {
                 .setName(name)
                 .setNetwork("ws")
                 .setTransport(new TransportOption().setWs(new WsOption()));
-        return new ShadowsocksTransport(channelCreator, (ShadowsocksOption) option);
+        return createServer(ssWsRule,option,opt->new ShadowsocksTransport(channelCreator, (ShadowsocksOption) opt));
     }
 
-
-    protected ProxyTransport createTrojanProxy(ChannelCreator channelCreator,String name) {
+    @Rule
+    public XrayRule trojanRule = new XrayRule();
+    protected ProxyServer createTrojanProxy(ChannelCreator channelCreator,String name) throws IOException {
         InetSocketAddress dest = new InetSocketAddress("127.0.0.1", 16831);
         var option=new TrojanOption()
                 .setAddress(dest)
                 .setPassword("password")
                 .setProtocol("trojan")
                 .setTls(new TlsOption().setEnable(false))
-                ;
-        option.setName(name);
-        return new TrojanProxyTransport(channelCreator, (TrojanOption) option);
+                .setName(name);
+        return createServer(trojanRule,option,opt->new TrojanProxyTransport(channelCreator, (TrojanOption) opt));
     }
 
-    protected ProxyTransport createSocksProxy(ChannelCreator channelCreator,String name) {
+    @Rule
+    public XrayRule socksRule = new XrayRule();
+    protected ProxyServer createSocksProxy(ChannelCreator channelCreator,String name) throws IOException {
         InetSocketAddress dest = new InetSocketAddress("127.0.0.1", 16837);
-        SocksOption option=new SocksOption()
-                .setRemote(dest);
-        option.setName(name);
-        return new SocksProxyTransport(channelCreator, option);
+        var option=new SocksOption()
+                .setRemote(dest)
+                .setName(name);
+        return createServer(socksRule,option,opt->new SocksProxyTransport(channelCreator, (SocksOption) opt));
     }
 
-    protected ProxyTransport createSocksProxyWithWs(ChannelCreator channelCreator,String name) {
+    @Rule
+    public XrayRule socksWsRule = new XrayRule();
+    protected ProxyServer createSocksProxyWithWs(ChannelCreator channelCreator,String name) throws IOException {
         InetSocketAddress dest = new InetSocketAddress("127.0.0.1", 16838);
         SocksOption option=new SocksOption()
                 .setRemote(dest);
         option.setName(name)
               .setNetwork("ws")
               .setTransport(new TransportOption().setWs(new WsOption()));
-        return new SocksProxyTransport(channelCreator, option);
+        return createServer(socksWsRule,option,opt->new SocksProxyTransport(channelCreator, (SocksOption) opt));
     }
 
-    private ProxyTransport createVlessProxy(ChannelCreator channelCreator,String name) {
+    @Rule
+    public XrayRule vlessRule = new XrayRule();
+    private ProxyServer createVlessProxy(ChannelCreator channelCreator,String name) throws IOException {
         InetSocketAddress dest = new InetSocketAddress("127.0.0.1", 16839);
         var option=new VlessOption()
                 .setAddress(dest)
-                .setId(VlessUUID.of("testtest"))
+                .setId("testtest")
                 .setProtocol("vless")
                 .setTls(new TlsOption().setEnable(false))
-                ;
-        option.setName(name);
-        return new VlessProxyTransport(channelCreator, (VlessOption) option);
+                .setName(name);
+        return createServer(vlessRule,option,opt->new VlessProxyTransport(channelCreator, (VlessOption) opt));
     }
 
-
-    protected ProxyTransport createSshProxy(ChannelCreator channelCreator,String name) {
+    @Rule
+    public SshRule sshRule = new SshRule();
+    protected ProxyServer createSshProxy(ChannelCreator channelCreator,String name) throws IOException, InterruptedException {
         SshOption sshOption = new SshOption();
         sshOption.setAddress(new InetSocketAddress("127.0.0.1",37432))
-                 .setUser("root")
+                 .setUser("user")
                  .setPassword("password")
-                 .setVerifyStrategy(SshOption.VerifyStrategy.ACCEPT_ALL);
-        sshOption.setName(name);
-        return new SshProxyTransport(channelCreator, sshOption);
+                 .setVerifyStrategy(SshOption.VerifyStrategy.ACCEPT_ALL)
+                 .setName(name);
+        sshRule.start(sshOption);
+        return new ProxyServer(
+                new SshProxyTransport(channelCreator, sshRule.getOutside()),
+                new SshProxyTransport(channelCreator, sshRule.getInside())
+        );
     }
 
     private void setupSshServer() throws IOException {
@@ -155,17 +186,18 @@ public class ChainTest extends ProxyTest {
         }));
         sshServer.setForwardingFilter(AcceptAllForwardingFilter.INSTANCE);
         sshServer.start();
-
+        Testcontainers.exposeHostPorts(sshServer.getPort());
     }
 
-    private ProxyTransport createChainProxyTransport(List<ProxyTransport> proxyTransport){
+    private ProxyTransport createChainProxyTransport(List<ProxyServer> proxyTransport){
         List<NodeType> nodeTypes=new ArrayList<>();
+        proxyTransport.stream().map(it->it.header.getTag()).forEach(it->nodeTypes.add(new NodeType.Name(it)));
 
         Map<String, ProxyTransport> transportMap =
-                proxyTransport.stream()
-                      .peek(it->nodeTypes.add(new NodeType.Name(it.getTag())))
-                      .collect(Collectors.toMap(ProxyTransport::getTag,
-                              Function.identity()));
+                proxyTransport.stream().skip(1).collect(Collectors.toMap(it->it.node.getTag(), it->it.node));
+
+        ProxyTransport header = proxyTransport.getFirst().header;
+        transportMap.put(header.getTag(), header);
 
         ChainOption chainOption = new ChainOption().setNodes(nodeTypes);
         chainOption.setName("chain");
@@ -184,20 +216,20 @@ public class ChainTest extends ProxyTest {
         return transport;
     }
 
-    private void allCombine(List<ProxyTransport> transports, List<ProxyTransport> tmp, int idx, Consumer<List<ProxyTransport>> tmpHandler){
+    private void allCombination(List<ProxyServer> transports, List<ProxyServer> tmp, int idx, Consumer<List<ProxyServer>> tmpHandler){
         if (idx >= transports.size()){
             return;
         }
         tmp.add(transports.get(idx));
         if (tmp.size()== transports.size()) {
             System.out.println(tmp.stream()
-                                  .map(ProxyTransport::getTag)
+                                  .map(it->it.header.getTag())
                                   .collect(Collectors.joining(",")));
             tmpHandler.accept(tmp);
         }
         for (int i = 0; i < transports.size(); i++) {
             if (!tmp.contains(transports.get(i))){
-                allCombine(transports, tmp, i,tmpHandler);
+                allCombination(transports, tmp, i,tmpHandler);
             }
         }
         tmp.remove(transports.get(idx));
@@ -210,7 +242,7 @@ public class ChainTest extends ProxyTest {
                 createTrojanProxy(channelCreator,"trojan0"),createVlessProxy(channelCreator,"vless0"),createSshProxy(channelCreator,"ssh0"),
                 createSocksProxy(channelCreator,"socks0")));
         Collections.shuffle(list);
-        System.out.println(list.stream().map(ProxyTransport::getTag).collect(Collectors.joining(",")));
+        System.out.println(list.stream().map(it->it.header.getTag()).collect(Collectors.joining(",")));
 //        List<ProxyTransport> proxies = new ArrayList<>();
 //        for (int i = 0; i < list.size(); i++) {
 //            all(list,proxies,i, Lambdas.rethrowConsumer(it->{
@@ -219,6 +251,7 @@ public class ChainTest extends ProxyTest {
 //        }
 
         tcpTest(createChainProxyTransport(list));
+
 //        tcpTest(createChainProxyTransport(list));
     }
 
@@ -230,7 +263,7 @@ public class ChainTest extends ProxyTest {
                 createSocksProxyWithWs(channelCreator,"ws-socks0"));
 
         for (int i = 0; i < list.size(); i++) {
-            allCombine(list,new ArrayList<>(),i, Lambdas.rethrowConsumer(it->{
+            allCombination(list,new ArrayList<>(),i, Lambdas.rethrowConsumer(it->{
                 tcpTest(createChainProxyTransport(it));
             }));
         }
@@ -241,7 +274,7 @@ public class ChainTest extends ProxyTest {
         var list = List.of(createSsProxy(channelCreator,"ss0"),createVmessProxy(channelCreator,"vmess0"));
 
         for (int i = 0; i < list.size(); i++) {
-            allCombine(list,new ArrayList<>(),i, Lambdas.rethrowConsumer(it->{
+            allCombination(list,new ArrayList<>(),i, Lambdas.rethrowConsumer(it->{
                 udpTest(createChainProxyTransport(it));
             }));
         }

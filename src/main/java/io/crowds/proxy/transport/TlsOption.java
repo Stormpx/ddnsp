@@ -5,6 +5,14 @@ public class TlsOption {
     private boolean allowInsecure=false;
     private String serverName;
 
+    public TlsOption() {
+    }
+    public TlsOption(TlsOption other) {
+        this.enable = other.enable;
+        this.allowInsecure = other.allowInsecure;
+        this.serverName = other.serverName;
+    }
+
     public boolean isAllowInsecure() {
         return allowInsecure;
     }

@@ -5,59 +5,39 @@ import io.crowds.Ddnsp;
 import io.crowds.proxy.*;
 import io.crowds.proxy.transport.EndPoint;
 import io.crowds.proxy.transport.ProxyTransport;
-import io.crowds.util.Async;
 import io.crowds.util.Inet;
-import io.crowds.util.Rands;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.embedded.EmbeddedChannel;
-import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.DatagramPacket;
 import io.netty.handler.codec.dns.*;
 import io.netty.handler.codec.http.*;
 import io.netty.util.concurrent.Future;
-import io.vertx.core.Vertx;
-import io.vertx.core.VertxOptions;
-import io.vertx.core.http.HttpServerOptions;
-import io.vertx.core.impl.VertxImpl;
 import io.vertx.core.internal.VertxInternal;
-import org.stormpx.net.PartialNetStack;
+import org.junit.Rule;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.Network;
 
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
-import java.util.HexFormat;
-import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
-public abstract class ProxyTest {
+public abstract class ProxyTestBase {
+    public static final Network CONTAINER_NETWORK = Network.newNetwork();
+
     protected Context context = Ddnsp.newContext(Ddnsp::dnsResolver);
     protected VertxInternal vertx = context.getVertx();
     protected EventLoopGroup eventLoopGroup=vertx.nettyEventLoopGroup();
     protected ChannelCreator channelCreator=new ChannelCreator(context);
 
-    private static volatile boolean setupHttpServer=false;
 
-    private io.vertx.core.Future<Void> setupHttpServer(){
-        if (setupHttpServer){
-            return io.vertx.core.Future.succeededFuture();
-        }
-        return vertx.createHttpServer(new HttpServerOptions())
-                    .requestHandler(request->{
-                        System.out.println("---------------------------------------------------------");
-                        System.out.println(request.method().toString() + " " + request.uri() + " " + request.version().toString());
-                        for (Map.Entry<String, String> entry : request.headers()) {
-                            System.out.println(entry.getKey() + ": " + entry.getValue());
-                        }
-                        System.out.println("---------------------------------------------------------");
-                        request.response()
-                         .end(HexFormat.of().formatHex(Rands.genBytes(ThreadLocalRandom.current().nextInt(64,512))));
-                    }).listen(21765,"127.0.0.1")
-                .onSuccess(v->setupHttpServer=true)
-                    .map(v->null);
-    }
+    @Rule
+    public GenericContainer<?> nginx = new GenericContainer<>("nginx")
+            .withNetwork(CONTAINER_NETWORK)
+            .withNetworkAliases("nginx")
+            .withExposedPorts(80);
+
 
     public EndPoint createEndPoint(ProxyTransport proxyTransport, NetLocation location) throws Exception {
 
@@ -72,13 +52,24 @@ public abstract class ProxyTest {
         return endPoint;
     }
 
-    public void tcpTest(ProxyTransport proxyTransport) throws Exception {
+    private void readEndpointResponse(CountDownLatch latch, EndPoint endPoint,EmbeddedChannel channel){
+        endPoint.bufferHandler(buf->{
+            System.out.println(((ByteBuf)buf).toString(StandardCharsets.UTF_8));
+            channel.writeInbound(buf);
+            Object read;
+            while ((read=channel.readInbound())!=null){
+                if (read instanceof  LastHttpContent){
+                    latch.countDown();
+                }
+            }
+        });
+    }
 
-        Async.toCallback(eventLoopGroup.next(),setupHttpServer())
-                .sync();
+    public void tcpTest(ProxyTransport proxyTransport,NetAddr targetAddress) throws Exception {
 
-        NetLocation location = new NetLocation(new NetAddr(new InetSocketAddress("127.0.0.1",0)), new DomainNetAddr("127.0.0.1", 21765), TP.TCP);
-        EmbeddedChannel channel = new EmbeddedChannel(new HttpRequestEncoder());
+        NetLocation location = new NetLocation(new NetAddr(new InetSocketAddress("127.0.0.1",0)),
+                targetAddress, TP.TCP);
+        EmbeddedChannel channel = new EmbeddedChannel(new HttpRequestEncoder(),new HttpResponseDecoder());
         var header=new DefaultHttpHeaders()
                 .add(HttpHeaderNames.HOST,"test.ddnsp.org")
                 .add(HttpHeaderNames.ACCEPT,"text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
@@ -94,10 +85,8 @@ public abstract class ProxyTest {
         EndPoint endPoint = createEndPoint(proxyTransport,location);
 
         CountDownLatch countDownLatch=new CountDownLatch(1);
-        endPoint.bufferHandler(buf->{
-            System.out.println(((ByteBuf)buf).toString(StandardCharsets.UTF_8));
-            countDownLatch.countDown();
-        });
+        readEndpointResponse(countDownLatch,endPoint,channel);
+
         endPoint.write(b);
 
         endPoint.closeFuture().addListener(f -> {
@@ -109,8 +98,11 @@ public abstract class ProxyTest {
         }
         endPoint.close();
 
-        Thread.sleep(1000);
+        Thread.sleep(500);
+    }
 
+    public void tcpTest(ProxyTransport proxyTransport) throws Exception {
+        tcpTest(proxyTransport,new DomainNetAddr("nginx", 80));
     }
 
 

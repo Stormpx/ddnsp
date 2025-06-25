@@ -8,6 +8,13 @@ public class SocksOption extends ProtocolOption {
 
     private InetSocketAddress remote;
 
+    public SocksOption() {
+    }
+
+    public SocksOption(SocksOption other) {
+        super(other);
+        this.remote = other.remote;
+    }
 
     public InetSocketAddress getRemote() {
         return remote;

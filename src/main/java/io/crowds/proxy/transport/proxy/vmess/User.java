@@ -11,14 +11,24 @@ import java.util.concurrent.ThreadLocalRandom;
 
 public class User {
 
-    private int alterId;
-    private VmessUser primaryUser;
-    private VmessUser[] alterUser;
+    private final int alterId;
+    private final VmessUser primaryUser;
+    private final VmessUser[] alterUser;
 
     public User(UUID uuid, int alterId) {
         this.alterId = alterId;
         this.primaryUser=newId(uuid);
+        this.alterUser=new VmessUser[alterId];
         genUser();
+    }
+
+    private void genUser(){
+        var prevId=primaryUser.getUuid();
+        for (int i = 0; i < alterId; i++) {
+            UUID uuid = nextId(prevId);
+            this.alterUser[i]=new VmessUser(uuid, false).setCmdKey(primaryUser.getCmdKey());
+            prevId=uuid;
+        }
     }
 
     private VmessUser newId(UUID uuid){
@@ -56,17 +66,6 @@ public class User {
     }
 
 
-    private void genUser(){
-        this.alterUser=new VmessUser[alterId];
-        var prevId=primaryUser.getUuid();
-        for (int i = 0; i < alterId; i++) {
-            UUID uuid = nextId(prevId);
-//            this.alterUser[i]=newId(uuid);
-            this.alterUser[i]=new VmessUser(uuid, false).setCmdKey(primaryUser.getCmdKey());
-            prevId=uuid;
-        }
-
-    }
 
     public VmessUser randomUser(){
         if (alterUser.length==0){
@@ -87,8 +86,4 @@ public class User {
         return alterId;
     }
 
-    public User setAlterId(int alterId) {
-        this.alterId = alterId;
-        return this;
-    }
 }

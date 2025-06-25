@@ -6,7 +6,6 @@ import io.crowds.proxy.NetLocation;
 import io.crowds.proxy.TP;
 import io.crowds.proxy.common.HandlerName;
 import io.crowds.proxy.transport.Destination;
-import io.crowds.proxy.transport.ProtocolOption;
 import io.crowds.proxy.transport.Transport;
 import io.crowds.proxy.transport.proxy.AbstractProxyTransport;
 import io.netty.channel.Channel;
@@ -37,7 +36,7 @@ public class VlessProxyTransport extends AbstractProxyTransport {
         Destination dest = new Destination(netLocation);
         channel.pipeline()
                .addLast(baseName.with("codec"), new VlessCodec(dest))
-               .addLast(baseName.with("handler"), new VlessHandler(vlessOption.getId(), dest));
+               .addLast(baseName.with("handler"), new VlessHandler(vlessOption.getUUID(), dest));
         return channel.eventLoop().newSucceededFuture(channel);
     }
 }
