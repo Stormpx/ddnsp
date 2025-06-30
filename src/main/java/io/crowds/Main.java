@@ -15,6 +15,7 @@ import io.vertx.core.Vertx;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
 
@@ -37,8 +38,9 @@ public class Main {
         return configFile;
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
 //        ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.PARANOID);
+        long start = System.nanoTime();
         System.getProperties().setProperty("vertx.disableDnsResolver","true");
         Context context = Ddnsp.newContext(Ddnsp::dnsResolver);
         Vertx  vertx = context.getVertx();
@@ -99,6 +101,8 @@ public class Main {
                                 if (!Strs.isBlank(option.getLogLevel())){
                                     setLoggerLevel(Level.toLevel(option.getLogLevel()));
                                 }
+                                long startCost = System.nanoTime()-start;
+                                Ddnsp.logStartTime(Duration.ofNanos(startCost));
                             })
                             .map((Void)null);
                 })

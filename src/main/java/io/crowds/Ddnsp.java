@@ -1,7 +1,7 @@
 package io.crowds;
 
-import io.crowds.compoments.dns.InternalDnsResolver;
 import io.crowds.compoments.dns.FallbackDnsResolver;
+import io.crowds.compoments.dns.InternalDnsResolver;
 import io.netty.resolver.AddressResolverGroup;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
@@ -13,6 +13,8 @@ import org.stormpx.net.PartialNetStack;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Field;
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
@@ -54,6 +56,15 @@ public class Ddnsp {
             logger.error("hook vertx AddressResolver failed. {}",e.getMessage());
         }
         return context;
+    }
+
+    public static void logStartTime(Duration cost){
+        String unit = "Seconds";
+        long ms = cost.toMillis();
+        long granularity = TimeUnit.SECONDS.toMillis(1);
+        long seconds = ms/granularity;
+        double time = seconds + (double) (ms - seconds * granularity) / granularity;
+        logger.info("Started ddnsp in {} {}",time,unit);
     }
 
     public static void initDnsResolver(InternalDnsResolver dnsClient){
