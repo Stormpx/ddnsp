@@ -22,15 +22,30 @@ public class CachedRouter extends AbstractRouter {
 
     @Override
     protected String routing(NetLocation netLocation, RuleType... types) {
-        return Arrays.stream(types)
-                .map(it -> this.slotMap.get(it))
-                .filter(Objects::nonNull)
-                .map(slot -> slot.match(netLocation))
-                .filter(Objects::nonNull)
-                .min(Comparator.comparing(SequencedRule::seq))
-                .map(SequencedRule::rule)
-                .map(Rule::getTag)
-                .orElse(defaultTag);
+        Rule result = null;
+        int seq = Integer.MAX_VALUE;
+        for (RuleType type : types) {
+            Slot slot = this.slotMap.get(type);
+            if (slot == null || slot.minimalSeq > seq) {
+                continue;
+            }
+            SequencedRule rule = slot.match(netLocation);
+            if (rule!=null && rule.seq()<seq){
+                result = rule.rule();
+                seq = rule.seq();
+            }
+        }
+
+        return result != null ? result.getTag() : defaultTag;
+//        return Arrays.stream(types)
+//                .map(it -> this.slotMap.get(it))
+//                .filter(Objects::nonNull)
+//                .map(slot -> slot.match(netLocation))
+//                .filter(Objects::nonNull)
+//                .min(Comparator.comparing(SequencedRule::seq))
+//                .map(SequencedRule::rule)
+//                .map(Rule::getTag)
+//                .orElse(defaultTag);
 
     }
 
@@ -42,6 +57,7 @@ public class CachedRouter extends AbstractRouter {
         private final List<SequencedRule> rules;
         private final LRUK<Object,Object> missCache;
         private final LRUK<Object,SequencedRule> hitCache;
+        private int minimalSeq = Integer.MAX_VALUE;
 
         public Slot(RuleType type,int k,int missSize,int hitSize) {
             this.type = type;
@@ -52,6 +68,9 @@ public class CachedRouter extends AbstractRouter {
 
         public void addRule(SequencedRule rule){
             this.rules.add(rule);
+            if (rule.seq()<minimalSeq){
+                this.minimalSeq = rule.seq();
+            }
         }
 
         public SequencedRule match(NetLocation netLocation){
