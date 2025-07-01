@@ -23,7 +23,7 @@ import java.util.function.Supplier;
 public class Ddnsp {
     private final static Logger logger= LoggerFactory.getLogger(Ddnsp.class);
 
-    private final static AtomicReference<InternalDnsResolver> INTERNAL_DNS_RESOLVER =new AtomicReference<>();
+    private final static StableValue<InternalDnsResolver> INTERNAL_DNS_RESOLVER =StableValue.of();
     private static MethodHandles.Lookup lookup=null;
 
     private static MethodHandles.Lookup fetchMethodHandlesLookup() {
@@ -67,10 +67,9 @@ public class Ddnsp {
         var context = new Context((VertxInternal) vertx,netStack,resolverSupplier);
         try {
             var varhandle = fetchMethodHandlesLookup0().findVarHandle(NameResolver.class,"resolverGroup",AddressResolverGroup.class);
-            if (vertx instanceof VertxInternal impl){
-                NameResolver resolver = impl.nameResolver();
-                varhandle.set(resolver,context.getNettyResolver());
-            }
+            VertxInternal impl = (VertxInternal) vertx;
+            NameResolver resolver = impl.nameResolver();
+            varhandle.set(resolver,context.getNettyResolver());
         } catch (Exception e) {
             logger.error("hook vertx AddressResolver failed. {}",e.getMessage());
         }
@@ -86,16 +85,13 @@ public class Ddnsp {
     }
 
     public static void initDnsResolver(InternalDnsResolver dnsClient){
-        INTERNAL_DNS_RESOLVER.set(dnsClient);
+        if (!INTERNAL_DNS_RESOLVER.trySet(dnsClient)){
+            logger.warn("DnsResolver already initialized, ignore this set");
+        }
     }
 
     public static InternalDnsResolver dnsResolver(){
-        InternalDnsResolver client = INTERNAL_DNS_RESOLVER.get();
-        if (client==null){
-            INTERNAL_DNS_RESOLVER.compareAndSet(null,new FallbackDnsResolver());
-            client=INTERNAL_DNS_RESOLVER.get();
-        }
-        return client;
+        return INTERNAL_DNS_RESOLVER.orElseSet(FallbackDnsResolver::new);
     }
 
 

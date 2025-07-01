@@ -177,7 +177,7 @@ public class DnsServer {
                         promise.tryComplete();
                     }else {
                         logger.info("start dns server {} failed cause:{}",socketAddress,future.cause().getMessage());
-                        CompositeFuture cf = future.result();
+                        CompositeFuture cf = (CompositeFuture) future;
                         this.localServer.close();
                         if (cf.succeeded(1)){
                             this.tcpServer.close();

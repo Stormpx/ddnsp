@@ -1,4 +1,4 @@
-FROM  eclipse-temurin:21-jdk as packager
+FROM  eclipse-temurin:25-jdk as packager
 MAINTAINER crowds
 RUN { \
         java --version ; \

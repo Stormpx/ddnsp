@@ -28,9 +28,9 @@ public class BoringTun {
     public static Tunnel newTunnel(int bufferSize,String privateKey,String publicKey,String perSharedKey,short keepalive){
         try (Arena session = Arena.ofConfined()){
             var tunnel = new_tunnel(
-                    session.allocateUtf8String(privateKey),
-                    session.allocateUtf8String(publicKey),
-                    session.allocateUtf8String(perSharedKey),
+                    session.allocateFrom(privateKey),
+                    session.allocateFrom(publicKey),
+                    session.allocateFrom(perSharedKey),
                     keepalive,
                     nextIndex()
             );

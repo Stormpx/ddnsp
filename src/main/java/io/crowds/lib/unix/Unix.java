@@ -22,7 +22,7 @@ public class Unix {
         SymbolLookup symbolLookup = linker.defaultLookup();
         setSockOpt = linker.downcallHandle(symbolLookup.find("setsockopt").orElse(null),
                 FunctionDescriptor.of(ValueLayout.JAVA_INT,ValueLayout.JAVA_INT,ValueLayout.JAVA_INT,ValueLayout.JAVA_INT,
-                        ValueLayout.ADDRESS.withTargetLayout(MemoryLayout.sequenceLayout(JAVA_BYTE)),ValueLayout.JAVA_LONG));
+                        ValueLayout.ADDRESS,ValueLayout.JAVA_LONG));
         error = linker.downcallHandle(symbolLookup.find("__errno_location").orElse(null),FunctionDescriptor.of(ValueLayout.ADDRESS));
         strerror = linker.downcallHandle(symbolLookup.find("strerror").orElse(null),FunctionDescriptor.of(ValueLayout.ADDRESS,ValueLayout.JAVA_INT));
     }
@@ -39,7 +39,7 @@ public class Unix {
     public static String strerror(int errno){
         try {
             MemorySegment addr = (MemorySegment) strerror.invokeExact(errno);
-            return addr.reinterpret(Long.MAX_VALUE).getUtf8String(0);
+            return addr.reinterpret(Long.MAX_VALUE).getString(0);
         } catch (Throwable t) {
             throw new RuntimeException(t);
         }
@@ -50,7 +50,7 @@ public class Unix {
     public static void bindToDevice(int fd,String dev){
         Objects.requireNonNull(dev);
         try (Arena arena = Arena.ofConfined()){
-            MemorySegment devname = arena.allocateUtf8String(dev);
+            MemorySegment devname = arena.allocateFrom(dev);
             int r = (int) setSockOpt.invokeExact(fd,SOL_SOCKET,SO_BINDTODEVICE,devname,devname.byteSize()-1);
             if (r==-1){
                 throw new RuntimeException(strerror(errno()));
