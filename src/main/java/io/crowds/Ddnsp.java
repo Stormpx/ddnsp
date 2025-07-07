@@ -24,7 +24,7 @@ public class Ddnsp {
     private final static Logger logger= LoggerFactory.getLogger(Ddnsp.class);
 
     private final static AtomicReference<InternalDnsResolver> INTERNAL_DNS_RESOLVER =new AtomicReference<>();
-
+    private static MethodHandles.Lookup lookup=null;
 
     private static MethodHandles.Lookup fetchMethodHandlesLookup() {
         Class<MethodHandles.Lookup> lookupClass = MethodHandles.Lookup.class;
@@ -36,13 +36,17 @@ public class Ddnsp {
             throw new RuntimeException(e);
         }
     }
-    private static MethodHandles.Lookup fetchMethodHandlesLookup0() {
-        ReflectionFactory reflectionFactory = ReflectionFactory.getReflectionFactory();
-        Class<MethodHandles.Lookup> lookupClass = MethodHandles.Lookup.class;
+    public static MethodHandles.Lookup fetchMethodHandlesLookup0() {
+        if (lookup!=null){
+            return lookup;
+        }
         try {
+            ReflectionFactory reflectionFactory = ReflectionFactory.getReflectionFactory();
+            Class<MethodHandles.Lookup> lookupClass = MethodHandles.Lookup.class;
             Constructor<MethodHandles.Lookup> lookupConstructor = lookupClass.getDeclaredConstructor(Class.class, Class.class, int.class);
             Constructor<?> constructor = reflectionFactory.newConstructorForSerialization(lookupClass, lookupConstructor);
-            return (MethodHandles.Lookup) constructor.newInstance(Object.class,null,-1);
+            lookup =  (MethodHandles.Lookup) constructor.newInstance(Object.class,null,-1);
+            return lookup;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

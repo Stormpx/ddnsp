@@ -12,19 +12,19 @@ public class Unix {
 
     private static final int SO_BINDTODEVICE = 25;
 
-    private static final Linker LINKER = Linker.nativeLinker();
 
     private static final MethodHandle setSockOpt;
     static final MethodHandle error;
     static final MethodHandle strerror;
 
     static {
-        SymbolLookup symbolLookup = LINKER.defaultLookup();
-        setSockOpt = LINKER.downcallHandle(symbolLookup.find("setsockopt").orElse(null),
+        Linker linker = Linker.nativeLinker();
+        SymbolLookup symbolLookup = linker.defaultLookup();
+        setSockOpt = linker.downcallHandle(symbolLookup.find("setsockopt").orElse(null),
                 FunctionDescriptor.of(ValueLayout.JAVA_INT,ValueLayout.JAVA_INT,ValueLayout.JAVA_INT,ValueLayout.JAVA_INT,
                         ValueLayout.ADDRESS.withTargetLayout(MemoryLayout.sequenceLayout(JAVA_BYTE)),ValueLayout.JAVA_LONG));
-        error = LINKER.downcallHandle(symbolLookup.find("__errno_location").orElse(null),FunctionDescriptor.of(ValueLayout.ADDRESS));
-        strerror = LINKER.downcallHandle(symbolLookup.find("strerror").orElse(null),FunctionDescriptor.of(ValueLayout.ADDRESS,ValueLayout.JAVA_INT));
+        error = linker.downcallHandle(symbolLookup.find("__errno_location").orElse(null),FunctionDescriptor.of(ValueLayout.ADDRESS));
+        strerror = linker.downcallHandle(symbolLookup.find("strerror").orElse(null),FunctionDescriptor.of(ValueLayout.ADDRESS,ValueLayout.JAVA_INT));
     }
 
     public static int errno() {

@@ -1,7 +1,6 @@
 package io.crowds.proxy.services.tun;
 
 import io.crowds.Context;
-import io.crowds.Ddnsp;
 import io.crowds.proxy.Axis;
 import io.crowds.proxy.ChannelCreator;
 import io.crowds.proxy.DatagramOption;
@@ -9,7 +8,6 @@ import io.crowds.proxy.common.BaseChannelInitializer;
 import io.crowds.proxy.dns.FakeContext;
 import io.crowds.proxy.dns.FakeDns;
 import io.crowds.util.AddrType;
-import io.crowds.util.Async;
 import io.crowds.util.ChannelFactoryProvider;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
@@ -25,18 +23,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.stormpx.net.PartialNetStack;
 import org.stormpx.net.RouteItem;
+import org.stormpx.net.netty.PartialChannelOption;
+import org.stormpx.net.netty.PartialDatagramChannel;
+import org.stormpx.net.netty.PartialServerSocketChannel;
 import org.stormpx.net.network.IfType;
 import org.stormpx.net.network.NetworkParams;
 import org.stormpx.net.socket.PartialSocketOptions;
 import org.stormpx.net.util.*;
-import org.stormpx.net.netty.*;
 
-import java.net.*;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class TunServer {
     private static final Logger logger = LoggerFactory.getLogger(TunServer.class);

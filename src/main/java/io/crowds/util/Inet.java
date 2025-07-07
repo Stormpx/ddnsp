@@ -1,10 +1,10 @@
 package io.crowds.util;
 
 import io.netty.util.NetUtil;
+import io.netty.util.internal.PlatformDependent;
 
 import java.net.*;
 import java.util.Enumeration;
-import java.util.Iterator;
 
 public class Inet {
     public final static Inet4Address ANY_ADDRESS_V4;
@@ -102,14 +102,22 @@ public class Inet {
         }
     }
 
+    private static NetworkInterface findByName(String name) throws SocketException {
+        if (PlatformDependent.isWindows()){
+            return NetworkInterface.networkInterfaces().filter(it->it.getDisplayName().equalsIgnoreCase(name)).findFirst().orElse(null);
+        }else{
+            return NetworkInterface.getByName(name);
+        }
+    }
+
     public static InetAddress getDeviceAddress(String dev, boolean ipv6){
         try {
-            NetworkInterface networkInterface = NetworkInterface.getByName(dev);
+            NetworkInterface networkInterface = findByName(dev);
             if (networkInterface==null){
-                throw new SocketException("network interface is not exists : "+dev);
+                throw new SocketException("Network interface is not exists : "+dev);
             }
             if (!networkInterface.isUp()){
-                throw new SocketException("network interface is not up: "+dev);
+                throw new SocketException("Network interface is not up: "+dev);
             }
             return networkInterface.inetAddresses()
                     .filter(it->ipv6?it instanceof Inet6Address:it instanceof Inet4Address)

@@ -1,25 +1,30 @@
 package io.crowds.proxy.common;
 
 import io.crowds.lib.unix.Unix;
+import io.crowds.lib.windows.Windows;
+import io.crowds.util.Reflect;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelOutboundHandlerAdapter;
-import io.netty.channel.epoll.AbstractEpollServerChannel;
-import io.netty.channel.unix.FileDescriptor;
+import io.netty.channel.nio.AbstractNioChannel;
 import io.netty.channel.unix.UnixChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
-import io.netty.handler.ssl.*;
+import io.netty.handler.ssl.OpenSsl;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.handler.ssl.SslProvider;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.netty.handler.timeout.IdleStateEvent;
-import io.netty.handler.timeout.IdleStateHandler;
+import io.netty.util.internal.PlatformDependent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLException;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 
 
 public class BaseChannelInitializer extends ChannelInitializer<Channel> {
+    private static final Logger logger = LoggerFactory.getLogger(BaseChannelInitializer.class);
 
     public final static ChannelInitializer<Channel> EMPTY = new ChannelInitializer<Channel>() {
         @Override
@@ -27,6 +32,7 @@ public class BaseChannelInitializer extends ChannelInitializer<Channel> {
 
         }
     };
+
 
     private SslContext sslContext;
     private String tlsServerName;
@@ -87,13 +93,28 @@ public class BaseChannelInitializer extends ChannelInitializer<Channel> {
         return this;
     }
 
-    @Override
-    protected void initChannel(Channel ch) throws Exception {
-        if (this.device!=null){
+    private void bindToDevice(Channel ch){
+        try {
             if (ch instanceof UnixChannel unixChannel&&unixChannel.fd().isOpen()){
                 int fd = unixChannel.fd().intValue();
                 Unix.bindToDevice(fd,device);
+            }else if (ch instanceof AbstractNioChannel nioChannel){
+                int fd = Reflect.getFd(nioChannel);
+                if (PlatformDependent.isWindows()){
+                    Windows.bindToDevice(fd,device);
+                }else{
+                    Unix.bindToDevice(fd,device);
+                }
             }
+        } catch (Throwable e) {
+            logger.error("",e);
+        }
+    }
+
+    @Override
+    protected void initChannel(Channel ch) throws Exception {
+        if (this.device!=null){
+            bindToDevice(ch);
         }
         if (sslContext!=null){
             ch.pipeline().addLast("tls",sslContext.newHandler(ch.alloc(),this.tlsServerName,this.port));
