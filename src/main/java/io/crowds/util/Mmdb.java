@@ -18,9 +18,9 @@ import java.net.InetAddress;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class Mmdb {
     private final static Logger logger= LoggerFactory.getLogger(Mmdb.class);
@@ -28,13 +28,13 @@ public class Mmdb {
     private final Vertx vertx;
     private final HttpClient httpClient;
 
-    private long duration;
-    private TimeUnit timeUnit;
+    private final long duration;
+    private final TimeUnit timeUnit;
 
     private String target;
 
     private Long timerId;
-    private volatile DatabaseReader database=null;
+    private final AtomicReference<DatabaseReader> database=new AtomicReference<>();
 
     public Mmdb(Vertx vertx, long duration, TimeUnit timeUnit) {
         Objects.requireNonNull(vertx);
@@ -74,13 +74,14 @@ public class Mmdb {
 
     }
 
-    private void replaceDatabase(DatabaseReader reader) throws IOException {
-        DatabaseReader database = this.database;
-        this.database=reader;
-        if (database !=null){
-            database.close();
+    private void replaceDatabase(DatabaseReader newDatabase) throws IOException {
+        DatabaseReader database = this.database.get();
+        if (this.database.compareAndExchange(database,newDatabase) == database){
+            if (database!=null){
+                database.close();
+            }
+            setReloadTimer();
         }
-        setReloadTimer();
     }
 
     public Future<Void> load(String target){
@@ -156,7 +157,8 @@ public class Mmdb {
     }
 
     public String queryIsoCode(InetAddress address){
-        if (database==null)
+        DatabaseReader database = this.database.get();
+        if (database ==null)
             return null;
         if (address==null)
             return null;

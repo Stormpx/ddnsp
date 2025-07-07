@@ -31,7 +31,7 @@ repositories {
 application{
     mainClass = 'io.crowds.Main'
 
-    applicationDefaultJvmArgs = ["--add-opens=java.base/java.lang.invoke=ALL-UNNAMED","--enable-preview"]
+    applicationDefaultJvmArgs = ["--enable-preview"]
 }
 
 compileJava{

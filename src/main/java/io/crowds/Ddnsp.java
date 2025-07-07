@@ -10,8 +10,10 @@ import io.vertx.core.internal.resolver.NameResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.stormpx.net.PartialNetStack;
+import sun.reflect.ReflectionFactory;
 
 import java.lang.invoke.MethodHandles;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
@@ -34,6 +36,19 @@ public class Ddnsp {
             throw new RuntimeException(e);
         }
     }
+    private static MethodHandles.Lookup fetchMethodHandlesLookup0() {
+        ReflectionFactory reflectionFactory = ReflectionFactory.getReflectionFactory();
+        Class<MethodHandles.Lookup> lookupClass = MethodHandles.Lookup.class;
+        try {
+            Constructor<MethodHandles.Lookup> lookupConstructor = lookupClass.getDeclaredConstructor(Class.class, Class.class, int.class);
+            Constructor<?> constructor = reflectionFactory.newConstructorForSerialization(lookupClass, lookupConstructor);
+            return (MethodHandles.Lookup) constructor.newInstance(Object.class,null,-1);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+
 
     public static Context newContext(Supplier<InternalDnsResolver> resolverSupplier){
         var netStack = new PartialNetStack();
@@ -47,7 +62,7 @@ public class Ddnsp {
                     .build();
         var context = new Context((VertxInternal) vertx,netStack,resolverSupplier);
         try {
-            var varhandle = fetchMethodHandlesLookup().findVarHandle(NameResolver.class,"resolverGroup",AddressResolverGroup.class);
+            var varhandle = fetchMethodHandlesLookup0().findVarHandle(NameResolver.class,"resolverGroup",AddressResolverGroup.class);
             if (vertx instanceof VertxInternal impl){
                 NameResolver resolver = impl.nameResolver();
                 varhandle.set(resolver,context.getNettyResolver());
@@ -62,8 +77,7 @@ public class Ddnsp {
         String unit = "Seconds";
         long ms = cost.toMillis();
         long granularity = TimeUnit.SECONDS.toMillis(1);
-        long seconds = ms/granularity;
-        double time = seconds + (double) (ms - seconds * granularity) / granularity;
+        double time = (double) ms /granularity;
         logger.info("Started ddnsp in {} {}",time,unit);
     }
 

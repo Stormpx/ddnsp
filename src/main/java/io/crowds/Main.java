@@ -96,7 +96,7 @@ public class Main {
                     }
 
 //                    LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)
-                    return Future.any(dnsFuture,proxyFuture)
+                    return Future.all(dnsFuture,proxyFuture)
                             .onSuccess(cf->{
                                 if (!Strs.isBlank(option.getLogLevel())){
                                     setLoggerLevel(Level.toLevel(option.getLogLevel()));
