@@ -1,7 +1,7 @@
 package io.crowds.proxy;
 
 import io.crowds.Context;
-import io.crowds.dns.DnsContext;
+import io.crowds.dns.server.DnsContext0;
 import io.crowds.proxy.services.http.HttpServer;
 import io.crowds.proxy.services.socks.SocksServer;
 import io.crowds.proxy.services.transparent.TransparentServer;
@@ -63,7 +63,7 @@ public class ProxyServer {
                 .map((Void)null);
     }
 
-    public Handler<DnsContext> getDnsHandler(){
+    public Handler<DnsContext0> getDnsHandler(){
         return this.axis.getFakeDns();
     }
 

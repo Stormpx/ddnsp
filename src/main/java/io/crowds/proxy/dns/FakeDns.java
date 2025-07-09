@@ -1,6 +1,6 @@
 package io.crowds.proxy.dns;
 
-import io.crowds.dns.DnsContext;
+import io.crowds.dns.server.DnsContext0;
 import io.crowds.proxy.routing.Router;
 import io.crowds.util.AddrType;
 import io.crowds.util.IPCIDR;
@@ -17,12 +17,13 @@ import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
-public class FakeDns implements Handler<DnsContext> {
+public class FakeDns implements Handler<DnsContext0> {
     private final static Logger logger= LoggerFactory.getLogger(FakeDns.class);
 
     private EventLoop executors;
@@ -60,7 +61,7 @@ public class FakeDns implements Handler<DnsContext> {
         return this;
     }
 
-    private boolean tryHitCache(DnsContext ctx, Domain domain){
+    private boolean tryHitCache(DnsContext0 ctx,DnsQuestion question, Domain domain){
         FakeContext context = domainFakeMap.get(domain);
         if (context==null)
             return false;
@@ -68,18 +69,13 @@ public class FakeDns implements Handler<DnsContext> {
             if (executors.inEventLoop()){
                 domainFakeMap.remove(domain);
             }else {
-                executors.execute(() ->{
-                    if (domainFakeMap.get(domain)==context){
-                        domainFakeMap.remove(domain);
-                    }
-                });
+                executors.execute(() -> domainFakeMap.remove(domain,context));
             }
             return false;
         }
-//        logger.warn("fakedns hit cache domain: {} fakeAddr:{} realAddr: {}",domain,context.getFakeAddr(),context.getRealAddr());
         InetAddress fakeAddr = context.getFakeAddr();
         ctx.resp(DnsOpCode.QUERY,DnsResponseCode.NOERROR,
-                Collections.singletonList(new DefaultDnsRawRecord(domain.name(), ctx.getQuestion().type(), 60, Unpooled.wrappedBuffer(fakeAddr.getAddress()))));
+                Collections.singletonList(new DefaultDnsRawRecord(domain.name(), question.type(), 60, Unpooled.wrappedBuffer(fakeAddr.getAddress()))));
 
         return true;
     }
@@ -95,7 +91,7 @@ public class FakeDns implements Handler<DnsContext> {
         return new RealAddr(rawRecord.timeToLive(),InetAddress.getByAddress(ByteBufUtil.getBytes(rawRecord.content())));
     }
 
-    private void mappingAndResp(DnsContext ctx, Domain domain, RealAddr realAddr, String tag){
+    private void mappingAndResp(DnsContext0 ctx,DnsQuestion question, Domain domain, RealAddr realAddr, String tag){
         if (executors.inEventLoop()){
             var ipPool=DnsRecordType.AAAA.equals(domain.type()) ? this.ipv6Pool:ipv4Pool;
             InetAddress fakeAddr = ipPool.getAvailableAddress();
@@ -112,30 +108,35 @@ public class FakeDns implements Handler<DnsContext> {
                     ipPool.release(fakeAddr);
             }, (long) (realAddr.ttl()*1.5), TimeUnit.SECONDS);
             ctx.resp(DnsOpCode.QUERY,DnsResponseCode.NOERROR,
-                    Collections.singletonList(new DefaultDnsRawRecord(domain.name(), ctx.getQuestion().type(), 60, Unpooled.wrappedBuffer(fakeAddr.getAddress()))));
+                    Collections.singletonList(new DefaultDnsRawRecord(domain.name(), question.type(), 60, Unpooled.wrappedBuffer(fakeAddr.getAddress()))));
         }else{
-            executors.execute(()->mappingAndResp(ctx, domain, realAddr, tag));
+            executors.execute(()->mappingAndResp(ctx, question,domain, realAddr, tag));
         }
 
 
     }
 
     @Override
-    public void handle(DnsContext ctx) {
-        DnsQuestion question = ctx.getQuestion();
+    public void handle(DnsContext0 ctx) {
+        List<DnsQuestion> questions = ctx.getQuestions();
+        if (questions.size()!=1){
+            ctx.doQuery(ctx::resp);
+            return;
+        }
+        DnsQuestion question = questions.getFirst();
         String name = question.name();
         if (name.endsWith(".")){
             name=name.substring(0,name.length()-1);
         }
         if((ipv4Pool!=null&&question.type()== DnsRecordType.A)||(ipv6Pool!=null&&question.type()==DnsRecordType.AAAA)){
             Domain domain = new Domain(name, question.type());
-            if (tryHitCache(ctx,domain)) {
+            if (tryHitCache(ctx,question,domain)) {
                 return;
             }
 
             String tag = router.routing(ctx.getSender(),name);
             if (tag!=null&&!Objects.equals("ip",destStrategy)){
-                mappingAndResp(ctx,domain,new RealAddr(1200,null),tag);
+                mappingAndResp(ctx,question,domain,new RealAddr(1200,null),tag);
                 return;
             }
             ctx.doQuery(resp->{
@@ -153,11 +154,11 @@ public class FakeDns implements Handler<DnsContext> {
                                 String routingTag = router.routingIp(address.addr(), true);
                                 if (routingTag != null) {
                                     //mapping
-                                    mappingAndResp(ctx, domain, address, routingTag);
+                                    mappingAndResp(ctx,question, domain, address, routingTag);
                                     return;
                                 }
                             }else{
-                                mappingAndResp(ctx,domain,address,tag);
+                                mappingAndResp(ctx,question,domain,address,tag);
                                 return;
                             }
                         }
@@ -165,14 +166,13 @@ public class FakeDns implements Handler<DnsContext> {
                     ctx.resp(resp);
                 } catch (Exception e) {
                     if (!(e instanceof UnknownHostException)){
-                        e.printStackTrace();
+                        logger.error("",e);
                     }
                     ctx.resp(resp);
                 }
             });
 
         }else{
-
             ctx.doQuery(ctx::resp);
         }
 

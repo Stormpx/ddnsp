@@ -1,4 +1,5 @@
-import io.crowds.dns.DnsContext;
+import io.crowds.dns.server.DnsContext0;
+import io.crowds.dns.server.DnsRequest;
 import io.crowds.proxy.dns.FakeContext;
 import io.crowds.proxy.dns.FakeDns;
 import io.crowds.proxy.dns.RealAddr;
@@ -48,7 +49,6 @@ public class FakeDnsTest {
     @Test
     public void test() throws UnknownHostException, InterruptedException {
         NioEventLoopGroup eventLoopGroup = new NioEventLoopGroup();
-
         FakeDns fakeDns = new FakeDns(eventLoopGroup.next(), new LinearRouter(Arrays.asList("kw;google;test")), new IPCIDR("192.168.1.0/24"),null,"domain");
         String targetDomain = "www.google.com";
         InetAddress realAddr = InetAddress.getByName("10.10.10.10");
@@ -64,8 +64,27 @@ public class FakeDnsTest {
                 return promise;
             }
         };
-        DnsContext context = new DnsContext(0, new InetSocketAddress(0), null,
-                new DefaultDnsQuestion(targetDomain + ".", DnsRecordType.A), channel, question -> Future.succeededFuture(r));
+        DnsContext0 context =new DnsContext0(new DnsRequest() {
+            @Override
+            public InetSocketAddress sender() {
+                return null;
+            }
+
+            @Override
+            public DnsQuery query() {
+                return new DefaultDnsQuery(0,DnsOpCode.QUERY).addRecord(DnsSection.QUESTION,new DefaultDnsQuestion(targetDomain + ".", DnsRecordType.A));
+            }
+
+            @Override
+            public DnsResponse newResponse() {
+                return new DefaultDnsResponse(0);
+            }
+
+            @Override
+            public void response(DnsResponse response) {
+                channel.writeAndFlush(response);
+            }
+        },ctx -> Future.succeededFuture(r));
         fakeDns.handle(context);
 
         DnsResponse response= (DnsResponse) read(channel);
@@ -88,8 +107,27 @@ public class FakeDnsTest {
 
         Assert.assertEquals(realAddr,fakeContext.getRealAddr().addr());
 
-        fakeDns.handle(new DnsContext(0, new InetSocketAddress(0), null,
-                new DefaultDnsQuestion("www.pixiv.net", DnsRecordType.A), channel, question -> Future.succeededFuture(r)));
+        fakeDns.handle(new DnsContext0(new DnsRequest() {
+            @Override
+            public InetSocketAddress sender() {
+                return null;
+            }
+
+            @Override
+            public DnsQuery query() {
+                return new DefaultDnsQuery(0,DnsOpCode.QUERY).addRecord(DnsSection.QUESTION,new DefaultDnsQuestion("www.pixiv.net.", DnsRecordType.A));
+            }
+
+            @Override
+            public DnsResponse newResponse() {
+                return new DefaultDnsResponse(0);
+            }
+
+            @Override
+            public void response(DnsResponse response) {
+                channel.writeAndFlush(response);
+            }
+        },ctx -> Future.succeededFuture(r)));
 
         response= (DnsResponse) read(channel);
         InetAddress realAddress = InetAddress.getByAddress(((DnsRawRecord)response.recordAt(DnsSection.ANSWER,0)).content().array());

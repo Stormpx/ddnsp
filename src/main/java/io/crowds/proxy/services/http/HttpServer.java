@@ -111,9 +111,8 @@ public class HttpServer {
                         promise.complete();
                         logger.info("start http{} proxy server {}", sslCtx==null?"":"s",socketAddress);
                     }else {
-                        future.cause().printStackTrace();
                         promise.tryFail(future.cause());
-                        logger.error("start http proxy server failed cause:{}", future.cause().getMessage());
+                        logger.error("start http proxy server failed",future.cause());
                     }
                 });
         return promise.future();

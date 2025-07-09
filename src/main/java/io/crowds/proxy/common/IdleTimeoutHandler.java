@@ -12,7 +12,7 @@ import java.util.function.BiConsumer;
 
 public class IdleTimeoutHandler extends IdleStateHandler {
     public final static AttributeKey<Void> IGNORE_IDLE_FLAG =AttributeKey.valueOf("ignore_idle_flag");
-    private BiConsumer<Channel,IdleStateEvent> idleEventHandler;
+    private final BiConsumer<Channel,IdleStateEvent> idleEventHandler;
     private boolean closed;
 
     public IdleTimeoutHandler( int allIdleTimeSeconds,BiConsumer<Channel,IdleStateEvent> idleEventHandler) {
