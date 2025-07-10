@@ -263,10 +263,13 @@ public class DdnspOptionLoader {
                 .map(Object::toString)
                 .filter(s->!s.isBlank())
                 .map(s->{
-                    if (s.startsWith("dns")||s.startsWith("udp")||s.startsWith("http"))
-                        return URI.create(s);
-                    return URI.create("dns://"+s);
+                    if (!s.matches("\\w+://.*")){
+                        s = "dns://"+s;
+                    }
+                    URI uri = URI.create(s);
+                    return uri.getHost() == null ? null : uri;
                 })
+                .filter(Objects::nonNull)
                 .collect(Collectors.toList());
 
     }

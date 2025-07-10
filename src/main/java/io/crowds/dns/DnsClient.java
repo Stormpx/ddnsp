@@ -71,6 +71,7 @@ public class DnsClient implements InternalDnsResolver {
                     String scheme = uri.getScheme();
                     return switch (Strs.isBlank(scheme)?"dns":scheme) {
                         case "dns", "udp" -> newUdpUpstream(Inet.createSocketAddress(uri.getHost(), uri.getPort()));
+                        case "tcp" -> new TcpUpstream(context.getEventLoopGroup(), context.getSocketChannelFactory(),Inet.createSocketAddress(uri.getHost(), uri.getPort()));
                         case "http", "https" -> new DohUpstream(context.getVertx(), uri,this);
                         default -> {
                             logger.error("unsupported dns server {}",uri);

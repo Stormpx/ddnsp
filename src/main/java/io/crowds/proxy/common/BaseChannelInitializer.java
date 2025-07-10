@@ -41,7 +41,6 @@ public class BaseChannelInitializer extends ChannelInitializer<Channel> {
     private Integer connIdle;
     private BiConsumer<Channel,IdleStateEvent> idleEventHandler;
     private ChannelInitializer<Channel> subInitializer;
-    private HandlerConfigurer configurer;
 
     private String device;
 
@@ -75,11 +74,6 @@ public class BaseChannelInitializer extends ChannelInitializer<Channel> {
     public BaseChannelInitializer connIdle(int idle, BiConsumer<Channel,IdleStateEvent> idleEventHandler){
         this.connIdle=idle;
         this.idleEventHandler=idleEventHandler;
-        return this;
-    }
-
-    public BaseChannelInitializer configurer(HandlerConfigurer configurer) {
-        this.configurer = configurer;
         return this;
     }
 
@@ -124,9 +118,6 @@ public class BaseChannelInitializer extends ChannelInitializer<Channel> {
         }
         if (this.subInitializer!=null){
             ch.pipeline().addLast(this.subInitializer);
-        }
-        if (this.configurer!=null){
-            ch.pipeline().addLast(this.configurer);
         }
         if (connIdle!=null&&connIdle>0){
             ch.pipeline().addLast(new IdleTimeoutHandler(connIdle,this.idleEventHandler));

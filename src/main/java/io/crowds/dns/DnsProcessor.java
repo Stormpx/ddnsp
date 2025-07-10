@@ -3,6 +3,7 @@ package io.crowds.dns;
 import io.crowds.dns.server.DnsContext0;
 import io.crowds.dns.server.DnsRequest;
 import io.netty.handler.codec.dns.*;
+import io.netty.util.ReferenceCountUtil;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import org.slf4j.Logger;
@@ -45,10 +46,8 @@ public class DnsProcessor {
 
     public void process(DnsRequest request){
         DnsQuery dnsQuery = request.query();
-        if (dnsQuery.count(DnsSection.QUESTION)==0){
-            return;
-        }
-        if (dnsQuery.count(DnsSection.ANSWER)!=0){
+        if (dnsQuery.count(DnsSection.QUESTION)==0||dnsQuery.count(DnsSection.ANSWER)!=0){
+            ReferenceCountUtil.safeRelease(request);
             return;
         }
         DnsContext0 dnsContext0 = new DnsContext0(request,this::doQuery);
