@@ -2,6 +2,7 @@ package io.crowds.proxy.common;
 
 import io.crowds.lib.unix.Unix;
 import io.crowds.lib.windows.Windows;
+import io.crowds.util.Inet;
 import io.crowds.util.Reflect;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
@@ -20,6 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLException;
+import java.net.NetworkInterface;
 import java.util.function.BiConsumer;
 
 
@@ -42,7 +44,7 @@ public class BaseChannelInitializer extends ChannelInitializer<Channel> {
     private BiConsumer<Channel,IdleStateEvent> idleEventHandler;
     private ChannelInitializer<Channel> subInitializer;
 
-    private String device;
+    private String identity;
 
     private LogLevel logLevel;
 
@@ -82,22 +84,27 @@ public class BaseChannelInitializer extends ChannelInitializer<Channel> {
         return this;
     }
 
-    public BaseChannelInitializer bindToDevice(String device) {
-        this.device = device;
+    public BaseChannelInitializer bindToDevice(String identity) {
+        this.identity = identity;
         return this;
     }
 
     private void bindToDevice(Channel ch){
         try {
+            NetworkInterface networkInterface = Inet.findInterfaceByIdentity(identity);
+            if (networkInterface==null){
+                logger.warn("Unable to find network interface by identity: {}", identity);
+                return;
+            }
             if (ch instanceof UnixChannel unixChannel&&unixChannel.fd().isOpen()){
                 int fd = unixChannel.fd().intValue();
-                Unix.bindToDevice(fd,device);
+                Unix.bindToDevice(fd, networkInterface.getName());
             }else if (ch instanceof AbstractNioChannel nioChannel){
                 int fd = Reflect.getFd(nioChannel);
                 if (PlatformDependent.isWindows()){
-                    Windows.bindToDevice(fd,device);
+                    Windows.bindToDevice(fd, networkInterface.getIndex());
                 }else{
-                    Unix.bindToDevice(fd,device);
+                    Unix.bindToDevice(fd, networkInterface.getName());
                 }
             }
         } catch (Throwable e) {
@@ -107,7 +114,7 @@ public class BaseChannelInitializer extends ChannelInitializer<Channel> {
 
     @Override
     protected void initChannel(Channel ch) throws Exception {
-        if (this.device!=null){
+        if (this.identity !=null){
             bindToDevice(ch);
         }
         if (sslContext!=null){

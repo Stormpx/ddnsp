@@ -5,6 +5,7 @@ import io.netty.util.internal.PlatformDependent;
 import java.lang.foreign.*;
 import java.lang.invoke.MethodHandle;
 import java.net.NetworkInterface;
+import java.net.SocketException;
 import java.nio.ByteOrder;
 import java.nio.file.Path;
 import java.util.Objects;
@@ -39,15 +40,8 @@ public class Windows {
         getLastError = getLastErrorMh;
     }
 
-
-    public static void bindToDevice(int fd,String dev){
-        Objects.requireNonNull(dev);
+    public static void bindToDevice(int fd,int index){
         try (Arena arena = Arena.ofConfined()){
-            int index = NetworkInterface.networkInterfaces()
-                            .filter(it->it.getDisplayName().equalsIgnoreCase(dev))
-                            .findFirst()
-                            .map(NetworkInterface::getIndex)
-                            .orElseThrow(()->new RuntimeException("Device index not found"));
             MemorySegment optVal = arena.allocate(ValueLayout.JAVA_INT.withOrder(ByteOrder.BIG_ENDIAN), index);
             int r = (int) setSockOpt.invoke(fd,IPPROTO_IP,IP_UNICAST_IF,optVal,(int)optVal.byteSize());
             if (r==-1){
@@ -59,6 +53,21 @@ public class Windows {
         } catch (Throwable e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public static void bindToDevice(int fd,String dev){
+        Objects.requireNonNull(dev);
+        try {
+            int index = NetworkInterface.networkInterfaces()
+                                        .filter(it->it.getDisplayName().equalsIgnoreCase(dev))
+                                        .findFirst()
+                                        .map(NetworkInterface::getIndex)
+                                        .orElseThrow(()->new RuntimeException("Device index not found"));
+            bindToDevice(fd, index);
+        } catch (Throwable e) {
+            throw new RuntimeException(e);
+        }
+
     }
 
 }

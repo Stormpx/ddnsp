@@ -46,7 +46,7 @@ public class DirectTransport implements Transport {
             synchronized(this){
                 localAddress = this.localAddressV4;
                 if (localAddress==null) {
-                    var deviceAddress = Inet.getDeviceAddress(dev, false);
+                    var deviceAddress = Inet.getDeviceAddressByIdentity(dev, false);
                     if (deviceAddress == null) {
                         //fallback address, means null
                         deviceAddress = Inet.ANY_ADDRESS_V4;
@@ -65,7 +65,7 @@ public class DirectTransport implements Transport {
             synchronized(this){
                 localAddress = this.localAddressV6;
                 if (localAddress==null) {
-                    var deviceAddress = Inet.getDeviceAddress(dev, true);
+                    var deviceAddress = Inet.getDeviceAddressByIdentity(dev, true);
                     if (deviceAddress == null) {
                         //fallback address, means null
                         deviceAddress = Inet.ANY_ADDRESS_V6;

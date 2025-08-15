@@ -5,6 +5,9 @@ import io.netty.util.internal.PlatformDependent;
 
 import java.net.*;
 import java.util.Enumeration;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class Inet {
     public final static Inet4Address ANY_ADDRESS_V4;
@@ -19,6 +22,8 @@ public class Inet {
              throw new RuntimeException(e);
         }
     }
+
+    private final static Map<String,NetworkInterface> IDENTITY_MAP = new ConcurrentHashMap<>();
 
     private static Boolean ipv6 = null;
 
@@ -110,6 +115,25 @@ public class Inet {
         }
     }
 
+    public static NetworkInterface findInterfaceByIdentity(String identity) throws SocketException {
+        Objects.requireNonNull(identity);
+        if (IDENTITY_MAP.containsKey(identity)){
+            return IDENTITY_MAP.get(identity);
+        }
+        return IDENTITY_MAP.computeIfAbsent(identity,Lambdas.rethrowFunction(k->{
+            if (identity.contains(".")||identity.contains(":")){
+                try {
+                    InetAddress inetAddress = NetUtil.createInetAddressFromIpAddressString(identity);
+                    return NetworkInterface.getByInetAddress(inetAddress);
+                } catch (Exception e) {
+                    //ignore
+                }
+            }
+            return findByName(identity);
+        }));
+
+    }
+
     public static InetAddress getDeviceAddress(String dev, boolean ipv6){
         try {
             NetworkInterface networkInterface = findByName(dev);
@@ -123,6 +147,25 @@ public class Inet {
                     .filter(it->ipv6?it instanceof Inet6Address:it instanceof Inet4Address)
                     .findFirst()
                     .orElse(null);
+        } catch (SocketException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+
+    public static InetAddress getDeviceAddressByIdentity(String identity, boolean ipv6){
+        try {
+            NetworkInterface networkInterface = findInterfaceByIdentity(identity);
+            if (networkInterface==null){
+                throw new SocketException("Network interface is not exists : "+identity);
+            }
+            if (!networkInterface.isUp()){
+                throw new SocketException("Network interface is not up: "+identity);
+            }
+            return networkInterface.inetAddresses()
+                                   .filter(it->ipv6?it instanceof Inet6Address:it instanceof Inet4Address)
+                                   .findFirst()
+                                   .orElse(null);
         } catch (SocketException e) {
             throw new RuntimeException(e);
         }
