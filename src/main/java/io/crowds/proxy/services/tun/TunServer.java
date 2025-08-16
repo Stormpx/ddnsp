@@ -227,10 +227,16 @@ public class TunServer {
 
         private void handleFallbackPacket(DatagramPacket packet)  {
             InetSocketAddress sender = packet.sender();
+            if (sender==null){
+                logger.warn("The sender of the packet is null, drop the packet");
+                ReferenceCountUtil.safeRelease(packet);
+                return;
+            }
             if (sender.isUnresolved()) {
                 var fakeAddr = getFakeAddress(sender, AddrType.of(packet.recipient()));
                 if (fakeAddr==null){
                     logger.warn("The fake address of the {} cannot be found. drop the packet",sender);
+                    ReferenceCountUtil.safeRelease(packet);
                     return;
                 }
                 sender=fakeAddr;

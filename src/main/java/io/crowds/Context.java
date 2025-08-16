@@ -3,11 +3,11 @@ package io.crowds;
 import io.crowds.compoments.dns.InternalDnsResolver;
 import io.crowds.compoments.dns.VariantResolver;
 import io.crowds.util.ChannelFactoryProvider;
-import io.crowds.util.DatagramChannelFactory;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFactory;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
+import io.netty.channel.local.LocalAddress;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.InternetProtocolFamily;
 import io.netty.resolver.AddressResolverGroup;
@@ -21,6 +21,7 @@ public class Context {
     private final PartialNetStack netStack;
     private final VariantResolver variantResolver;
     private final ChannelFactoryProvider channelFactoryProvider;
+    private LocalAddress dnsLocalServerAddress;
 
     public Context(VertxInternal vertx, PartialNetStack netStack, Supplier<InternalDnsResolver> resolver) {
         this.vertx = vertx;
@@ -68,5 +69,14 @@ public class Context {
 
     public AddressResolverGroup<?> getNettyResolver() {
         return variantResolver.getNettyResolver();
+    }
+
+    public LocalAddress getDnsLocalServerAddress() {
+        return dnsLocalServerAddress;
+    }
+
+    public Context setDnsLocalChannelAddress(LocalAddress dnsLocalServerAddress) {
+        this.dnsLocalServerAddress = dnsLocalServerAddress;
+        return this;
     }
 }

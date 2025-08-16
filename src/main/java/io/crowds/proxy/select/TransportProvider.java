@@ -5,21 +5,10 @@ import io.crowds.proxy.transport.ProtocolOption;
 import io.crowds.proxy.transport.ProxyTransport;
 import io.crowds.proxy.transport.proxy.ProxyTransportProvider;
 import io.crowds.proxy.transport.proxy.block.BlockProxyTransport;
-import io.crowds.proxy.transport.proxy.chain.ChainOption;
 import io.crowds.proxy.transport.proxy.chain.ChainProxyTransport;
 import io.crowds.proxy.transport.proxy.direct.DirectProxyTransport;
-import io.crowds.proxy.transport.proxy.shadowsocks.ShadowsocksOption;
-import io.crowds.proxy.transport.proxy.shadowsocks.ShadowsocksTransport;
-import io.crowds.proxy.transport.proxy.socks.SocksOption;
-import io.crowds.proxy.transport.proxy.socks.SocksProxyTransport;
-import io.crowds.proxy.transport.proxy.ssh.SshOption;
-import io.crowds.proxy.transport.proxy.ssh.SshProxyTransport;
-import io.crowds.proxy.transport.proxy.trojan.TrojanOption;
-import io.crowds.proxy.transport.proxy.trojan.TrojanProxyTransport;
-import io.crowds.proxy.transport.proxy.vless.VlessOption;
-import io.crowds.proxy.transport.proxy.vless.VlessProxyTransport;
-import io.crowds.proxy.transport.proxy.vmess.VmessOption;
-import io.crowds.proxy.transport.proxy.vmess.VmessProxyTransport;
+import io.crowds.proxy.transport.proxy.localdns.DnsForwardProxyTransport;
+import io.netty.channel.local.LocalAddress;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
@@ -52,6 +41,11 @@ public class TransportProvider {
 
         map.put(DEFAULT_TRANSPORT,new DirectProxyTransport(channelCreator));
         map.put(BLOCK_TRANSPORT,new BlockProxyTransport(channelCreator));
+
+        LocalAddress dnsLocalServerAddress = axis.getContext().getDnsLocalServerAddress();
+        if (dnsLocalServerAddress!=null) {
+            map.put(DnsForwardProxyTransport.TAG, new DnsForwardProxyTransport(dnsLocalServerAddress));
+        }
 
         if (protocolOptions!=null) {
             List<ChainProxyTransport> chainProxyTransports=new ArrayList<>();

@@ -19,12 +19,12 @@ import java.util.function.Consumer;
 public class UdpChannel  extends ChannelInboundHandlerAdapter {
     private final static Logger logger= LoggerFactory.getLogger(UdpChannel.class);
 
-    private Channel channel;
-    private InetSocketAddress src;
-    private boolean closeIfEmpty;
+    private final Channel channel;
+    private final InetSocketAddress src;
+    private final boolean closeIfEmpty;
     private Consumer<DatagramPacket> fallbackPacketHandler;
 
-    private Map<InetSocketAddress, Consumer<DatagramPacket>> handlers=new ConcurrentHashMap<>();
+    private final Map<InetSocketAddress, Consumer<DatagramPacket>> handlers=new ConcurrentHashMap<>();
 
 
 
@@ -66,9 +66,8 @@ public class UdpChannel  extends ChannelInboundHandlerAdapter {
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         if (msg instanceof DatagramPacket packet){
             InetSocketAddress address = packet.sender();
-            Consumer<DatagramPacket> handler = handlers.getOrDefault(address,this.fallbackPacketHandler);
+            Consumer<DatagramPacket> handler = address==null?this.fallbackPacketHandler:handlers.getOrDefault(address,this.fallbackPacketHandler);
             if (handler!=null) {
-
                 handler.accept(new DatagramPacket(packet.content(),src,address));
             }
             return;

@@ -62,6 +62,7 @@ public class Main {
                     DnsServer dnsServer = new DnsServer(context,dnsClient).setOption(dnsOption);
                     Ddns ddns = new Ddns(vertx, option.getDdns());
                     Future<Void> dnsFuture = dnsServer.start(socketAddress);
+                    context.setDnsLocalChannelAddress(dnsServer.getLocalChannelAddress());
                     ProxyServer proxyServer = new ProxyServer(context)
                             .setProxyOption(proxyOption);
                     Future<Void> proxyFuture = proxyServer.start()

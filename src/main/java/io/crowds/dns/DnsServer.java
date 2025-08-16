@@ -2,14 +2,15 @@ package io.crowds.dns;
 
 
 import io.crowds.Context;
-import io.crowds.dns.server.DatagramDnsRequest;
-import io.crowds.dns.server.DnsContext0;
-import io.crowds.dns.server.SocketDnsRequest;
+import io.crowds.dns.server.*;
 import io.crowds.proxy.common.IdleTimeoutHandler;
 import io.crowds.util.Async;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
 import io.netty.channel.epoll.Epoll;
+import io.netty.channel.local.LocalAddress;
+import io.netty.channel.local.LocalChannel;
+import io.netty.channel.local.LocalServerChannel;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.unix.UnixChannelOption;
@@ -32,6 +33,7 @@ public class DnsServer {
 
     private DatagramChannel udpServer;
     private ServerChannel tcpServer;
+    private LocalServerChannel localServer;
 
     private DnsOption option;
 
@@ -56,6 +58,52 @@ public class DnsServer {
         return this;
     }
 
+    public LocalAddress getLocalChannelAddress(){
+        return this.localServer.localAddress();
+    }
+
+    private Future<Void> startLocal(){
+        var future = new ServerBootstrap()
+                .group(context.getAcceptor(),context.getEventLoopGroup())
+                .channel(LocalServerChannel.class)
+                .childHandler(new ChannelInitializer<LocalChannel>() {
+                    @Override
+                    protected void initChannel(LocalChannel localChannel) throws Exception {
+                        localChannel.pipeline()
+                                    .addLast(new SimpleChannelInboundHandler<>() {
+                                        @Override
+                                        protected void channelRead0(ChannelHandlerContext ctx, Object msg) throws Exception {
+                                            if (msg instanceof LocalMsgType lmt) {
+                                                switch (lmt) {
+                                                    case LocalMsgType.Datagram datagram -> {
+                                                        ctx.pipeline()
+                                                           .addLast(new DatagramDnsQueryDecoder())
+                                                           .addLast(new DatagramDnsResponseEncoder());
+                                                    }
+                                                    case LocalMsgType.Stream stream -> {
+                                                        ctx.pipeline()
+                                                           .addLast(new TcpDnsQueryDecoder())
+                                                           .addLast(new TcpDnsResponseEncoder());
+                                                    }
+                                                }
+                                                ctx.pipeline()
+                                                   .addLast(new LocalDnsQueryHandler(processor, lmt));
+                                                ctx.pipeline()
+                                                   .remove(this);
+                                            } else {
+                                                logger.warn("Unknown message type received in local dns server: {}", msg.getClass().getName());
+                                                ctx.close();
+                                            }
+                                        }
+                                    })
+                                    .addLast(new IdleTimeoutHandler(15, TimeUnit.SECONDS,(ch,idle)->ch.close()));
+                    }
+                })
+                .bind(new LocalAddress(DnsServer.class));
+        this.localServer = (LocalServerChannel) future.channel();
+        return Async.toFuture(future);
+    }
+
     private Future<Void> startUdp(SocketAddress socketAddress){
         this.udpServer = context.getDatagramChannel();
         this.udpServer.config().setOption(ChannelOption.SO_REUSEADDR,true);
@@ -63,23 +111,22 @@ public class DnsServer {
             this.udpServer.config().setOption(UnixChannelOption.SO_REUSEPORT,true);
         }
         this.udpServer.pipeline()
-                      .addLast(new DatagramDnsQueryDecoder())
-                      .addLast(new DatagramDnsResponseEncoder())
-                      .addLast(new SimpleChannelInboundHandler<DatagramDnsQuery>(false) {
-                        @Override
-                        protected void channelRead0(ChannelHandlerContext ctx, DatagramDnsQuery msg) throws Exception {
-                            processor.process(new DatagramDnsRequest(ctx.channel(),msg));
-                        }
-
-                        @Override
-                        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-                            if (logger.isDebugEnabled()){
-                                logger.error("",cause);
-                            }else {
-                                logger.warn("Dns udp Server exception occurred "+cause.getMessage());
-                            }
-                        }
-                    });
+               .addLast(new DatagramDnsQueryDecoder())
+               .addLast(new DatagramDnsResponseEncoder())
+               .addLast(new SimpleChannelInboundHandler<DatagramDnsQuery>(false) {
+                   @Override
+                   protected void channelRead0(ChannelHandlerContext ctx, DatagramDnsQuery msg) throws Exception {
+                       processor.process(new DatagramDnsRequest(ctx.channel(),msg));
+                   }
+                   @Override
+                   public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+                       if (logger.isDebugEnabled()){
+                           logger.error("",cause);
+                       }else {
+                           logger.warn("Dns udp Server exception occurred "+cause.getMessage());
+                       }
+                   }
+               });
         this.context.getEventLoopGroup().register(udpServer);
         return Async.toFuture(this.udpServer.bind(socketAddress));
     }
@@ -117,12 +164,13 @@ public class DnsServer {
     }
 
     public Future<Void> start(SocketAddress socketAddress){
+        Future<Void> startLocal = startLocal();
         if (!this.option.isEnable()){
-            return Future.succeededFuture();
+            return startLocal;
         }
         Promise<Void> promise = Promise.promise();
 
-        Future.join(startTcp(socketAddress),startUdp(socketAddress))
+        Future.join(startLocal,startTcp(socketAddress),startUdp(socketAddress))
                 .onComplete(future->{
                     if (future.succeeded()){
                         logger.info("start dns server {} success",socketAddress);
@@ -130,10 +178,11 @@ public class DnsServer {
                     }else {
                         logger.info("start dns server {} failed cause:{}",socketAddress,future.cause().getMessage());
                         CompositeFuture cf = future.result();
-                        if (cf.succeeded(0)){
+                        this.localServer.close();
+                        if (cf.succeeded(1)){
                             this.tcpServer.close();
                         }
-                        if (cf.succeeded(1)){
+                        if (cf.succeeded(2)){
                             this.udpServer.close();
                         }
                         promise.tryFail(future.cause());

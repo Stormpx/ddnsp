@@ -1,5 +1,6 @@
 package io.crowds.dns.server;
 
+import io.netty.channel.Channel;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.dns.DefaultDnsQuery;
 import io.netty.handler.codec.dns.DefaultDnsResponse;
@@ -10,17 +11,25 @@ import io.netty.util.ReferenceCountUtil;
 import java.net.InetSocketAddress;
 
 public class SocketDnsRequest implements DnsRequest {
-    private final SocketChannel channel;
+    private final Channel channel;
+    private final InetSocketAddress sender;
     private final DefaultDnsQuery dnsQuery;
 
     public SocketDnsRequest(SocketChannel channel, DefaultDnsQuery dnsQuery) {
         this.channel = channel;
+        this.sender = channel.remoteAddress();
+        this.dnsQuery = dnsQuery;
+    }
+
+    public SocketDnsRequest(Channel channel, InetSocketAddress sender,DefaultDnsQuery dnsQuery) {
+        this.channel = channel;
+        this.sender = sender;
         this.dnsQuery = dnsQuery;
     }
 
     @Override
     public InetSocketAddress sender() {
-        return channel.remoteAddress();
+        return sender;
     }
 
     @Override
