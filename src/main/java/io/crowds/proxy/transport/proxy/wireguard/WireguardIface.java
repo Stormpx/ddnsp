@@ -4,7 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.stormpx.net.buffer.ByteArray;
 import org.stormpx.net.network.Iface;
-import org.stormpx.net.network.IfaceEntry;
+import org.stormpx.net.network.IfaceIngress;
 import org.stormpx.net.network.NetworkParams;
 
 import java.util.function.Consumer;
@@ -12,7 +12,7 @@ import java.util.function.Consumer;
 public class WireguardIface implements Iface {
 
     private static final Logger logger = LoggerFactory.getLogger(WireguardIface.class);
-    private IfaceEntry ifaceEntry;
+    private IfaceIngress ifaceIngress;
     private Consumer<ByteArray> packetHandler;
 
 
@@ -22,19 +22,19 @@ public class WireguardIface implements Iface {
     }
 
     public boolean writeToStack(ByteArray byteArray){
-        ifaceEntry.enqueue(byteArray);
-        ifaceEntry.callback();
+        ifaceIngress.enqueue(byteArray);
+        ifaceIngress.callback();
         return true;
     }
 
     public void triggerStackReceive(){
-        ifaceEntry.callback();
+        ifaceIngress.callback();
     }
 
 
     @Override
-    public void init(NetworkParams networkParams, IfaceEntry ifaceEntry) {
-        this.ifaceEntry = ifaceEntry;
+    public void init(NetworkParams networkParams, IfaceIngress ifaceIngress) {
+        this.ifaceIngress = ifaceIngress;
     }
 
     @Override

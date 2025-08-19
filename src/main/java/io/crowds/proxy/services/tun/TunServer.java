@@ -116,7 +116,8 @@ public class TunServer {
         Context context = axis.getContext();
         ServerBootstrap serverBootstrap = new ServerBootstrap();
         serverBootstrap.channel(PartialServerSocketChannel.class)
-                       .option(PartialChannelOption.of(PartialSocketOptions.TRANSPARENT_PROXY), this::acceptTunPacket);
+                       .option(PartialChannelOption.of(PartialSocketOptions.TRANSPARENT_PROXY), this::acceptTunPacket)
+                       .option(PartialChannelOption.of(PartialSocketOptions.IP_TRANSPARENT),true);
 
         serverBootstrap
                 .group(context.getAcceptor(),context.getEventLoopGroup())

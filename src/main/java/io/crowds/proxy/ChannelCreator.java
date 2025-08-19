@@ -15,7 +15,9 @@ import io.netty.util.concurrent.FutureListener;
 import io.netty.util.concurrent.Promise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.stormpx.net.netty.PartialChannelOption;
 import org.stormpx.net.netty.PartialDatagramChannel;
+import org.stormpx.net.socket.PartialSocketOptions;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -89,8 +91,12 @@ public class ChannelCreator {
         if (!(udpChannel instanceof PartialDatagramChannel)) {
             udpChannel.config().setOption(ChannelOption.SO_REUSEADDR, true);
         }
-        if (ipTransparent && udpChannel instanceof EpollDatagramChannel){
-            udpChannel.config().setOption(EpollChannelOption.IP_TRANSPARENT,true);
+        if (ipTransparent) {
+            if (udpChannel instanceof EpollDatagramChannel) {
+                udpChannel.config().setOption(EpollChannelOption.IP_TRANSPARENT, true);
+            }else if (udpChannel instanceof PartialDatagramChannel){
+                udpChannel.config().setOption(PartialChannelOption.of(PartialSocketOptions.IP_TRANSPARENT),true);
+            }
         }
         if (initializer!=null) {
             udpChannel.pipeline().addLast(initializer);

@@ -9,7 +9,7 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import org.drasyl.channel.tun.*;
 import org.stormpx.net.buffer.ByteArray;
 import org.stormpx.net.network.Iface;
-import org.stormpx.net.network.IfaceEntry;
+import org.stormpx.net.network.IfaceIngress;
 import org.stormpx.net.network.NetworkParams;
 
 import java.nio.ByteBuffer;
@@ -27,7 +27,7 @@ public class TunIface implements Iface {
 
 
     @Override
-    public void init(NetworkParams networkParams, IfaceEntry ifaceEntry) {
+    public void init(NetworkParams networkParams, IfaceIngress ifaceIngress) {
         try {
             final Bootstrap b = new Bootstrap()
                     .group(eventLoop)
@@ -40,12 +40,12 @@ public class TunIface implements Iface {
                             ByteArray buffer = ByteArray.alloc(buf.readableBytes());
                             ByteBuffer byteBuffer = buf.nioBuffer();
                             buffer.setBuffer(0,ByteArray.wrap(byteBuffer),0,byteBuffer.limit());
-                            ifaceEntry.enqueue(buffer);
+                            ifaceIngress.enqueue(buffer);
                         }
 
                         @Override
                         public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
-                            ifaceEntry.callback();
+                            ifaceIngress.callback();
                         }
                     });
              tunChannel = (TunChannel) b.bind(new TunAddress(name)).sync().channel();
