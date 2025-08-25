@@ -260,27 +260,27 @@ public class TransportProvider {
 
 
     public static class RingDetector {
-        private Map<String,TransportSelector> selectorMap;
+        private final Map<String,TransportSelector> selectorMap;
 
         public RingDetector(Map<String, TransportSelector> selectorMap) {
             this.selectorMap = selectorMap;
         }
 
-        private Set<String> search(Set<String> path, String tag){
+        private boolean search(Map<String,LinkedHashSet<String>> edges, String tag, Set<String> path){
             path.add(tag);
-            TransportSelector selector = selectorMap.get(tag);
-            if (selector!=null){
-                for (String s : selector.tags()) {
+            LinkedHashSet<String> set = edges.get(tag);
+            if (set!=null){
+                for (String s : set) {
                     if (path.contains(s)){
-                        return path;
+                        return true;
                     }
-                    var r=search(path,s);
-                    if (!r.isEmpty())
-                        return r;
+                    if (search(edges, s, path)){
+                        return true;
+                    }
                 }
             }
             path.remove(tag);
-            return Set.of();
+            return false;
         }
 
         public List<String> searchCircularRef(){
@@ -289,11 +289,11 @@ public class TransportProvider {
                 return List.of();
             }
 
-            TreeMap<String,Integer> edges=new TreeMap<>();
+            TreeMap<String,LinkedHashSet<String>> edges=new TreeMap<>();
             for (Map.Entry<String, TransportSelector> entry : selectorMap.entrySet()) {
-                edges.putIfAbsent(entry.getKey(), 0);
+                edges.computeIfAbsent(entry.getKey(),k-> new LinkedHashSet<>());
                 for (String tag : entry.getValue().tags()) {
-                    edges.compute(tag,(k,v)->v==null?1:v+1);
+                    edges.computeIfAbsent(tag,k->new LinkedHashSet<>()).add(entry.getKey());
                 }
             }
 
@@ -301,29 +301,31 @@ public class TransportProvider {
 
             while (!edges.isEmpty()){
 
-                var entry= edges.entrySet().stream().filter(e->e.getValue()==0).findAny().orElse(null);
-                if (entry==null){
+                var key= edges.entrySet().stream().filter(e->e.getValue().isEmpty()).findAny().map(Map.Entry::getKey).orElse(null);
+                if (key==null){
                     break;
                 }
-                assert entry.getValue()>=0;
 
-                var selector=selectorMap.get(entry.getKey());
+                var selector=selectorMap.get(key);
                 if (selector!=null) {
                     for (String tag : selector.tags()) {
-                        edges.computeIfPresent(tag,(k,v)->v-1);
+                        LinkedHashSet<String> set = edges.get(tag);
+                        if (set != null) {
+                            set.remove(key);
+                        }
                     }
                 }
 
-                edges.remove(entry.getKey());
+                edges.remove(key);
             }
+
 
             if (!edges.isEmpty()){
                 //ring
                 var entry=edges.firstEntry();
-                assert entry.getValue()!=0;
-                var set=search(new LinkedHashSet<>(),entry.getKey());
-                assert !set.isEmpty();
-                return new ArrayList<>(set);
+                var path = new LinkedHashSet<String>();
+                assert search(edges,entry.getKey(),path);
+                return new ArrayList<>(path).reversed();
             }
 
             return List.of();
