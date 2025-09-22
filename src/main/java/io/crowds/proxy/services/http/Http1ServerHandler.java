@@ -1,6 +1,7 @@
 package io.crowds.proxy.services.http;
 
 import io.crowds.proxy.Axis;
+import io.crowds.proxy.ProxyContext;
 import io.crowds.util.Inet;
 import io.crowds.util.Strs;
 import io.netty.buffer.ByteBuf;
@@ -129,6 +130,7 @@ public class Http1ServerHandler extends ChannelInitializer<SocketChannel> {
                         }
                         ctx.writeAndFlush(new DefaultHttpResponse(req.protocolVersion(),new HttpResponseStatus(200,"Connection Established")));
                         releaseChannel(ctx);
+                        ctx.channel().attr(ProxyContext.SEND_ZC_SUPPORTED);
                     });
             }else{
                 InetSocketAddress address =null;

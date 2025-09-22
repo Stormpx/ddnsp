@@ -1,9 +1,9 @@
 package io.crowds.proxy.services.transparent;
 
 import io.crowds.Context;
-import io.crowds.Platform;
 import io.crowds.proxy.Axis;
 import io.crowds.proxy.DatagramOption;
+import io.crowds.proxy.ProxyContext;
 import io.crowds.proxy.common.BaseChannelInitializer;
 import io.crowds.proxy.dns.FakeContext;
 import io.crowds.proxy.dns.FakeDns;
@@ -13,16 +13,12 @@ import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
 import io.netty.channel.epoll.Epoll;
 import io.netty.channel.epoll.EpollChannelOption;
-import io.netty.channel.epoll.EpollMode;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.DatagramPacket;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.unix.UnixChannelOption;
-import io.netty.resolver.dns.DnsNameResolver;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.FutureListener;
-import io.netty.util.concurrent.GlobalEventExecutor;
-import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import org.slf4j.Logger;
@@ -32,8 +28,6 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -242,6 +236,7 @@ public class TransparentServer {
                 ctx.close();
                 return;
             }
+            channel.attr(ProxyContext.SEND_ZC_SUPPORTED);
             axis.handleTcp(channel, channel.remoteAddress(), remoteAddress);
             super.channelActive(ctx);
         }

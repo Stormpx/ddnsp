@@ -1,25 +1,19 @@
 package io.crowds.proxy.transport.proxy.direct;
 
-import io.crowds.Ddnsp;
-import io.crowds.proxy.*;
+import io.crowds.proxy.ChannelCreator;
+import io.crowds.proxy.NetLocation;
+import io.crowds.proxy.ProxyContext;
+import io.crowds.proxy.TP;
 import io.crowds.proxy.transport.ProtocolOption;
 import io.crowds.proxy.transport.Transport;
 import io.crowds.proxy.transport.proxy.FullConeProxyTransport;
-import io.crowds.util.AddrType;
-import io.crowds.util.Async;
-import io.netty.channel.*;
-import io.netty.channel.socket.DatagramPacket;
-import io.netty.handler.address.DynamicAddressConnectHandler;
-import io.netty.util.AttributeKey;
-import io.netty.util.ReferenceCountUtil;
-import io.netty.util.concurrent.*;
+import io.netty.channel.Channel;
+import io.netty.util.concurrent.Future;
 
-import java.net.*;
 import java.util.Optional;
 
 public class DirectProxyTransport extends FullConeProxyTransport {
-    public final static AttributeKey<Void> DIRECT_FLAG =AttributeKey.valueOf("direct_flag");
-    private ProtocolOption protocolOption;
+    private final ProtocolOption protocolOption;
 
     public DirectProxyTransport(ChannelCreator channelCreator) {
         this(channelCreator,new ProtocolOption());
@@ -42,7 +36,7 @@ public class DirectProxyTransport extends FullConeProxyTransport {
     protected Future<Channel> proxy(Channel channel, NetLocation netLocation, Transport delegate) {
 
         if (netLocation.getTp()==TP.TCP){
-            channel.attr(DIRECT_FLAG);
+            channel.attr(ProxyContext.SEND_ZC_SUPPORTED);
         }
         return channel.eventLoop().newSucceededFuture(channel);
     }

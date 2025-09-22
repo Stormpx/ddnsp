@@ -3,23 +3,36 @@ package io.crowds.proxy;
 import io.crowds.proxy.dns.FakeContext;
 import io.crowds.proxy.transport.EndPoint;
 import io.crowds.proxy.transport.TcpEndPoint;
-import io.crowds.proxy.transport.proxy.direct.DirectProxyTransport;
 import io.crowds.util.Exceptions;
 import io.netty.channel.EventLoop;
-import io.netty.channel.epoll.EpollMode;
 import io.netty.channel.epoll.EpollSocketChannel;
 import io.netty.channel.socket.DatagramPacket;
+import io.netty.util.AttributeKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 import java.util.function.Consumer;
 
 public class ProxyContext {
     private final static Logger logger= LoggerFactory.getLogger(ProxyContext.class);
+    public final static AttributeKey<Void> SEND_ZC_SUPPORTED =AttributeKey.valueOf("send_zc_supported");
+
+    private final static VarHandle CLOSE;
+    static {
+        try {
+            MethodHandles.Lookup l = MethodHandles.lookup();
+            CLOSE = l.findVarHandle(ProxyContext.class, "close", boolean.class);
+        } catch (Exception e) {
+            throw new InternalError(e);
+        }
+    }
+
     private EventLoop eventLoop;
     private EndPoint src;
     private EndPoint dst;
-    private NetLocation netLocation;
+    private final NetLocation netLocation;
 
     private String tag;
     private FakeContext fakeContext;
@@ -39,14 +52,13 @@ public class ProxyContext {
     }
 
     private boolean isSpliceAvailable(EndPoint src,EndPoint dst){
-        return false;
-//        return src instanceof TcpEndPoint && dst instanceof TcpEndPoint
-//                && src.channel() instanceof EpollSocketChannel srcSocket
-//                && dst.channel() instanceof EpollSocketChannel dstSocket
-//                && dstSocket.hasAttr(DirectProxyTransport.DIRECT_FLAG)
-//                && srcSocket.eventLoop()==dstSocket.eventLoop()
-//                && srcSocket.config().getEpollMode()== EpollMode.LEVEL_TRIGGERED
-//                && dstSocket.config().getEpollMode()== EpollMode.LEVEL_TRIGGERED;
+//        return false;
+        return src instanceof TcpEndPoint && dst instanceof TcpEndPoint
+                && src.channel() instanceof EpollSocketChannel srcSocket
+                && dst.channel() instanceof EpollSocketChannel dstSocket
+                && srcSocket.hasAttr(SEND_ZC_SUPPORTED)
+                && dstSocket.hasAttr(SEND_ZC_SUPPORTED)
+                && srcSocket.eventLoop()==dstSocket.eventLoop();
     }
 
     public void bridging(EndPoint src,EndPoint dst){
@@ -54,7 +66,20 @@ public class ProxyContext {
         src.bufferHandler(dst::write);
         src.writabilityHandler(dst::setAutoRead);
         dst.writabilityHandler(src::setAutoRead);
+        src.closeFuture().addListener(closeFuture->{
+            fireClose();
+            dst.close();
+        });
+        dst.closeFuture().addListener(closeFuture->{
+            fireClose();
+            src.close();
+        });
+        this.src=src;
+        this.dst=dst;
 
+    }
+
+    public void setAutoRead(){
         if (isSpliceAvailable(src,dst)){
             var srcSocket = (EpollSocketChannel)src.channel();
             var dstSocket = (EpollSocketChannel)dst.channel();
@@ -74,34 +99,17 @@ public class ProxyContext {
                 fireClose();
                 dst.close();
             });
-        }else{
-            src.closeFuture().addListener(closeFuture->{
-                fireClose();
-                dst.close();
-            });
-            dst.closeFuture().addListener(closeFuture->{
-                fireClose();
-                src.close();
-            });
         }
-
-        this.src=src;
-        this.dst =dst;
-
-    }
-
-    public void setAutoRead(){
         src.setAutoRead(true);
         dst.setAutoRead(true);
     }
 
     private void fireClose(){
-        if (this.close)
-            return;
-
-        this.close=true;
-        if (this.closeHandler!=null)
-            this.closeHandler.accept(null);
+        Consumer<Void> closeHandler = this.closeHandler;
+        if (CLOSE.compareAndSet(this,false,true)){
+            if (closeHandler!=null)
+                closeHandler.accept(null);
+        }
     }
 
     public ProxyContext withFakeContext(FakeContext fakeContext) {

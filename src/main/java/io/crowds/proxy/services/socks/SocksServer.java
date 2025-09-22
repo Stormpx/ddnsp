@@ -1,19 +1,16 @@
 package io.crowds.proxy.services.socks;
 
 import io.crowds.Context;
-import io.crowds.Platform;
 import io.crowds.proxy.Axis;
 import io.crowds.proxy.DatagramOption;
+import io.crowds.proxy.ProxyContext;
 import io.crowds.proxy.common.Socks;
 import io.crowds.util.Exceptions;
 import io.crowds.util.Inet;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.channel.epoll.Epoll;
-import io.netty.channel.epoll.EpollChannelOption;
-import io.netty.channel.epoll.EpollMode;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.DatagramPacket;
 import io.netty.channel.socket.SocketChannel;
@@ -33,8 +30,8 @@ import io.vertx.core.Promise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.*;
-import java.nio.charset.StandardCharsets;
+import java.net.Inet4Address;
+import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -224,13 +221,17 @@ public class SocksServer {
             }else if (request.type()==Socks5CommandType.CONNECT){
                 //tcp
                 InetSocketAddress dest = getAddress(request);
+
                 axis.handleTcp(ctx.channel(),ctx.channel().remoteAddress(), dest)
                         .addListener(f->{
                             if (f.isSuccess()){
                                 writeMessage(ctx,
                                         new DefaultSocks5CommandResponse(Socks5CommandStatus.SUCCESS,
                                                 Socks5AddressType.IPv4, socksOption.getHost(),socksOption.getPort()),
-                                        v->releaseChannel(ctx));
+                                        v->{
+                                    releaseChannel(ctx);
+                                    ctx.channel().attr(ProxyContext.SEND_ZC_SUPPORTED);
+                                });
                             }
                         });
             }else{
