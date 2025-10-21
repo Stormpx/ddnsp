@@ -10,7 +10,10 @@ import io.crowds.proxy.transport.Transport;
 import io.crowds.util.AddrType;
 import io.crowds.util.Pkts;
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.*;
+import io.netty.channel.ChannelDuplexHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelPromise;
+import io.netty.channel.EventLoop;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.DatagramPacket;
 import io.netty.util.ReferenceCountUtil;
@@ -21,7 +24,6 @@ import org.stormpx.net.buffer.ByteArray;
 
 import java.io.IOException;
 import java.net.InetAddress;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 

@@ -14,7 +14,7 @@ public class WireguardOption extends ProtocolOption {
     private SubNet address;
     private InetSocketAddress dns;
     private List<PeerOption> peers;
-
+    private int mtu = 1420;
     public WireguardOption() {
     }
 
@@ -23,6 +23,7 @@ public class WireguardOption extends ProtocolOption {
         this.privateKey=other.privateKey;
         this.address=other.address;
         this.dns=other.dns;
+        this.mtu=other.mtu;
         this.peers=other.peers==null?null:new ArrayList<>(other.peers);
     }
 
@@ -60,5 +61,13 @@ public class WireguardOption extends ProtocolOption {
     public WireguardOption setDns(InetSocketAddress dns) {
         this.dns = dns;
         return this;
+    }
+
+    public int getMtu() {
+        return mtu;
+    }
+
+    public void setMtu(int mtu) {
+        this.mtu = mtu;
     }
 }

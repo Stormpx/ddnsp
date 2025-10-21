@@ -209,6 +209,7 @@ public class ProtocolOptionFactory {
         String privateKey = json.getString("privateKey");
         String address = json.getString("address");
         String dns = json.getString("dns");
+        Integer mtu = json.getInteger("mtu");
         if (Strs.isBlank(privateKey)){
             throw new IllegalArgumentException("wireGuard privateKey is required.");
         }
@@ -217,6 +218,9 @@ public class ProtocolOptionFactory {
         }
         wireguardOption.setPrivateKey(privateKey);
         wireguardOption.setAddress(parseSubNet(address));
+        if (mtu!=null) {
+            wireguardOption.setMtu(mtu);
+        }
         if (!Strs.isBlank(dns)){
             try {
                 wireguardOption.setDns(Inet.parseInetAddress(dns));

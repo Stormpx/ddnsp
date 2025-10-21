@@ -99,7 +99,7 @@ public class WireguardProxyTransport extends FullConeProxyTransport {
         SubNet ipcidr = wireguardOption.getAddress();
         IP ip = ipcidr.address();
         NetworkParams networkParams = new NetworkParams();
-        networkParams.setMtu(3000)
+        networkParams.setMtu(wireguardOption.getMtu())
                      .setSubNet(ipcidr)
                      .setIfType(IfType.INTERNET)
                      .addIp(ip);
