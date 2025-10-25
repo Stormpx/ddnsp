@@ -98,13 +98,13 @@ public class BaseChannelInitializer extends ChannelInitializer<Channel> {
             }
             if (ch instanceof UnixChannel unixChannel&&unixChannel.fd().isOpen()){
                 int fd = unixChannel.fd().intValue();
-                Unix.bindToDevice(fd, networkInterface.getName());
+                Unix.INSTANCE.bindToDevice(fd, networkInterface.getName());
             }else if (ch instanceof AbstractNioChannel nioChannel){
                 int fd = Reflect.getFd(nioChannel);
                 if (PlatformDependent.isWindows()){
                     Windows.bindToDevice(fd, networkInterface.getIndex());
                 }else{
-                    Unix.bindToDevice(fd, networkInterface.getName());
+                    Unix.INSTANCE.bindToDevice(fd, networkInterface.getName());
                 }
             }
         } catch (Throwable e) {

@@ -1,7 +1,7 @@
 package io.crowds.compoments.wireguard;
 
 import io.crowds.lib.boringtun.BoringTun;
-import io.crowds.lib.boringtun.wireguard_result;
+import io.crowds.lib.boringtun.WireguardResult;
 import io.netty.channel.EventLoop;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.ScheduledFuture;
@@ -50,18 +50,18 @@ public class WireGuardTunnel implements Closeable {
         return this;
     }
 
-    private boolean isWriteToNetWork(MemorySegment result){
-        int op = wireguard_result.op$get(result);
+    private boolean isWriteToNetWork(WireguardResult result){
+        int op = result.getOp();
         return op==1;
     }
 
 
-    private void handleWireGuardResult(MemorySegment result){
-        int op = wireguard_result.op$get(result);
-        int size = (int)wireguard_result.size$get(result);
-//        logger.info("wireguard result op:{} size:{}",op,size);
+    private void handleWireGuardResult(WireguardResult result){
+        int op = result.getOp();
+        int size = (int) result.getSize();
         if (op==0)
             return;
+//        logger.info("wireguard result op:{} size:{}",op,size);
         if (op==2){
             WireGuardError error = WireGuardError.valueOf(size);
             close0(new WireguardErrorException(error));
@@ -93,8 +93,12 @@ public class WireGuardTunnel implements Closeable {
         if (tunnel==null){
             return;
         }
-        var result = BoringTun.tick(tunnel);
-        handleWireGuardResult(result);
+        try {
+            var result = BoringTun.tick(tunnel);
+            handleWireGuardResult(result);
+        } catch (Exception e) {
+            logger.error("",e);
+        }
     }
 
     public void writePacket(ByteBuffer buf){
@@ -103,6 +107,8 @@ public class WireGuardTunnel implements Closeable {
             try {
                 var result = BoringTun.write(tunnel,in);
                 handleWireGuardResult(result);
+            } catch (Throwable e) {
+                logger.error("",e);
             }finally {
                 ReferenceCountUtil.safeRelease(buf);
             }
@@ -121,6 +127,8 @@ public class WireGuardTunnel implements Closeable {
                     result = BoringTun.read(tunnel,MemorySegment.NULL);
                     handleWireGuardResult(result);
                 }
+            } catch (Throwable e) {
+                logger.error("",e);
             } finally {
                 ReferenceCountUtil.release(buf);
             }
