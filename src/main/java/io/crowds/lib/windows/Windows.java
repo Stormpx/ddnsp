@@ -1,54 +1,59 @@
 package io.crowds.lib.windows;
 
-import io.netty.util.internal.PlatformDependent;
+import io.crowds.util.Native;
+import top.dreamlike.panama.generator.proxy.ErrorNo;
+import top.dreamlike.panama.generator.proxy.MemoryLifetimeScope;
 
-import java.lang.foreign.*;
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.VarHandle;
+import java.lang.foreign.Arena;
+import java.lang.foreign.MemorySegment;
+import java.lang.foreign.ValueLayout;
 import java.net.NetworkInterface;
 import java.nio.ByteOrder;
 import java.nio.file.Path;
 import java.util.Objects;
+
 public class Windows {
 
     private static final int IPPROTO_IP = 0;
     private static final int IP_UNICAST_IF = 31;
 
-
-    private static final MethodHandle setSockOpt;
     static {
-        MethodHandle setSockOptMh=null;
-        if (PlatformDependent.isWindows()) {
-            Linker linker = Linker.nativeLinker();
-            SymbolLookup symbolLookup = SymbolLookup.libraryLookup(Path.of(System.getenv("SystemRoot"), "System32","ws2_32.dll"),Arena.global());
-            var func = symbolLookup.find("setsockopt").orElse(null);
-            if (func!=null){
-                setSockOptMh = linker.downcallHandle(func,
-                        FunctionDescriptor.of(ValueLayout.JAVA_INT,
-                                ValueLayout.JAVA_INT, ValueLayout.JAVA_INT, ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT),
-                        Linker.Option.captureCallState("errno"));
-
-            }
-        }
-        setSockOpt = setSockOptMh;
+        System.load(Path.of(System.getenv("SystemRoot"), "System32","ws2_32.dll").toFile().getAbsolutePath());
     }
 
-    public static void bindToDevice(int fd,int index){
-        StructLayout stateLayout = Linker.Option.captureStateLayout();
-        VarHandle errnoHandle = stateLayout.varHandle(MemoryLayout.PathElement.groupElement("errno"));
-        try (Arena arena = Arena.ofConfined()){
-            MemorySegment errorBuffer = arena.allocate(stateLayout);
-            MemorySegment optVal = arena.allocate(ValueLayout.JAVA_INT.withOrder(ByteOrder.BIG_ENDIAN));
-            optVal.set(ValueLayout.JAVA_INT.withOrder(ByteOrder.BIG_ENDIAN),0,index);
-            int r = (int) setSockOpt.invoke(errorBuffer,fd,IPPROTO_IP,IP_UNICAST_IF,optVal,(int)optVal.byteSize());
-            if (r==-1){
-                int errno = (int) errnoHandle.get(errorBuffer,0);
-                throw new RuntimeException("Setsockopt IP_UNICAST_IF return error code: "+errno);
-            }
-        } catch (RuntimeException e) {
-            throw e;
-        } catch (Throwable e) {
-            throw new RuntimeException(e);
+    public static final WinFFI INSTANCE = Native.nativeGenerate(WinFFI.class);
+//    private static final MethodHandle setSockOpt;
+//    static {
+//        MethodHandle setSockOptMh=null;
+//        if (PlatformDependent.isWindows()) {
+//            System.load(Path.of(System.getenv("SystemRoot"), "System32","ws2_32.dll").toFile().getAbsolutePath());
+//            Linker linker = Linker.nativeLinker();
+////            SymbolLookup symbolLookup = SymbolLookup.libraryLookup(Path.of(System.getenv("SystemRoot"), "System32","ws2_32.dll"),Arena.global());
+//            SymbolLookup symbolLookup = SymbolLookup.loaderLookup();
+//            var func = symbolLookup.find("setsockopt").orElse(null);
+//            if (func!=null){
+//                setSockOptMh = linker.downcallHandle(func,
+//                        FunctionDescriptor.of(ValueLayout.JAVA_INT,
+//                                ValueLayout.JAVA_INT, ValueLayout.JAVA_INT, ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT),
+//                        Linker.Option.captureCallState("errno"));
+//
+//            }
+//        }
+//        setSockOpt = setSockOptMh;
+//    }
+
+    public static void bindToDevice(int fd,int index) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemoryLifetimeScope.of(arena).active(() -> {
+                MemorySegment optVal = arena.allocate(
+                        ValueLayout.JAVA_INT.withOrder(ByteOrder.BIG_ENDIAN));
+                optVal.set(ValueLayout.JAVA_INT.withOrder(ByteOrder.BIG_ENDIAN), 0, index);
+                int r = INSTANCE.setsockopt(fd, IPPROTO_IP, IP_UNICAST_IF, optVal);
+                if (r==-1){
+                    int errno = ErrorNo.error.get();
+                    throw new RuntimeException("Setsockopt IP_UNICAST_IF return error code: "+errno);
+                }
+            });
         }
     }
 

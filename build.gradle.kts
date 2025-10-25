@@ -1,5 +1,8 @@
 import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform
 import org.gradle.kotlin.dsl.*
+import java.nio.charset.Charset
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
 
 plugins {
 //    java
@@ -28,8 +31,9 @@ fun execCommand(vararg command: String, env: Array<String>? = null, dir:File? = 
             envMap[key] = value
         }
     }
-
+    pb.redirectErrorStream(true)
     val process = pb.start()
+
 
     process.inputReader().let {
         while (true){
@@ -42,6 +46,69 @@ fun execCommand(vararg command: String, env: Array<String>? = null, dir:File? = 
     return exitVal
 }
 
+tasks.register("installPanamaGenerator") {
+    val os = DefaultNativePlatform.getCurrentOperatingSystem()
+    val mvn = if(os.isLinux){"mvn"} else {"mvn.cmd"};
+
+    val url = "https://github.com/dreamlike-ocean/PanamaUring"
+    val hash = "0613da385d6cfa79dd94f5e1765f228f812bf140"
+
+    val dir = layout.projectDirectory.dir("code/PanamaUring")
+
+    if (!dir.asFile.exists()||dir.asFile.listFiles().isEmpty()) {
+        dir.asFile.mkdirs()
+        if (execCommand( "git", "clone", url,dir = dir.dir("..").asFile) != 0 ){
+            throw RuntimeException("Failed to clone PanamaUring")
+        }
+    }
+    execCommand("git", "checkout", "-f", hash,dir = dir.asFile)
+
+    val pom = dir.file("panama-generator/pom.xml")
+    val lines = pom.asFile.readLines(Charsets.UTF_8).toMutableList()
+    if (lines[39].contains("panama-generator-test-native")){
+        //skip the test-native build
+        for (idx in 37..40) {
+            lines.removeAt(37)
+        }
+        pom.asFile.writeText(lines.joinToString("\n"))
+    }
+
+
+
+    execCommand(mvn,"install","-DskipTests","-Dgpg.skip=true","-pl", ":panama-generator","-am",dir = dir.asFile)
+}
+
+tasks.register("installBoringtun"){
+
+    if (execCommand("cargo","--version")!=0){
+        throw RuntimeException("Rust installation required")
+    }
+
+    val url = "https://github.com/cloudflare/boringtun.git"
+    val hash = "08bc5ed19b797d8a741bb4f3bea1d627d8301735"
+
+    val dir = layout.projectDirectory.dir("code/boringtun")
+    val target = layout.projectDirectory.dir("src/main/resources/META-INF/native")
+    val lib = System.mapLibraryName("boringtun")
+
+    if (!dir.asFile.exists()||dir.asFile.listFiles().isEmpty()) {
+        dir.asFile.mkdirs()
+        if (execCommand( "git", "clone", url,dir = dir.dir("..").asFile) != 0 ){
+            throw RuntimeException("Failed to clone boringtun")
+        }
+    }
+    execCommand("git", "checkout", "-f", hash,dir = dir.asFile)
+
+    if (execCommand("cargo","rustc","-p","boringtun","--lib","--release","--features=ffi-bindings","--crate-type","cdylib",dir = dir.asFile)!=0){
+        throw RuntimeException("Failed to build boringtun shareLibrary")
+    }
+
+    val libFile = dir.file("target/release/$lib").asFile
+    if (!libFile.exists()){
+        throw RuntimeException("Failed to build boringtun shareLibrary")
+    }
+    libFile.copyTo(target.file(lib).asFile,true)
+}
 
 protobuf {
     protoc {
@@ -96,6 +163,7 @@ dependencies {
     logger.info("arch is ${arch.name}")
     implementation("com.maxmind.geoip2:geoip2:3.0.0")
     implementation("org.bouncycastle:bcpkix-jdk18on:1.80")
+    implementation("io.github.dreamlike-ocean:panama-generator:4.2.0-SNAPSHOT")
     implementation("io.vertx:vertx-core:5.0.0")
     implementation("io.vertx:vertx-web:5.0.0")
     implementation("io.vertx:vertx-config:5.0.0")
