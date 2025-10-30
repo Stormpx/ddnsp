@@ -2,6 +2,7 @@ package io.crowds.util;
 
 import io.netty.util.NetUtil;
 import io.netty.util.internal.PlatformDependent;
+import org.stormpx.net.util.IP;
 
 import java.net.*;
 import java.util.Enumeration;
@@ -169,6 +170,20 @@ public class Inet {
         } catch (SocketException e) {
             throw new RuntimeException(e);
         }
+    }
+
+
+    public static IPMask parseIPMask(String s){
+        String[] split = s.split("/",2);
+        IP ip = IP.parse(split[0]);
+        if (split.length==1){
+            return new IPMask(ip,ip.getBytes().length*8);
+        }
+        int mask = Integer.parseInt(split[1]);
+        if (mask<0||mask>(ip.getBytes().length*8)){
+            throw new RuntimeException("Invalid mask");
+        }
+        return new IPMask(ip,mask);
     }
 
 }
