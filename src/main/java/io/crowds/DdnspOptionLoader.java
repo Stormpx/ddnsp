@@ -10,6 +10,8 @@ import io.crowds.proxy.services.http.HttpOption;
 import io.crowds.proxy.services.socks.SocksOption;
 import io.crowds.proxy.services.transparent.TransparentOption;
 import io.crowds.proxy.services.tun.TunServerOption;
+import io.crowds.proxy.services.xdp.XdpOpt;
+import io.crowds.proxy.services.xdp.XdpServerOption;
 import io.crowds.proxy.transport.ProtocolOption;
 import io.crowds.proxy.transport.proxy.ProtocolOptionFactory;
 import io.crowds.util.Ints;
@@ -172,6 +174,7 @@ public class DdnspOptionLoader {
 
     }
 
+
     private ProxyOption toProxyOption(JsonObject config){
         JsonObject json = config.getJsonObject("proxy", new JsonObject());
         var proxy=new ProxyOption();
@@ -213,6 +216,26 @@ public class DdnspOptionLoader {
                            .setMtu(tunJson.getInteger("mtu",1500))
                            .setIgnoreAddress(tunJson.getJsonArray("ignoreAddress"));
             proxy.setTun(tunServerOption);
+        }
+        JsonObject xdpJson = json.getJsonObject("xdp");
+        if (xdpJson!=null){
+            XdpServerOption xdpServerOption = new XdpServerOption();
+            xdpServerOption.setEnable(xdpJson.getBoolean("enable",false));
+            xdpServerOption.setIface(xdpJson.getString("iface"))
+                           .setMac(xdpJson.getString("mac"))
+                           .setAddress(xdpJson.getString("address"))
+                           .setGateway(xdpJson.getString("gateway"))
+                           .setMtu(xdpJson.getInteger("mtu"))
+                           .setOpt(XdpOpt.of(Objects.requireNonNullElse(xdpJson.getJsonObject("opt"),JsonObject.of())));
+            if (xdpServerOption.isEnable()) {
+                if (xdpServerOption.getIface() == null) {
+                    throw new RuntimeException("XDP server configuration: 'iface' is required");
+                }
+                if (xdpServerOption.getGateway()==null){
+                    throw new RuntimeException("XDP server configuration: 'gateway' is required");
+                }
+            }
+            proxy.setXdp(xdpServerOption);
         }
 
         JsonArray proxiesArray = json.getJsonArray("proxies");
