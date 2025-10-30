@@ -3,20 +3,16 @@ package io.crowds.proxy.services.tun;
 import io.crowds.Context;
 import io.crowds.proxy.Axis;
 import io.crowds.proxy.ChannelCreator;
-import io.crowds.proxy.DatagramOption;
-import io.crowds.proxy.common.BaseChannelInitializer;
-import io.crowds.proxy.dns.FakeContext;
-import io.crowds.proxy.dns.FakeDns;
-import io.crowds.util.AddrType;
+import io.crowds.proxy.common.TcpTransparentHandler;
+import io.crowds.proxy.common.UdpTransparentHandler;
 import io.crowds.util.ChannelFactoryProvider;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.*;
-import io.netty.channel.socket.DatagramChannel;
-import io.netty.channel.socket.DatagramPacket;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.DefaultEventLoop;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.util.ReferenceCountUtil;
-import io.netty.util.concurrent.FutureListener;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import org.slf4j.Logger;
@@ -33,7 +29,6 @@ import org.stormpx.net.util.*;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.SocketAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
@@ -124,7 +119,7 @@ public class TunServer {
                 .childHandler(new ChannelInitializer<SocketChannel>(){
                     @Override
                     protected void initChannel(SocketChannel ch) throws Exception {
-                        ch.pipeline().addLast(new ProxyTcpInitializer());
+                        ch.pipeline().addLast(new TcpTransparentHandler(axis));
                     }
                 })
                 .bind(bindAddress)
@@ -152,7 +147,7 @@ public class TunServer {
                  .handler(new ChannelInitializer<>() {
                      @Override
                      protected void initChannel(Channel ch) throws Exception {
-                         ch.pipeline().addLast(new ProxyUdpHandler());
+                         ch.pipeline().addLast(new UdpTransparentHandler(axis,paritialChannelCreator));
                      }
                  });
         ChannelFuture cf = bootstrap.bind(bindAddress);
@@ -191,118 +186,5 @@ public class TunServer {
 
     }
 
-    private boolean accept(InetSocketAddress destAddr){
-        InetAddress dest = destAddr.getAddress();
-        FakeDns fakeDns = axis.getFakeDns();
-        if (fakeDns !=null&&fakeDns.isFakeIp(dest)){
-            FakeContext fake = fakeDns.getFake(dest);
-            return fake != null;
-        }
-        return true;
-    }
 
-    private InetSocketAddress getFakeAddress(InetSocketAddress address, AddrType addrType){
-        if (!address.isUnresolved()){
-            return address;
-        }
-        FakeDns fakeDns = axis.getFakeDns();
-        if (fakeDns==null){
-            return null;
-        }
-        FakeContext fakeContext = fakeDns.getFake(address.getHostString(), addrType);
-        return fakeContext != null ? new InetSocketAddress(fakeContext.getFakeAddr(), address.getPort()) : null;
-    }
-
-    private class ProxyUdpHandler extends SimpleChannelInboundHandler<DatagramPacket> {
-
-        public ProxyUdpHandler() {
-            super(false);
-        }
-
-
-        private io.netty.util.concurrent.Future<DatagramChannel> createForeignChannel(InetSocketAddress address)  {
-            return paritialChannelCreator.createDatagramChannel(
-                    new DatagramOption().setBindAddr(address).setIpTransport(true),
-                    new BaseChannelInitializer().connIdle(300,(ch,idleStateEvent) -> ch.close()));
-        }
-
-        private void handleFallbackPacket(DatagramPacket packet)  {
-            InetSocketAddress sender = packet.sender();
-            if (sender==null){
-                logger.warn("The sender of the packet is null, drop the packet");
-                ReferenceCountUtil.safeRelease(packet);
-                return;
-            }
-            if (sender.isUnresolved()) {
-                var fakeAddr = getFakeAddress(sender, AddrType.of(packet.recipient()));
-                if (fakeAddr==null){
-                    logger.warn("The fake address of the {} cannot be found. drop the packet",sender);
-                    ReferenceCountUtil.safeRelease(packet);
-                    return;
-                }
-                sender=fakeAddr;
-            }
-            InetSocketAddress finalSender = sender;
-            createForeignChannel(sender)
-                    .addListener((FutureListener<DatagramChannel>) future -> {
-                        if (!future.isSuccess()){
-                            logger.error("Bind netStack address:{} failed cause:{}", finalSender,future.cause().getMessage());
-                            ReferenceCountUtil.safeRelease(packet);
-                            return;
-                        }
-                        DatagramChannel datagramChannel= future.get();
-                        datagramChannel.writeAndFlush(packet);
-                    });
-        }
-
-
-        @Override
-        protected void channelRead0(ChannelHandlerContext ctx, DatagramPacket msg) throws Exception {
-
-            InetSocketAddress recipient = msg.recipient();
-            InetSocketAddress sender = msg.sender();
-            if (logger.isDebugEnabled())
-                logger.debug("udp data packet receive sender: {} recipient: {}",sender,recipient);
-            if (recipient.getPort()==0){
-                ReferenceCountUtil.safeRelease(msg);
-                return;
-            }
-            if (!accept(recipient)){
-                ReferenceCountUtil.safeRelease(msg);
-                return;
-            }
-            createForeignChannel(recipient)
-                    .addListener((FutureListener<DatagramChannel>) future -> {
-                        if (!future.isSuccess()){
-                            logger.error("Bind netStack address:{} failed cause:{}", recipient,future.cause().getMessage());
-                            ReferenceCountUtil.safeRelease(msg);
-                            return;
-                        }
-                        DatagramChannel datagramChannel= future.get();
-                        axis.handleUdp0(datagramChannel,msg, this::handleFallbackPacket);
-                    });
-
-        }
-    }
-
-
-
-    private class ProxyTcpInitializer extends ChannelInboundHandlerAdapter {
-
-        @Override
-        public void channelActive(ChannelHandlerContext ctx) throws Exception {
-            Channel channel = ctx.channel();
-            SocketAddress remoteAddress = channel.localAddress();
-            if (logger.isDebugEnabled())
-                logger.debug("tcp remote addr:{}",remoteAddress);
-            if (!accept((InetSocketAddress) remoteAddress)){
-                ctx.close();
-                return;
-            }
-            axis.handleTcp(channel, channel.remoteAddress(), remoteAddress);
-            super.channelActive(ctx);
-        }
-
-
-    }
 }
