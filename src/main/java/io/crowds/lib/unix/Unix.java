@@ -7,10 +7,14 @@ import top.dreamlike.panama.generator.proxy.MemoryLifetimeScope;
 
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
+import java.lang.foreign.ValueLayout;
 import java.util.Objects;
 
 public interface Unix {
     Unix INSTANCE = Native.nativeGenerate(Unix.class);
+    int O_NONBLOCK = 00004000;
+    int O_DIRECT = 00040000;
+
     int SOL_SOCKET = 1;
     int SO_BINDTODEVICE = 25;
 
@@ -25,6 +29,8 @@ public interface Unix {
     int MAP_TYPE= 	0x0f;
     int MAP_FIXED= 	0x10;
     int MAP_FILE= 	0;
+
+    int MSG_DONTWAIT = 0x40;
 
     /**
      * void *mmap (void *__addr, size_t __len, int __prot, int __flags, int __fd, __off_t __offset)
@@ -45,6 +51,72 @@ public interface Unix {
     }
 
 
+    @NativeFunction(fast = true)
+    int getpagesize();
+
+    /**
+     * unsigned int if_nametoindex(const char *ifname);
+     */
+    @NativeFunction(fast = true)
+    int if_nametoindex(String ifname);
+
+    /**
+     *  int pipe2(int pipefd[2], int flags);
+     */
+    @NativeFunction(needErrorNo = true)
+    int pipe2(MemorySegment pipefd,int flags);
+
+    default int[] pipe(int flags){
+        try (Arena arena = Arena.ofConfined()){
+            MemorySegment pipefd = arena.allocate(ValueLayout.JAVA_INT,2);
+            MemoryLifetimeScope.of(arena).active(()->{
+                int r = pipe2(pipefd,flags);
+                if (r==-1){
+                    throw new RuntimeException(strError(-ErrorNo.getCapturedError().errno()));
+                }
+            });
+            int[] fds = new int[2];
+            fds[0] = pipefd.getAtIndex(ValueLayout.JAVA_INT,0);
+            fds[1] = pipefd.getAtIndex(ValueLayout.JAVA_INT,1);
+            return fds;
+        }
+    }
+
+    /**
+     * ssize_t sendto(int socket, const void *message, size_t length,
+     *            int flags, const struct sockaddr *dest_addr,
+     *            socklen_t dest_len);
+     */
+    @NativeFunction(needErrorNo = true)
+    long sendto(int socket, MemorySegment message, long length,int flags,MemorySegment dest_addr,int dest_len);
+
+    /**
+     * ssize_t recvfrom(int socket, void *restrict buffer, size_t length,
+     *            int flags, struct sockaddr *restrict address,
+     *            socklen_t *restrict address_len);
+     */
+    @NativeFunction(needErrorNo = true)
+    long recvfrom(int socket, MemorySegment buffer, long length,int flags,MemorySegment address,MemorySegment address_len);
+
+
+    /**
+     * ssize_t write(int fd, const void buf[.count], size_t count);
+     */
+    @NativeFunction(needErrorNo = true)
+    long write(int fd, MemorySegment buf, long count);
+
+    /**
+     * ssize_t read(int fd, void buf[.count], size_t count);
+     */
+    @NativeFunction(needErrorNo = true)
+    long read(int fd, MemorySegment buf, long count);
+
+    /**
+     * int close(int fd);
+     */
+    @NativeFunction(needErrorNo = true)
+    int close(int fd);
+
     /**
      * int setsockopt(int sockfd, int level, int optname,const void optval[.optlen],socklen_t optlen);
      * setSockOpt = linker.downcallHandle(symbolLookup.find("setsockopt").orElse(null),
@@ -61,9 +133,8 @@ public interface Unix {
             MemoryLifetimeScope.of(arena).active(()->{
                 MemorySegment devname = arena.allocateFrom(dev);
                 int r = setsockopt(fd,SOL_SOCKET,SO_BINDTODEVICE,devname,devname.byteSize()-1);
-                System.out.println(r);
                 if (r==-1){
-                    throw new RuntimeException(strError(ErrorNo.error.get()));
+                    throw new RuntimeException(strError(ErrorNo.getCapturedError().errno()));
                 }
             });
         } catch (RuntimeException e) {

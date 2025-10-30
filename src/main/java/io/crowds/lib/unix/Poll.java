@@ -15,7 +15,7 @@ public interface Poll {
     /**
      * int poll(struct pollfd *fds, nfds_t nfds, int timeout);
      */
-    @NativeFunction
+    @NativeFunction(needErrorNo = true)
     int poll(NativeArray<PollFd> fds, int nfds, int timeout);
 
 }
