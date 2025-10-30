@@ -7,10 +7,14 @@ import top.dreamlike.panama.generator.proxy.MemoryLifetimeScope;
 
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
+import java.lang.foreign.ValueLayout;
 import java.util.Objects;
 
 public interface Unix {
     Unix INSTANCE = Native.nativeGenerate(Unix.class);
+    int O_NONBLOCK = 00004000;
+    int O_DIRECT = 00040000;
+
     int SOL_SOCKET = 1;
     int SO_BINDTODEVICE = 25;
 
@@ -44,6 +48,49 @@ public interface Unix {
         return munmap(addr,addr.byteSize());
     }
 
+
+    @NativeFunction(fast = true)
+    int getpagesize();
+
+    /**
+     * unsigned int if_nametoindex(const char *ifname);
+     */
+    @NativeFunction(fast = true)
+    int if_nametoindex(String ifname);
+
+    /**
+     *  int pipe2(int pipefd[2], int flags);
+     */
+    @NativeFunction(needErrorNo = true)
+    int pipe2(MemorySegment pipefd,int flags);
+
+    default int[] pipe(int flags){
+        try (Arena arena = Arena.ofConfined()){
+            MemorySegment pipefd = arena.allocate(ValueLayout.JAVA_INT,2);
+            MemoryLifetimeScope.of(arena).active(()->{
+                int r = pipe2(pipefd,flags);
+                if (r==-1){
+                    throw new RuntimeException(strError(-ErrorNo.error.get()));
+                }
+            });
+            int[] fds = new int[2];
+            fds[0] = pipefd.getAtIndex(ValueLayout.JAVA_INT,0);
+            fds[1] = pipefd.getAtIndex(ValueLayout.JAVA_INT,1);
+            return fds;
+        }
+    }
+
+    /**
+     * ssize_t write(int fd, const void buf[.count], size_t count);
+     */
+    @NativeFunction(needErrorNo = true)
+    long write(int fd, MemorySegment buf, long count);
+
+    /**
+     * ssize_t read(int fd, void buf[.count], size_t count);
+     */
+    @NativeFunction(needErrorNo = true)
+    long read(int fd, MemorySegment buf, long count);
 
     /**
      * int setsockopt(int sockfd, int level, int optname,const void optval[.optlen],socklen_t optlen);

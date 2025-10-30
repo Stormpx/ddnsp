@@ -5,6 +5,7 @@ import io.crowds.proxy.services.http.HttpOption;
 import io.crowds.proxy.services.socks.SocksOption;
 import io.crowds.proxy.services.transparent.TransparentOption;
 import io.crowds.proxy.services.tun.TunServerOption;
+import io.crowds.proxy.services.xdp.XdpServerOption;
 import io.crowds.proxy.transport.ProtocolOption;
 import io.vertx.core.json.JsonArray;
 
@@ -19,6 +20,8 @@ public class ProxyOption {
     private TransparentOption transparent;
 
     private TunServerOption tun;
+
+    private XdpServerOption xdp;
 
 
     private List<ProtocolOption> proxies;
@@ -99,5 +102,13 @@ public class ProxyOption {
     public ProxyOption setTun(TunServerOption tun) {
         this.tun = tun;
         return this;
+    }
+
+    public XdpServerOption getXdp() {
+        return xdp;
+    }
+
+    public void setXdp(XdpServerOption xdp) {
+        this.xdp = xdp;
     }
 }
