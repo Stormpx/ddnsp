@@ -6,6 +6,7 @@ import io.crowds.proxy.services.http.HttpServer;
 import io.crowds.proxy.services.socks.SocksServer;
 import io.crowds.proxy.services.transparent.TransparentServer;
 import io.crowds.proxy.services.tun.TunServer;
+import io.crowds.proxy.services.xdp.XdpServer;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import org.slf4j.Logger;
@@ -26,6 +27,7 @@ public class ProxyServer {
     private SocksServer socksServer;
     private TransparentServer transparentServer;
     private TunServer tunServer;
+    private XdpServer xdpServer;
 
 
     public ProxyServer(Context context) {
@@ -57,6 +59,10 @@ public class ProxyServer {
         if (proxyOption.getTun()!=null&&proxyOption.getTun().isEnable()){
             this.tunServer = new TunServer(proxyOption.getTun(), axis);
             futures.add(tunServer.start());
+        }
+        if (proxyOption.getXdp()!=null&&proxyOption.getXdp().isEnable()){
+            this.xdpServer = new XdpServer(proxyOption.getXdp(), axis);
+            futures.add(xdpServer.start());
         }
 
         return Future.all(futures)
