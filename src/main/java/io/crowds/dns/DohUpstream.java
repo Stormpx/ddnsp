@@ -56,8 +56,7 @@ public class DohUpstream extends AbstractDnsUpstream {
 
     private ByteBuf encodeQuery(DnsQuery query, ByteBufAllocator allocator) throws Exception {
         ByteBuf buf = allocator.buffer();
-        query.setId(0);
-        DnsKit.encodeQueryHeader(query,buf);
+        DnsKit.encodeQueryHeader(query,0,buf);
         int questionCount = query.count(DnsSection.QUESTION);
         for (int i = 0; i < questionCount; i++) {
             encoder.encodeQuestion(query.recordAt(DnsSection.QUESTION,i), buf);
@@ -93,7 +92,7 @@ public class DohUpstream extends AbstractDnsUpstream {
         decodeRecord(response,buf,DnsSection.ANSWER,answerCount);
         decodeRecord(response,buf,DnsSection.AUTHORITY,authorityRecordCount);
         decodeRecord(response,buf,DnsSection.ADDITIONAL,additionalRecordCount);
-
+        System.out.println("response from doh "+response);
         return response;
     }
 

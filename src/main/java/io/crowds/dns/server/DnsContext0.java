@@ -17,11 +17,13 @@ public class DnsContext0 {
 
     private final static Logger logger= LoggerFactory.getLogger(DnsContext0.class);
     private boolean resp=false;
+    private final int reqId;
     private final DnsRequest request;
     private final List<DnsQuestion> questions;
     private final Function<DnsContext0, Future<DnsResponse>> queryFunction;
 
     public DnsContext0(DnsRequest request, Function<DnsContext0, Future<DnsResponse>> queryFunction){
+        this.reqId = request.id();
         this.request = request;
         this.queryFunction = queryFunction;
 
@@ -41,7 +43,7 @@ public class DnsContext0 {
         }
 
         var response = request.newResponse();
-        response.setId(request.id());
+        response.setId(reqId);
         response.setOpCode(opCode);
         response.setCode(code);
         for (DnsQuestion question : this.questions) {
@@ -61,7 +63,7 @@ public class DnsContext0 {
             return;
         }
         var response = request.newResponse();
-        response.setId(request.id());
+        response.setId(reqId);
         response.setOpCode(resp.opCode());
         response.setCode(resp.code());
         DnsKit.msgCopy(resp,response,true);

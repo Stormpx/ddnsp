@@ -157,8 +157,8 @@ public class DnsKit {
         return clone(record, record.timeToLive());
     }
 
-    public static void encodeQueryHeader(DnsQuery query,ByteBuf out){
-        out.writeShort(query.id());
+    public static void encodeQueryHeader(DnsQuery query,int id,ByteBuf out){
+        out.writeShort(id);
         int flags=0;
         flags |= (query.opCode().byteValue() & 0xFF) << 14;
         if (query.isRecursionDesired()) {
