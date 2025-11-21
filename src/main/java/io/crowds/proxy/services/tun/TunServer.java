@@ -17,7 +17,6 @@ import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.stormpx.net.PartialNetStack;
 import org.stormpx.net.RouteItem;
 import org.stormpx.net.netty.PartialChannelOption;
 import org.stormpx.net.netty.PartialDatagramChannel;
@@ -32,10 +31,11 @@ import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 public class TunServer {
     private static final Logger logger = LoggerFactory.getLogger(TunServer.class);
-
+    private static final String TUN_NETSPACE = "tun-"+ UUID.randomUUID();
 
     private final TunServerOption option;
     private final Axis axis;
@@ -55,6 +55,7 @@ public class TunServer {
         this.ignoreAddresses = parseIgnoreAddresses(option);
 
         this.paritialChannelCreator = new ChannelCreator(axis.getContext().getEventLoopGroup(), ChannelFactoryProvider.ofPartial(),axis.getContext().getVariantResolver());
+        this.paritialChannelCreator.setPartialNetspace(TUN_NETSPACE);
     }
 
 
@@ -111,6 +112,7 @@ public class TunServer {
         Context context = axis.getContext();
         ServerBootstrap serverBootstrap = new ServerBootstrap();
         serverBootstrap.channel(PartialServerSocketChannel.class)
+                       .option(PartialChannelOption.NETSPACE,TUN_NETSPACE)
                        .option(PartialChannelOption.of(PartialSocketOptions.TRANSPARENT_PROXY), this::acceptTunPacket)
                        .option(PartialChannelOption.of(PartialSocketOptions.IP_TRANSPARENT),true);
 
@@ -143,6 +145,7 @@ public class TunServer {
         Bootstrap bootstrap = new Bootstrap();
         bootstrap.group(context.getEventLoopGroup())
                  .channel(PartialDatagramChannel.class)
+                 .option(PartialChannelOption.NETSPACE,TUN_NETSPACE)
                  .option(PartialChannelOption.of(PartialSocketOptions.TRANSPARENT_PROXY),this::acceptTunPacket)
                  .handler(new ChannelInitializer<>() {
                      @Override
@@ -170,14 +173,15 @@ public class TunServer {
 //        }
         try {
             InetSocketAddress bindAddress = new InetSocketAddress(InetAddress.getByAddress(IPv4.LOOPBACK.getBytes()),5474);
-            PartialNetStack netStack = axis.getContext().getNetStack();
-            NetworkParams params = new NetworkParams()
-                    .setMtu(option.getMtu())
+            var netStack = axis.getContext().getNetStack().getNetspace(TUN_NETSPACE);
+            NetworkParams params = new NetworkParams();
+            params.setMtu(option.getMtu())
                     .setSubNet(new SubNet(IPv4.LOOPBACK,8))
                     .setVerifyChecksum(false)
-                    .setIfType(IfType.INTERNET);
+                    .setIfType(IfType.INTERNET)
+                    .addIp(IPv4.LOOPBACK);
             netStack.addNetwork(option.getName(), params,()->new TunIface(executor, option.getName()));
-            netStack.addRoute(new RouteItem().setDestination(new SubNet(IPv4.UNSPECIFIED,0)).setNetwork(option.getName()));
+            netStack.addRoute(new RouteItem(new SubNet(IPv4.UNSPECIFIED,0),option.getName()));
 
             return Future.any(startTcpServer(bindAddress),startUdpServer(bindAddress)).map((v)->null);
         } catch (UnknownHostException e) {

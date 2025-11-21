@@ -59,10 +59,25 @@ public class TransportProvider {
                     }
                 }
             }
-            ProxyTransportProvider provider = new ProxyTransportProvider() {
-                final ProxyTransportProvider subProvider = new ProxyTransportProvider() {
+            if (!chainProxyTransports.isEmpty()){
+                ProxyTransportProvider provider = new ProxyTransportProvider() {
+                    final ProxyTransportProvider subProvider = new ProxyTransportProvider() {
+                        @Override
+                        public ProxyTransport get(String name) {return null;}
+                        @Override
+                        public ProxyTransport create(ProtocolOption protocolOption) {
+                            ProxyTransport transport = ProxyTransport.create(axis,protocolOption);
+                            if (transport instanceof ChainProxyTransport){
+                                ((ChainProxyTransport) transport).initTransport(subProvider);
+                            }
+                            return transport;
+                        }
+                    };
                     @Override
-                    public ProxyTransport get(String name) {return null;}
+                    public ProxyTransport get(String name) {
+                        return map.get(name);
+                    }
+
                     @Override
                     public ProxyTransport create(ProtocolOption protocolOption) {
                         ProxyTransport transport = ProxyTransport.create(axis,protocolOption);
@@ -72,24 +87,12 @@ public class TransportProvider {
                         return transport;
                     }
                 };
-                @Override
-                public ProxyTransport get(String name) {
-                    return map.get(name);
-                }
 
-                @Override
-                public ProxyTransport create(ProtocolOption protocolOption) {
-                    ProxyTransport transport = ProxyTransport.create(axis,protocolOption);
-                    if (transport instanceof ChainProxyTransport){
-                        ((ChainProxyTransport) transport).initTransport(subProvider);
-                    }
-                    return transport;
+                for (ChainProxyTransport chainProxyTransport : chainProxyTransports) {
+                    chainProxyTransport.initTransport(provider);
                 }
-            };
-
-            for (ChainProxyTransport chainProxyTransport : chainProxyTransports) {
-                chainProxyTransport.initTransport(provider);
             }
+
         }
         this.transportMap=map;
     }
