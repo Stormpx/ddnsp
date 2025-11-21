@@ -16,15 +16,16 @@ import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.EventLoop;
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.MultiThreadIoEventLoopGroup;
-import io.netty.channel.nio.NioIoHandler;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.Promise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.stormpx.net.PartialNetStack;
+import org.stormpx.net.PartialNetspace;
 import org.stormpx.net.RouteItem;
-import org.stormpx.net.netty.*;
+import org.stormpx.net.netty.AbstractPartialChannel;
+import org.stormpx.net.netty.PartialChannelOption;
+import org.stormpx.net.netty.PartialDatagramChannel;
+import org.stormpx.net.netty.PartialSocketChannel;
 import org.stormpx.net.network.IfType;
 import org.stormpx.net.network.NetworkParams;
 import org.stormpx.net.socket.PartialSocketOptions;
@@ -41,9 +42,9 @@ import java.util.List;
 
 public class WireguardProxyTransport extends FullConeProxyTransport {
     private static final Logger logger = LoggerFactory.getLogger(WireguardProxyTransport.class);
+    private final String netspace;
     private final WireguardOption wireguardOption;
-    private final PartialNetStack netStack;
-    private final EventLoopGroup eventLoopGroup;
+    private final PartialNetspace netStack;
     private final VariantResolver variantResolver;
 
     private WireguardIface iface;
@@ -51,15 +52,20 @@ public class WireguardProxyTransport extends FullConeProxyTransport {
 
     public WireguardProxyTransport(Axis axis, WireguardOption wireguardOption) {
         super(axis.getChannelCreator(), wireguardOption);
+        this.netspace = wireguardOption.getName();
         this.wireguardOption = wireguardOption;
-        this.netStack = new PartialNetStack();
-        this.eventLoopGroup = new MultiThreadIoEventLoopGroup(1,PartialIoHandler.newFactory(netStack, NioIoHandler.newFactory()));
+        this.netStack = axis.getContext().getNetStack().getNetspace(netspace);
+
 
         initNetStack(axis.getContext());
 
         if (wireguardOption.getDns()!=null) {
-            var upstream = new UdpUpstream(eventLoopGroup.next(), new PartialDatagramChannel(), wireguardOption.getDns());
-            var dnsCli = new DnsCli(eventLoopGroup, new DnsCache(eventLoopGroup.next()), upstream, wireguardOption.getAddress().address() instanceof IPv6);
+            EventLoopGroup eventLoopGroup = axis.getContext().getEventLoopGroup();
+            EventLoop eventLoop = eventLoopGroup.next();
+            PartialDatagramChannel datagramChannel = new PartialDatagramChannel();
+            datagramChannel.setOption(PartialChannelOption.NETSPACE,netspace);
+            var upstream = new UdpUpstream(eventLoop, datagramChannel, wireguardOption.getDns());
+            var dnsCli = new DnsCli(eventLoopGroup, new DnsCache(eventLoop), upstream, wireguardOption.getAddress().address() instanceof IPv6);
             this.variantResolver = new VariantResolver(()->dnsCli);
         }else{
             this.variantResolver = axis.getContext().getVariantResolver();
@@ -68,7 +74,7 @@ public class WireguardProxyTransport extends FullConeProxyTransport {
     }
 
     private void initNetStack(Context context){
-        PartialNetStack netStack = this.netStack;
+        var netStack = this.netStack;
 
         WireguardIface iface = new WireguardIface();
         List<Peer> peers = wireguardOption.getPeers().stream()
@@ -104,7 +110,7 @@ public class WireguardProxyTransport extends FullConeProxyTransport {
                      .setIfType(IfType.INTERNET)
                      .addIp(ip);
         netStack.addNetwork(wireguardOption.getName(),networkParams,()->iface);
-        netStack.addRoute(new RouteItem().setDestination(new SubNet(IPv4.UNSPECIFIED,0)).setNetwork(wireguardOption.getName()));
+        netStack.addRoute(new RouteItem(new SubNet(IPv4.UNSPECIFIED,0), wireguardOption.getName()));
 
         this.iface = iface;
         this.peers = peers;
@@ -128,9 +134,10 @@ public class WireguardProxyTransport extends FullConeProxyTransport {
         Promise<Channel> promise = eventLoop.newPromise();
         Class<? extends AbstractPartialChannel> klass = netLocation.getTp()== TP.TCP? PartialSocketChannel.class: PartialDatagramChannel.class;
         var bootstrap = new Bootstrap()
-                .group(eventLoopGroup)
+                .group(eventLoop)
                 .resolver(variantResolver.getNettyResolver())
                 .channel(klass)
+                .option(PartialChannelOption.NETSPACE,netspace)
                 .handler(new DynamicRecipientLookupHandler(variantResolver.getInternalDnsResolver()));
         if (netLocation.getTp()==TP.TCP){
             bootstrap.option(PartialChannelOption.of(PartialSocketOptions.TCP_CONNECT_TIMEOUT),30000);

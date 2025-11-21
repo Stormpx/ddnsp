@@ -19,7 +19,6 @@ import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.stormpx.net.PartialNetStack;
 import org.stormpx.net.RouteItem;
 import org.stormpx.net.netty.PartialChannelOption;
 import org.stormpx.net.netty.PartialDatagramChannel;
@@ -31,10 +30,12 @@ import org.stormpx.net.util.*;
 
 import java.net.*;
 import java.util.HexFormat;
+import java.util.UUID;
 
 public class XdpServer {
 
     private static final Logger logger = LoggerFactory.getLogger(XdpServer.class);
+    private static final String XDP_NETSPACE = "xdp-"+ UUID.randomUUID();
     private final XdpServerOption option;
     private final Axis axis;
     private final ChannelCreator channelCreator;
@@ -46,6 +47,7 @@ public class XdpServer {
         this.option = option;
         this.axis = axis;
         this.channelCreator =  new ChannelCreator(axis.getContext().getEventLoopGroup(), ChannelFactoryProvider.ofPartial(),axis.getContext().getVariantResolver());
+        this.channelCreator.setPartialNetspace(XDP_NETSPACE);
         if (option.isEnable()) {
             initOption(option.getIface());
         }
@@ -95,6 +97,7 @@ public class XdpServer {
         Context context = axis.getContext();
         ServerBootstrap serverBootstrap = new ServerBootstrap();
         serverBootstrap.channel(PartialServerSocketChannel.class)
+                       .option(PartialChannelOption.NETSPACE,XDP_NETSPACE)
                        .option(PartialChannelOption.of(PartialSocketOptions.TRANSPARENT_PROXY), this::acceptPacket)
                        .option(PartialChannelOption.of(PartialSocketOptions.IP_TRANSPARENT),true);
 
@@ -127,6 +130,7 @@ public class XdpServer {
         Bootstrap bootstrap = new Bootstrap();
         bootstrap.group(context.getEventLoopGroup())
                  .channel(PartialDatagramChannel.class)
+                 .option(PartialChannelOption.NETSPACE,XDP_NETSPACE)
                  .option(PartialChannelOption.of(PartialSocketOptions.TRANSPARENT_PROXY),this::acceptPacket)
                  .handler(new ChannelInitializer<>() {
                      @Override
@@ -155,20 +159,21 @@ public class XdpServer {
         try {
             logger.info("XDP iface: {} mac: {} mtu: {} address: {} gateway: {}",
                     option.getIface(),option.getMac(),option.getMtu(),option.getAddress(),option.getGateway());
-            PartialNetStack netStack = axis.getContext().getNetStack();
+            var netStack = axis.getContext().getNetStack().getNetspace(XDP_NETSPACE);
             IPMask ipMask = Inet.parseIPMask(option.getAddress());
             IP gateway = IP.parse(option.getGateway());
             Mac mac = Mac.parse(option.getMac());
             SubNet subNet = new SubNet(ipMask.ip(), ipMask.mask());
-            NetworkParams params = new NetworkParams()
-                    .setMtu(option.getMtu())
+            NetworkParams params = new NetworkParams();
+            params.setMtu(option.getMtu())
                     .setSubNet(subNet)
                     .setGateway(gateway)
                     .setMacAddress(mac)
                     .setVerifyChecksum(true)
-                    .setIfType(IfType.ETHERNET);
+                    .setIfType(IfType.ETHERNET)
+                    .addIp(ipMask.ip());
             netStack.addNetwork(option.getIface(), params,()->new XdpIface(option.getIface(), option.getOpt()));
-            netStack.addRoute(new RouteItem().setDestination(new SubNet(IPv4.UNSPECIFIED,0)).setNetwork(option.getIface()));
+            netStack.addRoute(new RouteItem(new SubNet(IPv4.UNSPECIFIED,0), option.getIface()));
 
             InetSocketAddress bindAddress = new InetSocketAddress(InetAddress.getByAddress(IPv4.LOOPBACK.getBytes()),5474);
             return Future.any(startTcpServer(bindAddress),startUdpServer(bindAddress)).map((v)->null);
