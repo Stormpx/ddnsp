@@ -32,6 +32,7 @@ public class ChannelCreator {
     private final EventLoop executor;
     private final ChannelFactoryProvider channelFactoryProvider;
     private final Map<InetSocketAddress,Future<DatagramChannel>> foreignChannelLookups;
+    private String partialNetspace;
 
     public ChannelCreator(Context context) {
         this.eventLoopGroup = context.getEventLoopGroup();
@@ -49,10 +50,23 @@ public class ChannelCreator {
         this.foreignChannelLookups=new HashMap<>();
     }
 
+    public String getPartialNetspace() {
+        return partialNetspace;
+    }
+
+    public void setPartialNetspace(String partialNetspace) {
+        this.partialNetspace = partialNetspace;
+    }
+
     public Bootstrap getBootstrap(EventLoop eventLoop){
-        return new Bootstrap()
+        var boostrap =  new Bootstrap()
                 .group(eventLoop==null?getEventLoopGroup().next():eventLoop)
                 .resolver(variantResolver.getNettyResolver());
+        String netspace = this.partialNetspace;
+        if (netspace!=null&&!netspace.isBlank()){
+            boostrap.option(PartialChannelOption.NETSPACE,netspace);
+        }
+        return boostrap;
     }
 
     public EventLoopGroup getEventLoopGroup() {
@@ -88,7 +102,12 @@ public class ChannelCreator {
         }else{
             udpChannel= channelFactoryProvider.getDatagramChannelFactory().newChannel();
         }
-        if (!(udpChannel instanceof PartialDatagramChannel)) {
+        if (udpChannel instanceof PartialDatagramChannel) {
+            String netspace = this.partialNetspace;
+            if (netspace!=null&&!netspace.isBlank()){
+                udpChannel.config().setOption(PartialChannelOption.NETSPACE,netspace);
+            }
+        } else {
             udpChannel.config().setOption(ChannelOption.SO_REUSEADDR, true);
         }
         if (ipTransparent) {
@@ -159,7 +178,5 @@ public class ChannelCreator {
         SocketAddress localAddress = bindAddr != null ? bindAddr : new InetSocketAddress("0.0.0.0", 0);
         return doCreateDatagramChannel(localAddress,eventLoop, false,initializer);
     }
-
-
 
 }
