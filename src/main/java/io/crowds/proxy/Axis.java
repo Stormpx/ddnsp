@@ -1,6 +1,7 @@
 package io.crowds.proxy;
 
 import io.crowds.Context;
+import io.crowds.proxy.common.SniSniffingHandler;
 import io.crowds.proxy.dns.FakeContext;
 import io.crowds.proxy.dns.FakeDns;
 import io.crowds.proxy.dns.FakeOption;
@@ -139,18 +140,6 @@ public class Axis {
         return fakeContext;
     }
 
-
-    private ProxyContext createContext(EventLoop eventLoop,NetLocation netLocation){
-        FakeContext fakeContext=getFakeContext(netLocation.getDst());
-        if (fakeContext!=null)
-            netLocation=new NetLocation(netLocation.getSrc(), fakeContext.getNetAddr(netLocation.getDst().getPort()), netLocation.getTp());
-
-        ProxyContext proxyContext = new ProxyContext(eventLoop,netLocation);
-        proxyContext.withFakeContext(fakeContext);
-
-        return proxyContext;
-    }
-
     private void logException(SocketAddress srcAddr,SocketAddress dstAddr,Throwable t,boolean src){
         if (Exceptions.isExpected(t)){
             if (Exceptions.shouldLogMessage(t)) {
@@ -161,43 +150,77 @@ public class Axis {
         }
     }
 
+
+    private Future<ProxyContext> createTcpContext(Channel channel, NetLocation netLocation){
+        EventLoop eventLoop = channel.eventLoop();
+
+        FakeContext fakeContext=getFakeContext(netLocation.getDst());
+        if (fakeContext!=null) {
+            netLocation = new NetLocation(netLocation.getSrc(), fakeContext.getNetAddr(netLocation.getDst().getPort()), netLocation.getTp());
+            ProxyContext proxyContext = new ProxyContext(eventLoop,netLocation);
+            proxyContext.withFakeContext(fakeContext);
+            return eventLoop.newSucceededFuture(proxyContext);
+        }
+        if (netLocation.getDst() instanceof DomainNetAddr){
+            return eventLoop.newSucceededFuture(new ProxyContext(eventLoop,netLocation));
+        }
+        if (netLocation.getDst().getPort()==22){
+            //ignore ssh port
+            return eventLoop.newSucceededFuture(new ProxyContext(eventLoop,netLocation));
+        }
+        Promise<ProxyContext> promise = channel.eventLoop().newPromise();
+        NetLocation finalNetLocation = netLocation;
+        SniSniffingHandler.sniffHostname(channel,500)
+                          .addListener(f->{
+                              NetLocation location = finalNetLocation;
+                              if (f.isSuccess()){
+                                  String hostname = (String) f.get();
+                                  location = new NetLocation(location.getSrc(), NetAddr.of(hostname,location.getDst().getPort()), location.getTp());
+                              }
+                              promise.setSuccess(new ProxyContext(eventLoop,location));
+                          });
+        return promise;
+    }
+
     public Promise<Void> handleTcp(Channel channel,SocketAddress srcAddr,SocketAddress dstAddr){
         Promise<Void> promise = channel.eventLoop().newPromise();
-        try {
+        channel.config().setAutoRead(false);
 
-            TcpEndPoint src = new TcpEndPoint(channel);
-            src.exceptionHandler(t->logException(srcAddr,dstAddr,t,true));
+        NetLocation netLocation = new NetLocation(getNetAddr(srcAddr),getNetAddr(dstAddr), TP.TCP);
+        createTcpContext(channel,netLocation)
+                .addListener(f->{
+                    assert f.isSuccess();
+                    try {
+                        ProxyContext proxyContext = (ProxyContext) f.get();
+                        TcpEndPoint src = new TcpEndPoint(channel);
+                        src.exceptionHandler(t->logException(srcAddr,dstAddr,t,true));
+                        Transport transport=getTransport(proxyContext);
+                        logger.info("tcp {} to {} via [{}]",proxyContext.getNetLocation().getSrc(),proxyContext.getNetLocation().getDst(), transport.getChain());
+                        ProxyTransport proxy = transport.proxy();
+                        proxy.createEndPoint(proxyContext)
+                             .addListener(future -> {
+                                 if (!future.isSuccess()){
+                                     if (logger.isDebugEnabled())
+                                         logger.error("",future.cause());
+                                     logger.error("failed to connect remote: {} > {}",proxyContext.getNetLocation().getDst().getAddress(),future.cause().getMessage());
+                                     promise.tryFailure(future.cause());
+                                     src.close();
+                                     return;
+                                 }
+                                 EndPoint dst= (EndPoint) future.get();
+                                 dst.exceptionHandler(t->logException(netLocation.getSrc().getAddress(),netLocation.getDst().getAddress(),t,false));
+                                 proxyContext.bridging(src,dst);
+                                 promise.trySuccess(null);
+                                 proxyContext.setAutoRead();
+                             });
+                    } catch (Exception e) {
+                        logger.error("",e);
+                        promise.tryFailure(e);
+                        channel.close();
+                    }
 
+                });
 
-            NetLocation netLocation = new NetLocation(getNetAddr(srcAddr),getNetAddr(dstAddr), TP.TCP);
-
-            ProxyContext proxyContext = createContext(channel.eventLoop(),netLocation);
-
-            Transport transport=getTransport(proxyContext);
-            logger.info("tcp {} to {} via [{}]",proxyContext.getNetLocation().getSrc(),proxyContext.getNetLocation().getDst(), transport.getChain());
-            ProxyTransport proxy = transport.proxy();
-            proxy.createEndPoint(proxyContext)
-                    .addListener(future -> {
-                        if (!future.isSuccess()){
-                            if (logger.isDebugEnabled())
-                                logger.error("",future.cause());
-                            logger.error("failed to connect remote: {} > {}",proxyContext.getNetLocation().getDst().getAddress(),future.cause().getMessage());
-                            promise.tryFailure(future.cause());
-                            src.close();
-                            return;
-                        }
-                        EndPoint dst= (EndPoint) future.get();
-                        dst.exceptionHandler(t->logException(netLocation.getSrc().getAddress(),netLocation.getDst().getAddress(),t,false));
-                        proxyContext.bridging(src,dst);
-                        promise.trySuccess(null);
-                        proxyContext.setAutoRead();
-                    });
-            return promise;
-        } catch (Exception e) {
-            logger.error("",e);
-            promise.tryFailure(e);
-            channel.close();
-        }
         return promise;
     }
 

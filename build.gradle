@@ -31,7 +31,7 @@ repositories {
 application{
     mainClass = 'io.crowds.Main'
 
-    applicationDefaultJvmArgs = ["--enable-preview"]
+    applicationDefaultJvmArgs = ["-ea", "--enable-preview"]
 }
 
 compileJava{

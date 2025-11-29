@@ -1,16 +1,19 @@
 package io.crowds.proxy.transport;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.socket.DatagramPacket;
+import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.http2.Http2Exception;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.Future;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 
 public class TcpEndPoint extends EndPoint {
 
@@ -28,7 +31,19 @@ public class TcpEndPoint extends EndPoint {
     }
 
     private void init(){
-        this.channel.pipeline().addLast(new SimpleChannelInboundHandler<ByteBuf>(false) {
+        this.channel.pipeline().addLast(new ChannelDuplexHandler() {
+            private ByteBuf cumulation;
+            private final ByteToMessageDecoder.Cumulator cumulator = ByteToMessageDecoder.COMPOSITE_CUMULATOR;
+            @Override
+            public void read(ChannelHandlerContext ctx) throws Exception {
+                ByteBuf buf = cumulation;
+                if (cumulation!=null){
+                    cumulation = null;
+                    ctx.executor().submit(()->fireBuf(buf));
+                }
+                super.read(ctx);
+            }
+
             @Override
             public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
                 fireWriteable(ctx.channel().isWritable());
@@ -41,12 +56,21 @@ public class TcpEndPoint extends EndPoint {
             }
 
             @Override
-            protected void channelRead0(ChannelHandlerContext ctx, ByteBuf msg) throws Exception {
+            public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
                 if (!channel.isActive()){
                     ReferenceCountUtil.safeRelease(msg);
                     return;
                 }
-                fireBuf(msg);
+                if (!(msg instanceof ByteBuf buf)){
+                    ctx.fireChannelRead(msg);
+                    return;
+                }
+
+                if (!channel.config().isAutoRead()){
+                    cumulation = cumulator.cumulate(ctx.alloc(), Objects.requireNonNullElse(cumulation, Unpooled.EMPTY_BUFFER),buf);
+                }else {
+                    fireBuf(buf);
+                }
             }
 
             private boolean ignore(Throwable cause){
@@ -73,9 +97,6 @@ public class TcpEndPoint extends EndPoint {
         });
 
     }
-
-
-
 
     @Override
     public void write(Object msg) {

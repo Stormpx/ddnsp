@@ -4,9 +4,9 @@ import java.net.SocketAddress;
 import java.util.Objects;
 
 public class NetLocation {
-    private NetAddr src;
-    private NetAddr dest;
-    private TP tp;
+    private final NetAddr src;
+    private final NetAddr dest;
+    private final TP tp;
 
     public NetLocation(SocketAddress src, SocketAddress dest, TP tp) {
         this.src = new NetAddr(src);
@@ -28,12 +28,11 @@ public class NetLocation {
         return dest;
     }
 
-
-
-
     public TP getTp() {
         return tp;
     }
+
+
 
     @Override
     public boolean equals(Object o) {
