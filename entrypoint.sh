@@ -8,7 +8,7 @@ terminate_children() {
 
 trap terminate_children 15
 
-java  $JAVA_OPTS  -jar  /app.jar $@ &
+java  -jar  /app.jar $@ &
 
 child_pid=$!
 wait $child_pid

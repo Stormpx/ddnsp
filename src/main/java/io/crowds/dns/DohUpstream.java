@@ -92,7 +92,6 @@ public class DohUpstream extends AbstractDnsUpstream {
         decodeRecord(response,buf,DnsSection.ANSWER,answerCount);
         decodeRecord(response,buf,DnsSection.AUTHORITY,authorityRecordCount);
         decodeRecord(response,buf,DnsSection.ADDITIONAL,additionalRecordCount);
-        System.out.println("response from doh "+response);
         return response;
     }
 
