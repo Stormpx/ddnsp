@@ -4,6 +4,7 @@ import io.crowds.ddns.DDnsOption;
 import io.crowds.dns.DnsOption;
 import io.crowds.dns.RecordData;
 import io.crowds.proxy.ProxyOption;
+import io.crowds.proxy.common.sniff.SniffOption;
 import io.crowds.proxy.dns.FakeOption;
 import io.crowds.proxy.services.http.HttpOption;
 import io.crowds.proxy.services.socks.SocksOption;
@@ -11,6 +12,7 @@ import io.crowds.proxy.services.transparent.TransparentOption;
 import io.crowds.proxy.services.tun.TunServerOption;
 import io.crowds.proxy.transport.ProtocolOption;
 import io.crowds.proxy.transport.proxy.ProtocolOptionFactory;
+import io.crowds.util.Ints;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.dns.DefaultDnsPtrRecord;
 import io.netty.handler.codec.dns.DefaultDnsRawRecord;
@@ -34,6 +36,8 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 public class DdnspOptionLoader {
 
@@ -252,6 +256,22 @@ public class DdnspOptionLoader {
             proxy.setFakeDns(fakeOption);
         }
 
+        JsonObject sniffJson = json.getJsonObject("sniff");
+        if (sniffJson!=null){
+            SniffOption sniffOption = new SniffOption();
+            sniffOption.setPorts(Objects.requireNonNullElse(sniffJson.getJsonArray("ports"),JsonArray.of()).stream()
+                                        .map(Objects::toString)
+                                        .map(PortRange::parse)
+                                        .filter(Objects::nonNull)
+                                        .flatMap(PortRange::ports)
+                                        .collect(Collectors.toSet()));
+            sniffOption.setIgnoreDomain(Objects.requireNonNullElse(sniffJson.getJsonArray("ignoreDomain"), JsonArray.of()).stream()
+                                               .filter(it->it instanceof String)
+                                               .map(Object::toString)
+                                               .collect(Collectors.toSet()));
+            proxy.setSniff(sniffOption);
+        }
+
         return proxy;
     }
 
@@ -315,6 +335,38 @@ public class DdnspOptionLoader {
         return map;
     }
 
+    record PortRange(int startInclusive, int endExclusive){
+
+        static PortRange parse(String s){
+            try {
+                int port = Integer.parseInt(s);
+                if (!Ints.isAvailablePort(port)){
+                    return null;
+                }
+                return new PortRange(port,port+1);
+            } catch (NumberFormatException e) {
+                int index = s.indexOf("-",1);
+                if (index==-1){
+                    return null;
+                }
+                String[] split = s.split("-", 2);
+                try {
+                    int beginPort = Integer.parseInt(split[0]);
+                    int toPort = Integer.parseInt(split[1]);
+                    if (!Ints.isAvailablePort(beginPort)||!Ints.isAvailablePort(toPort)){
+                        return null;
+                    }
+                    return new PortRange(beginPort,toPort);
+                } catch (NumberFormatException ex) {
+                    return null;
+                }
+            }
+        }
+
+        Stream<Integer> ports(){
+            return IntStream.range(startInclusive,endExclusive).boxed();
+        }
+    }
 
 
 }

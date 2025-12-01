@@ -1,7 +1,9 @@
 package io.crowds.proxy;
 
 import io.crowds.Context;
-import io.crowds.proxy.common.SniSniffingHandler;
+import io.crowds.proxy.common.sniff.HostnameSniffer;
+import io.crowds.proxy.common.sniff.SniSniffingHandler;
+import io.crowds.proxy.common.sniff.SniffOption;
 import io.crowds.proxy.dns.FakeContext;
 import io.crowds.proxy.dns.FakeDns;
 import io.crowds.proxy.dns.FakeOption;
@@ -29,6 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import java.net.*;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -40,6 +43,8 @@ public class Axis {
     private ProxyOption proxyOption;
 
     private FakeDns fakeDns;
+
+    private HostnameSniffer hostnameSniffer;
 
     private Router router;
 
@@ -55,6 +60,11 @@ public class Axis {
 
 
     public Axis setProxyOption(ProxyOption proxyOption) {
+
+        SniffOption sniff = proxyOption.getSniff();
+        if (this.hostnameSniffer==null||!Objects.equals(this.hostnameSniffer.getOption(), sniff)){
+            this.hostnameSniffer = sniff==null?null:new HostnameSniffer(sniff);
+        }
 
         if (proxyOption.getRules()!=null){
             if (this.proxyOption==null||!proxyOption.getRules().equals(this.proxyOption.getRules())) {
@@ -168,17 +178,23 @@ public class Axis {
             //ignore ssh port
             return eventLoop.newSucceededFuture(new ProxyContext(eventLoop,netLocation));
         }
+        HostnameSniffer sniffer = this.hostnameSniffer;
+        if (sniffer==null){
+            return eventLoop.newSucceededFuture(new ProxyContext(eventLoop,netLocation));
+        }
+
         Promise<ProxyContext> promise = channel.eventLoop().newPromise();
         NetLocation finalNetLocation = netLocation;
-        SniSniffingHandler.sniffHostname(channel,500)
-                          .addListener(f->{
-                              NetLocation location = finalNetLocation;
-                              if (f.isSuccess()){
-                                  String hostname = (String) f.get();
-                                  location = new NetLocation(location.getSrc(), NetAddr.of(hostname,location.getDst().getPort()), location.getTp());
-                              }
-                              promise.setSuccess(new ProxyContext(eventLoop,location));
-                          });
+
+        sniffer.sniff(channel,netLocation)
+               .addListener(f->{
+                   NetLocation location = finalNetLocation;
+                   if (f.isSuccess()){
+                       String hostname = (String) f.get();
+                       location = new NetLocation(location.getSrc(), NetAddr.of(hostname,location.getDst().getPort()), location.getTp());
+                   }
+                   promise.setSuccess(new ProxyContext(eventLoop,location));
+               });
         return promise;
     }
 

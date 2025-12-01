@@ -1,5 +1,6 @@
 package io.crowds.proxy;
 
+import io.crowds.proxy.common.sniff.SniffOption;
 import io.crowds.proxy.dns.FakeOption;
 import io.crowds.proxy.services.http.HttpOption;
 import io.crowds.proxy.services.socks.SocksOption;
@@ -20,6 +21,7 @@ public class ProxyOption {
 
     private TunServerOption tun;
 
+    private SniffOption sniff;
 
     private List<ProtocolOption> proxies;
 
@@ -98,6 +100,15 @@ public class ProxyOption {
 
     public ProxyOption setTun(TunServerOption tun) {
         this.tun = tun;
+        return this;
+    }
+
+    public SniffOption getSniff() {
+        return sniff;
+    }
+
+    public ProxyOption setSniff(SniffOption sniff) {
+        this.sniff = sniff;
         return this;
     }
 }
