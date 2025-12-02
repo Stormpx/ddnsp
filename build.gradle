@@ -42,6 +42,11 @@ compileTestJava{
     options.compilerArgs= ["--enable-preview"]
 }
 
+test{
+
+    jvmArgs = ["--enable-preview"]
+}
+
 shadowJar {
     archiveBaseName.set('ddnsp')
     archiveClassifier.set('')
