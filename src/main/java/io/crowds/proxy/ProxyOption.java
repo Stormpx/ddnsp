@@ -8,6 +8,7 @@ import io.crowds.proxy.services.transparent.TransparentOption;
 import io.crowds.proxy.services.tun.TunServerOption;
 import io.crowds.proxy.transport.ProtocolOption;
 import io.vertx.core.json.JsonArray;
+import io.vertx.core.json.JsonObject;
 
 import java.util.List;
 
@@ -22,6 +23,8 @@ public class ProxyOption {
     private TunServerOption tun;
 
     private SniffOption sniff;
+
+    private JsonObject nat;
 
     private List<ProtocolOption> proxies;
 
@@ -109,6 +112,15 @@ public class ProxyOption {
 
     public ProxyOption setSniff(SniffOption sniff) {
         this.sniff = sniff;
+        return this;
+    }
+
+    public JsonObject getNat() {
+        return nat;
+    }
+
+    public ProxyOption setNat(JsonObject nat) {
+        this.nat = nat;
         return this;
     }
 }

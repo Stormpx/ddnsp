@@ -1,8 +1,8 @@
 package io.crowds.proxy;
 
 import io.crowds.Context;
+import io.crowds.proxy.common.NatMap;
 import io.crowds.proxy.common.sniff.HostnameSniffer;
-import io.crowds.proxy.common.sniff.SniSniffingHandler;
 import io.crowds.proxy.common.sniff.SniffOption;
 import io.crowds.proxy.dns.FakeContext;
 import io.crowds.proxy.dns.FakeDns;
@@ -26,44 +26,148 @@ import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GlobalEventExecutor;
 import io.netty.util.concurrent.Promise;
+import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.*;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.Gatherers;
+import java.util.stream.Stream;
 
 public class Axis {
     private final static Logger logger= LoggerFactory.getLogger(Axis.class);
+    private final static boolean VERBOSE;
+
+    static {
+        String s = System.getProperty("io.crowds.proxy.ddnsp.log.routeInfo");
+        VERBOSE = "verbose".equalsIgnoreCase(s);
+    }
+
     private final Context context;
-    private ChannelCreator channelCreator;
+    private final ChannelCreator channelCreator;
+
     private ProxyOption proxyOption;
 
     private FakeDns fakeDns;
 
     private HostnameSniffer hostnameSniffer;
 
+    private final NatMappings natMappings;
+
     private Router router;
 
     private TransportProvider transportProvider;
 
-    private UdpMappings mappings;
+    private final UdpMappings mappings;
 
     public Axis(Context context) {
         this.context = context;
         this.channelCreator = new ChannelCreator(context);
+        this.natMappings = new NatMappings();
         this.mappings=new UdpMappings();
     }
 
+    public static class NatMappings{
+        private volatile JsonObject preNatConfig;
+        private volatile NatMap preNat;
+        private volatile JsonObject postNatConfig;
+        private volatile Map<String,NatMap> postNats;
+
+        NatMap buildNatMap(JsonObject natConfig){
+            NatMap natMap = new NatMap();
+            for (Map.Entry<String, Object> entry : natConfig) {
+                String pattern = entry.getKey();
+                Object result = entry.getValue();
+                if (!(result instanceof String)){
+                    continue;
+                }
+                natMap.add(pattern, (String) result);
+            }
+            return natMap;
+        }
+
+        NatMap buildPreNat(JsonObject natConfig){
+            if (natConfig.isEmpty()){
+                return null;
+            }
+            NatMap preNat = this.preNat;
+            if (preNat==null){
+                return buildNatMap(natConfig);
+            }else{
+                if (!Objects.equals(preNatConfig,natConfig)){
+                    return buildNatMap(natConfig);
+                }
+                return preNat;
+            }
+        }
+
+        Map<String,NatMap> buildPostNats(JsonObject proxiesConfig){
+            if (proxiesConfig==null||proxiesConfig.isEmpty()){
+                return null;
+            }
+            Map<String, NatMap> postNats = this.postNats;
+            if (postNats==null){
+                return proxiesConfig.stream().filter(it->it.getValue() instanceof JsonObject)
+                                    .collect(Collectors.toMap(Map.Entry::getKey, it->buildNatMap((JsonObject) it.getValue())));
+            }else{
+                if (!Objects.equals(this.postNatConfig,proxiesConfig)){
+                    return proxiesConfig.stream().filter(it->it.getValue() instanceof JsonObject)
+                                        .collect(Collectors.toMap(Map.Entry::getKey, it->buildNatMap((JsonObject) it.getValue())));
+                }
+                return postNats;
+            }
+        }
+
+        synchronized void setNatConfig(JsonObject natConfig){
+            if (natConfig==null){
+                logger.info("nat mapping discard.");
+                this.preNatConfig = null;
+                this.preNat = null;
+                this.postNatConfig = null;
+                this.postNats = null;
+                return;
+            }
+            Object json = natConfig.remove("proxies");
+            if (json!=null&&!(json instanceof JsonObject)){
+                logger.error("Config: proxy.nat.proxies is not a JsonObject");
+                return;
+            }
+            JsonObject postNatConfig = json==null? null : (JsonObject) json;
+            NatMap natMap = buildPreNat(natConfig);
+            Map<String, NatMap> postNats = buildPostNats(postNatConfig);
+            if (natMap!=this.preNat) {
+                this.preNat = natMap;
+                this.preNatConfig = natConfig;
+                logger.info("pre route nat mapping setup.");
+            }
+            if (postNats!=this.postNats) {
+                this.postNats = postNats;
+                this.postNatConfig = postNatConfig;
+                logger.info("post route nat mapping setup.");
+            }
+
+        }
+
+    }
 
     public Axis setProxyOption(ProxyOption proxyOption) {
 
         SniffOption sniff = proxyOption.getSniff();
         if (this.hostnameSniffer==null||!Objects.equals(this.hostnameSniffer.getOption(), sniff)){
             this.hostnameSniffer = sniff==null?null:new HostnameSniffer(sniff);
+        }
+
+        if (proxyOption.getNat()!=null){
+            this.natMappings.setNatConfig(proxyOption.getNat());
+        }else{
+            this.natMappings.setNatConfig(null);
         }
 
         if (proxyOption.getRules()!=null){
@@ -112,20 +216,41 @@ public class Axis {
 
 
 
-    private Transport getTransport(ProxyContext proxyContext){
-        if (this.router==null){
+    private Transport lookupTransport(ProxyContext proxyContext){
+        NatMap preRouteNat = this.natMappings.preNat;
+        Map<String, NatMap> postRouteNats = this.natMappings.postNats;
+        Router router = this.router;
+        NetLocation netLocation = proxyContext.getNetLocation();
+        if (preRouteNat != null){
+            NetAddr addr = preRouteNat.translate(netLocation.getDst());
+            if (addr!=null){
+                if (logger.isDebugEnabled())
+                    logger.debug("pre route nat {} -> {}",netLocation.getDst(),addr);
+                netLocation = new NetLocation(netLocation.getSrc(),addr,netLocation.getTp());
+                proxyContext.withNetLocation(netLocation);
+            }
+        }
+        if (router ==null){
             return transportProvider.direct();
         }
-//        if (proxyContext.getFakeContext()!=null){
-//            return transportProvider.getTransport(proxyContext);
-//        }
 
-        NetLocation netLocation = proxyContext.getNetLocation();
-        String tag = this.router.routing(netLocation);
+        String tag = router.routing(netLocation);
         proxyContext.withTag(tag);
 
-        return transportProvider.getTransport(proxyContext);
+        Transport transport = transportProvider.getTransport(proxyContext);
 
+        if (postRouteNats!=null) {
+            NatMap natMap = postRouteNats.get(transport.proxy().getTag());
+            NetAddr addr = natMap.translate(netLocation.getDst());
+            if (addr!=null){
+                if (logger.isDebugEnabled())
+                    logger.debug("post route nat {} -> {}",netLocation.getDst(),addr);
+                netLocation = new NetLocation(netLocation.getSrc(),addr,netLocation.getTp());
+                proxyContext.withNetLocation(netLocation);
+            }
+        }
+
+        return transport;
     }
 
 
@@ -160,40 +285,51 @@ public class Axis {
         }
     }
 
+    private void logRouteInfo(ProxyContext proxyContext,Transport transport){
+        NetLocation netLocation = proxyContext.getNetLocation();
+        String tp = netLocation.getTp() == TP.TCP ? "tcp" : "udp";
+        if (VERBOSE){
+            List<NetLocation> locations = Objects.requireNonNullElse(proxyContext.getPrevLocations(),List.of());
+            String src = Stream.concat(locations.stream().map(NetLocation::getSrc),Stream.of(netLocation.getSrc()))
+                               .map(Object::toString).distinct().collect(Collectors.joining("=>"));
+            String dst = Stream.concat(locations.stream().map(NetLocation::getDst),Stream.of(netLocation.getDst()))
+                               .map(Object::toString).distinct().collect(Collectors.joining("=>"));
+            logger.info("{} [{}] to [{}] via [{}]", tp,src,dst, transport.getChain());
+        }else{
+            logger.info("{} {} to {} via [{}]", tp,netLocation.getSrc(),netLocation.getDst(), transport.getChain());
+        }
+
+    }
+
 
     private Future<ProxyContext> createTcpContext(Channel channel, NetLocation netLocation){
         EventLoop eventLoop = channel.eventLoop();
 
+        ProxyContext proxyContext = new ProxyContext(eventLoop,netLocation);
+
         FakeContext fakeContext=getFakeContext(netLocation.getDst());
         if (fakeContext!=null) {
-            netLocation = new NetLocation(netLocation.getSrc(), fakeContext.getNetAddr(netLocation.getDst().getPort()), netLocation.getTp());
-            ProxyContext proxyContext = new ProxyContext(eventLoop,netLocation);
             proxyContext.withFakeContext(fakeContext);
+            proxyContext.withNetLocation(new NetLocation(netLocation.getSrc(), fakeContext.getNetAddr(netLocation.getDst().getPort()), netLocation.getTp()));
             return eventLoop.newSucceededFuture(proxyContext);
         }
         if (netLocation.getDst() instanceof DomainNetAddr){
-            return eventLoop.newSucceededFuture(new ProxyContext(eventLoop,netLocation));
-        }
-        if (netLocation.getDst().getPort()==22){
-            //ignore ssh port
-            return eventLoop.newSucceededFuture(new ProxyContext(eventLoop,netLocation));
+            return eventLoop.newSucceededFuture(proxyContext);
         }
         HostnameSniffer sniffer = this.hostnameSniffer;
         if (sniffer==null){
-            return eventLoop.newSucceededFuture(new ProxyContext(eventLoop,netLocation));
+            return eventLoop.newSucceededFuture(proxyContext);
         }
 
         Promise<ProxyContext> promise = channel.eventLoop().newPromise();
-        NetLocation finalNetLocation = netLocation;
 
         sniffer.sniff(channel,netLocation)
                .addListener(f->{
-                   NetLocation location = finalNetLocation;
                    if (f.isSuccess()){
                        String hostname = (String) f.get();
-                       location = new NetLocation(location.getSrc(), NetAddr.of(hostname,location.getDst().getPort()), location.getTp());
+                       proxyContext.withNetLocation(new NetLocation(netLocation.getSrc(), NetAddr.of(hostname, netLocation.getDst().getPort()), netLocation.getTp()));
                    }
-                   promise.setSuccess(new ProxyContext(eventLoop,location));
+                   promise.setSuccess(proxyContext);
                });
         return promise;
     }
@@ -210,8 +346,8 @@ public class Axis {
                         ProxyContext proxyContext = (ProxyContext) f.get();
                         TcpEndPoint src = new TcpEndPoint(channel);
                         src.exceptionHandler(t->logException(srcAddr,dstAddr,t,true));
-                        Transport transport=getTransport(proxyContext);
-                        logger.info("tcp {} to {} via [{}]",proxyContext.getNetLocation().getSrc(),proxyContext.getNetLocation().getDst(), transport.getChain());
+                        Transport transport= lookupTransport(proxyContext);
+                        logRouteInfo(proxyContext,transport);
                         ProxyTransport proxy = transport.proxy();
                         proxy.createEndPoint(proxyContext)
                              .addListener(future -> {
@@ -257,8 +393,8 @@ public class Axis {
                 Promise<ProxyContext> promise = proxyContext.getEventLoop().newPromise();
                 var src=new UdpEndPoint(datagramChannel,netLocation.getSrc());
                 src.exceptionHandler(t->logException(netLocation.getSrc().getAddress(),netLocation.getDst().getAddress(),t,true));
-                Transport transport=getTransport(proxyContext);
-                logger.info("udp {} to {} via [{}]",proxyContext.getNetLocation().getSrc(),proxyContext.getNetLocation().getDst(),transport.getChain());
+                Transport transport= lookupTransport(proxyContext);
+                logRouteInfo(proxyContext,transport);
                 ProxyTransport proxy = transport.proxy();
                 proxy.createEndPoint(proxyContext)
                         .addListener(future -> {

@@ -17,17 +17,9 @@ public class IPCIDR {
 
     private int mask;
 
-    public IPCIDR(String cidr) {
-        Objects.requireNonNull(cidr,"cidr");
-        String[] strings = cidr.split("/");
-        if (strings.length!=2){
-            throw new IllegalArgumentException("invalid cidr "+cidr);
-        }
-        this.address=NetUtil.createInetAddressFromIpAddressString(strings[0]);
-        if (this.address==null){
-            throw new IllegalArgumentException("invalid host "+strings[0]);
-        }
-        this.mask=Integer.parseInt(strings[1]);
+    public IPCIDR(InetAddress address,int mask){
+        this.address=address;
+        this.mask=mask;
         var addressBytes =this.address.getAddress();
         if (this.mask<0||this.mask> addressBytes.length*8){
             throw new IllegalArgumentException("invalid mask");
@@ -41,9 +33,23 @@ public class IPCIDR {
             var allOne = BigInteger.ONE.shiftLeft(bitLength).subtract(BigInteger.ONE);
             var idBits = BigInteger.ONE.shiftLeft(bitLength-mask).subtract(BigInteger.ONE);
             this.netBits = allOne.subtract(idBits);
-//            System.out.println(new BigInteger(addressBytes));
+            //            System.out.println(new BigInteger(addressBytes));
             this.netInt = new BigInteger(addressBytes).and(netBits);
         }
+    }
+
+    public IPCIDR(String cidr) {
+        Objects.requireNonNull(cidr,"cidr");
+        String[] strings = cidr.split("/");
+        if (strings.length!=2){
+            throw new IllegalArgumentException("invalid cidr "+cidr);
+        }
+        var address=NetUtil.createInetAddressFromIpAddressString(strings[0]);
+        if (address==null){
+            throw new IllegalArgumentException("invalid host "+strings[0]);
+        }
+        var mask=Integer.parseInt(strings[1]);
+        this(address,mask);
     }
 
 

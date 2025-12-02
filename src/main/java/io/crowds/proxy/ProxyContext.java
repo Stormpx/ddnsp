@@ -13,6 +13,9 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 import java.util.function.Consumer;
 
 public class ProxyContext {
@@ -29,10 +32,11 @@ public class ProxyContext {
         }
     }
 
-    private EventLoop eventLoop;
+    private final EventLoop eventLoop;
     private EndPoint src;
     private EndPoint dst;
-    private final NetLocation netLocation;
+    private NetLocation netLocation;
+    private List<NetLocation> prevLocations;
 
     private String tag;
     private FakeContext fakeContext;
@@ -44,11 +48,7 @@ public class ProxyContext {
 
     public ProxyContext(EventLoop eventLoop, NetLocation netLocation) {
         this.eventLoop = eventLoop;
-        this.netLocation = netLocation;
-    }
-
-    public ProxyContext(NetLocation netLocation) {
-        this.netLocation=netLocation;
+        this.netLocation = Objects.requireNonNull(netLocation);
     }
 
     private boolean isSpliceAvailable(EndPoint src,EndPoint dst){
@@ -120,6 +120,23 @@ public class ProxyContext {
     public ProxyContext withTag(String tag) {
         this.tag = tag;
         return this;
+    }
+
+    public ProxyContext withNetLocation(NetLocation netLocation){
+        Objects.requireNonNull(netLocation);
+        NetLocation prevLocation = this.netLocation;
+        if (prevLocation!=netLocation) {
+            if (this.prevLocations ==null){
+                this.prevLocations = new ArrayList<>();
+            }
+            this.prevLocations.add(prevLocation);
+            this.netLocation = netLocation;
+        }
+        return this;
+    }
+
+    public List<NetLocation> getPrevLocations() {
+        return prevLocations;
     }
 
     public FakeContext getFakeContext() {

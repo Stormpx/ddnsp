@@ -272,6 +272,9 @@ public class DdnspOptionLoader {
             proxy.setSniff(sniffOption);
         }
 
+        JsonObject natJson = json.getJsonObject("nat");
+        proxy.setNat(natJson);
+
         return proxy;
     }
 
