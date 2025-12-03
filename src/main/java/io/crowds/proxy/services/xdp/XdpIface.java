@@ -1,9 +1,6 @@
 package io.crowds.proxy.services.xdp;
 
-import io.crowds.compoments.xdp.MacMessage;
-import io.crowds.compoments.xdp.UmemBufferPoll;
-import io.crowds.compoments.xdp.XdpIngressHandler;
-import io.crowds.compoments.xdp.XdpPoller;
+import io.crowds.compoments.xdp.*;
 import io.crowds.lib.unix.Unix;
 import io.crowds.lib.xdp.*;
 import io.crowds.lib.xdp.ffi.BpfMap;
@@ -223,7 +220,7 @@ public class XdpIface implements Iface, XdpIngressHandler {
         sockets.stream()
                .gather(Gatherers.windowFixed(Math.max(1,sockets.size()/opt.getThreads())))
                .forEach(skts->{
-                   pollers.add(new XdpPoller(umemBufferPoll, skts, this));
+                   pollers.add(new XdpPoller(umemBufferPoll, skts, false,this));
                });
 
         XdpProg prog = Xdp.findFile(XDP_PROG, null, ifindex);
@@ -280,6 +277,11 @@ public class XdpIface implements Iface, XdpIngressHandler {
         if (!ifaceIngress.enqueue(buffer)){
             ifaceIngress.callback();
         }
+    }
+
+    @Override
+    public void handle(RxDesc rxDesc) {
+        handle(rxDesc.data().asSlice(rxDesc.offset(), rxDesc.len()));
     }
 
     @Override

@@ -10,6 +10,8 @@ public interface XdpIngressHandler {
 
     void handle(MemorySegment ingress);
 
+    void handle(RxDesc rxDesc);
+
     void complete();
 
 }

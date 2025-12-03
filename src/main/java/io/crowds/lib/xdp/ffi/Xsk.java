@@ -95,6 +95,12 @@ public interface Xsk {
     int xsk_socket__update_xskmap(MemorySegment xsk, int xsks_map_fd);
 
     /**
+     * int xsk_ring_prod__needs_wakeup(const struct xsk_ring_prod *r)
+     */
+    @NativeFunction(fast = true)
+    int xsk_ring_prod__needs_wakeup(@Pointer XskRing r);
+
+    /**
      * __u32 xsk_prod_nb_free(struct xsk_ring_prod *r, __u32 nb)
      */
     @NativeFunction(fast = true)

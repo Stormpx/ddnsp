@@ -30,6 +30,8 @@ public interface Unix {
     int MAP_FIXED= 	0x10;
     int MAP_FILE= 	0;
 
+    int MSG_DONTWAIT = 0x40;
+
     /**
      * void *mmap (void *__addr, size_t __len, int __prot, int __flags, int __fd, __off_t __offset)
      * @return
@@ -70,7 +72,7 @@ public interface Unix {
             MemoryLifetimeScope.of(arena).active(()->{
                 int r = pipe2(pipefd,flags);
                 if (r==-1){
-                    throw new RuntimeException(strError(-ErrorNo.error.get()));
+                    throw new RuntimeException(strError(-ErrorNo.getCapturedError().errno()));
                 }
             });
             int[] fds = new int[2];
@@ -79,6 +81,23 @@ public interface Unix {
             return fds;
         }
     }
+
+    /**
+     * ssize_t sendto(int socket, const void *message, size_t length,
+     *            int flags, const struct sockaddr *dest_addr,
+     *            socklen_t dest_len);
+     */
+    @NativeFunction(needErrorNo = true)
+    long sendto(int socket, MemorySegment message, long length,int flags,MemorySegment dest_addr,int dest_len);
+
+    /**
+     * ssize_t recvfrom(int socket, void *restrict buffer, size_t length,
+     *            int flags, struct sockaddr *restrict address,
+     *            socklen_t *restrict address_len);
+     */
+    @NativeFunction(needErrorNo = true)
+    long recvfrom(int socket, MemorySegment buffer, long length,int flags,MemorySegment address,MemorySegment address_len);
+
 
     /**
      * ssize_t write(int fd, const void buf[.count], size_t count);
@@ -91,6 +110,12 @@ public interface Unix {
      */
     @NativeFunction(needErrorNo = true)
     long read(int fd, MemorySegment buf, long count);
+
+    /**
+     * int close(int fd);
+     */
+    @NativeFunction(needErrorNo = true)
+    int close(int fd);
 
     /**
      * int setsockopt(int sockfd, int level, int optname,const void optval[.optlen],socklen_t optlen);
@@ -108,9 +133,8 @@ public interface Unix {
             MemoryLifetimeScope.of(arena).active(()->{
                 MemorySegment devname = arena.allocateFrom(dev);
                 int r = setsockopt(fd,SOL_SOCKET,SO_BINDTODEVICE,devname,devname.byteSize()-1);
-                System.out.println(r);
                 if (r==-1){
-                    throw new RuntimeException(strError(ErrorNo.error.get()));
+                    throw new RuntimeException(strError(ErrorNo.getCapturedError().errno()));
                 }
             });
         } catch (RuntimeException e) {

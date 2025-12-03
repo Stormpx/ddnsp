@@ -19,8 +19,6 @@ public class UmemBufferPoll {
     private void initBlocks(int capacity){
         int totalChunks = this.umem.chunks();
         int chunkSize = this.umem.chunkSize();
-        System.out.println(totalChunks);
-        System.out.println(chunkSize);
         Block block = new Block(capacity);
 
         for (long i = 0; i < totalChunks; i++) {
@@ -35,7 +33,6 @@ public class UmemBufferPoll {
         if (!block.isEmpty()&&block.capacity()>0){
             this.blocks.add(block);
         }
-        System.out.println("bufferPoll: "+this.blocks.size());
     }
 
     public Umem umem() {

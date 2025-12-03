@@ -13,6 +13,8 @@ public class XdpOpt {
     private int queue=1;
     private int mode=1;
     private boolean unload=false;
+    private boolean rxCheck=true;
+    private boolean busyPoll = false;
     private int umemSize = 4096 * Xsk.XSK_UMEM__DEFAULT_FRAME_SIZE;
     private int frameSize = Xsk.XSK_UMEM__DEFAULT_FRAME_SIZE;
     private int fillSize = Xsk.XSK_RING_PROD__DEFAULT_NUM_DESCS * 2;
@@ -27,6 +29,8 @@ public class XdpOpt {
         var queue = json.getInteger("queue");
         var mode = json.getInteger("mode");
         var unload = json.getBoolean("unload");
+        var rxCheck = json.getBoolean("rxCheck");
+        var busyPoll = json.getBoolean("busyPoll");
         var umemSize = json.getInteger("umemSize");
         var frameSize = json.getInteger("frameSize");
         var fillSize = json.getInteger("fillSize");
@@ -45,6 +49,12 @@ public class XdpOpt {
         }
         if(unload!=null){
             opt.setUnload(unload);
+        }
+        if (rxCheck!=null){
+            opt.setRxCheck(rxCheck);
+        }
+        if (busyPoll!=null){
+            opt.setBusyPoll(busyPoll);
         }
         if(umemSize!=null){
             opt.setUmemSize(umemSize);
@@ -108,6 +118,15 @@ public class XdpOpt {
         this.unload = unload;
     }
 
+
+    public boolean isRxCheck() {
+        return rxCheck;
+    }
+
+    public void setRxCheck(boolean rxCheck) {
+        this.rxCheck = rxCheck;
+    }
+
     public int getUmemSize() {
         return umemSize;
     }
@@ -167,5 +186,13 @@ public class XdpOpt {
     @Override
     public String toString() {
         return Json.encode(this);
+    }
+
+    public boolean isBusyPoll() {
+        return busyPoll;
+    }
+
+    public void setBusyPoll(boolean busyPoll) {
+        this.busyPoll = busyPoll;
     }
 }

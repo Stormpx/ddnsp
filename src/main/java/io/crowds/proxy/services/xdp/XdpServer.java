@@ -169,7 +169,7 @@ public class XdpServer {
                     .setSubNet(subNet)
                     .setGateway(gateway)
                     .setMacAddress(mac)
-                    .setVerifyChecksum(true)
+                    .setVerifyChecksum(option.getOpt().isRxCheck())
                     .setIfType(IfType.ETHERNET)
                     .addIp(ipMask.ip());
             netStack.addNetwork(option.getIface(), params,()->new XdpIface(option.getIface(), option.getOpt()));

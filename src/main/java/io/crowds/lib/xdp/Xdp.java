@@ -204,7 +204,7 @@ public class Xdp {
                 MemorySegment entryPoint = BpfRingBuffer.genEntryPoint(klass, callback);
                 var rb = LibBpf.INSTANCE.ring_buffer__new(mapFd, entryPoint, MemorySegment.NULL, MemorySegment.NULL);
                 if (rb==null){
-                    var errno = -ErrorNo.error.get();
+                    var errno = -ErrorNo.getCapturedError().errno();
                     throw new RuntimeException("Create ring buffer failed: "+Unix.INSTANCE.strError(errno));
                 }
                 return new BpfRingBuffer(mapFd,rb,entryPoint);
