@@ -7,6 +7,7 @@ import io.crowds.util.Native;
 import io.crowds.util.SimpleNativeLibLoader;
 import top.dreamlike.panama.generator.proxy.ErrorNo;
 import top.dreamlike.panama.generator.proxy.MemoryLifetimeScope;
+import top.dreamlike.panama.generator.proxy.StructProxyGenerator;
 
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
@@ -56,7 +57,7 @@ public class Xdp {
         fillSize = nextPowerOfTwo(fillSize);
         compSize = nextPowerOfTwo(compSize);
 
-        Arena arena = Arena.global();
+        Arena arena = Arena.ofAuto();
         int finalChunks = chunks;
         int finalChunkSize = chunkSize;
         int finalFillSize = fillSize;
@@ -73,25 +74,31 @@ public class Xdp {
                 }
 
                 buffer = buffer.reinterpret(umemSize);
-                XskUmemConfig config = Native.structAlloc(arena, XskUmemConfig.class);
+                XskUmemOpts opt = Native.structAlloc(arena, XskUmemOpts.class);
+
                 XskRing fill = Native.structAlloc(arena, XskRing.class);
                 XskRing comp = Native.structAlloc(arena, XskRing.class);
+                opt.setSz(StructProxyGenerator.findMemorySegment(opt).byteSize());
+                opt.setSize(buffer.byteSize());
+                opt.setFill_size(finalFillSize);
+                opt.setComp_size(finalCompSize);
+                opt.setFrame_size(finalChunkSize);
+                opt.setFrame_headroom(Xsk.XSK_UMEM__DEFAULT_FRAME_HEADROOM);
+                opt.setFlags(IfXdp.XDP_UMEM_TX_METADATA_LEN);
+                opt.setTx_metadata_len(Math.toIntExact(Native.getLayout(XskTxMetadata.class).byteSize()));
 
-                config.setFill_size(finalFillSize);
-                config.setComp_size(finalCompSize);
-                config.setFrame_size(finalChunkSize);
-                config.setFrame_headroom(Xsk.XSK_UMEM__DEFAULT_FRAME_HEADROOM);
-                config.setFlags(0);
-
-                MemorySegment umem = arena.allocate(ValueLayout.ADDRESS);
-                int ret = Xsk.INSTANCE.xsk_umem__create(umem, buffer, buffer.byteSize(), fill, comp,
-                        config);
-                if (ret != 0) {
-                    throw new RuntimeException("create umem failed "+ret);
+                MemorySegment umem = Xsk.INSTANCE.xsk_umem__create_opts(buffer, fill, comp, opt);
+                long err = LibXdp.INSTANCE.libxdp_get_error(umem);
+                if (err!=0){
+                    MemorySegment errMsg = arena.allocate(512);
+                    LibXdp.INSTANCE.libxdp_strerror((int) err,errMsg);
+                    throw new RuntimeException("Create umem err: "+ errMsg.getString(0));
                 }
-                umem = umem.get(ValueLayout.ADDRESS, 0);
+
                 return new Umem(umem, buffer,finalChunks, finalChunkSize,fill,comp);
             });
+        } catch (RuntimeException e){
+            throw e;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -99,28 +106,43 @@ public class Xdp {
     }
 
     public static XdpSocket createXsk(String ifname, int queueId, Umem umem, int rxSize, int txSize){
-        Arena arena = Arena.global();
-        MemorySegment ifnamePtr = arena.allocateFrom(ifname);
-        XskSocketConfig cfg = Native.structAlloc(arena, XskSocketConfig.class);
-        cfg.setRx_size(nextPowerOfTwo(rxSize));
-        cfg.setTx_size(nextPowerOfTwo(txSize));
-        cfg.setXdp_flags(0);
-        cfg.setBind_flags((short) 0);
-        cfg.getLibFlags().setLibxdp_flags(Xsk.XSK_LIBXDP_FLAGS__INHIBIT_PROG_LOAD);
+        Arena arena = Arena.ofAuto();
 
-        XskRing tx = Native.structAlloc(arena, XskRing.class);
-        XskRing comp = Native.structAlloc(arena, XskRing.class);
-        XskRing rx = Native.structAlloc(arena, XskRing.class);
-        XskRing fill = Native.structAlloc(arena, XskRing.class);
+        try {
+            XskRing tx = Native.structAlloc(arena, XskRing.class);
+            XskRing comp = Native.structAlloc(arena, XskRing.class);
+            XskRing rx = Native.structAlloc(arena, XskRing.class);
+            XskRing fill = Native.structAlloc(arena, XskRing.class);
 
-        MemorySegment xsk = arena.allocate(ValueLayout.ADDRESS);
+            XskSocketOpts opt = Native.structAlloc(arena, XskSocketOpts.class);
+            opt.setSz(StructProxyGenerator.findMemorySegment(opt).byteSize());
+            opt.setRx_size(nextPowerOfTwo(rxSize));
+            opt.setTx_size(nextPowerOfTwo(txSize));
+            opt.setXdp_flags(0);
+            opt.setBind_flags((short) 0);
+            opt.setLibxdp_flags(Xsk.XSK_LIBXDP_FLAGS__INHIBIT_PROG_LOAD);
+            opt.setTx(tx);
+            opt.setComp(comp);
+            opt.setRx(rx);
+            opt.setFill(fill);
+            return MemoryLifetimeScope.of(arena).active(()->{
 
-        int ret = Xsk.INSTANCE.xsk_socket__create_shared(xsk, ifnamePtr, queueId, umem.umem(), rx, tx, fill,comp,cfg);
-        if (ret!=0){
-            throw new RuntimeException("create xsk socket failed "+ Unix.INSTANCE.strError(-ret));
+                MemorySegment xsk = Xsk.INSTANCE.xsk_socket__create_opts(ifname, queueId, umem.umem(), opt);
+
+                long err = LibXdp.INSTANCE.libxdp_get_error(xsk);
+                if (err!=0){
+                    MemorySegment errMsg = arena.allocate(512);
+                    LibXdp.INSTANCE.libxdp_strerror((int) err,errMsg);
+                    throw new RuntimeException("Create xsk socket err: "+ errMsg.getString(0));
+                }
+                return new XdpSocket(xsk,umem,tx,rx,fill,comp);
+            });
+        }catch (RuntimeException e){
+            throw e;
+        }catch (Exception e) {
+            throw new RuntimeException(e);
         }
-        xsk = xsk.get(ValueLayout.ADDRESS,0);
-        return new XdpSocket(xsk,umem,tx,rx,fill,comp);
+
     }
 
     private static XdpMultiProg findExistsProg(int ifIndex){
@@ -164,7 +186,7 @@ public class Xdp {
     }
 
     private static XdpProg create(XdpProgram xdpProgram, int ifIndex){
-        Arena arena = Arena.global();
+        Arena arena = Arena.ofAuto();
         var xdp = LibXdp.INSTANCE;
         long err = xdp.libxdp_get_error(xdpProgram);
         if (err!=0){
@@ -204,7 +226,7 @@ public class Xdp {
                 MemorySegment entryPoint = BpfRingBuffer.genEntryPoint(klass, callback);
                 var rb = LibBpf.INSTANCE.ring_buffer__new(mapFd, entryPoint, MemorySegment.NULL, MemorySegment.NULL);
                 if (rb==null){
-                    var errno = -ErrorNo.error.get();
+                    var errno = -ErrorNo.getCapturedError().errno();
                     throw new RuntimeException("Create ring buffer failed: "+Unix.INSTANCE.strError(errno));
                 }
                 return new BpfRingBuffer(mapFd,rb,entryPoint);

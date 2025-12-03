@@ -10,6 +10,9 @@ import java.lang.foreign.MemorySegment;
 //	__u32 options;
 //};
 public class XdpDesc {
+    public static final int XDP_PKT_CONTD = (1 << 0);
+    public static final int XDP_TX_METADATA = (1 << 1);
+
     private long addr;
     private int len;
     private int options;

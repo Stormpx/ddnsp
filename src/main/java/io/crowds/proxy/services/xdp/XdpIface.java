@@ -1,9 +1,6 @@
 package io.crowds.proxy.services.xdp;
 
-import io.crowds.compoments.xdp.MacMessage;
-import io.crowds.compoments.xdp.UmemBufferPoll;
-import io.crowds.compoments.xdp.XdpIngressHandler;
-import io.crowds.compoments.xdp.XdpPoller;
+import io.crowds.compoments.xdp.*;
 import io.crowds.lib.unix.Unix;
 import io.crowds.lib.xdp.*;
 import io.crowds.lib.xdp.ffi.BpfMap;
@@ -16,6 +13,8 @@ import org.stormpx.net.buffer.ByteArray;
 import org.stormpx.net.network.Iface;
 import org.stormpx.net.network.IfaceIngress;
 import org.stormpx.net.network.NetworkParams;
+import org.stormpx.net.pkt.PktBuf;
+import org.stormpx.net.util.Checksum;
 import org.stormpx.net.util.IP;
 import org.stormpx.net.util.Mac;
 import org.stormpx.net.util.PacketUtils;
@@ -223,7 +222,7 @@ public class XdpIface implements Iface, XdpIngressHandler {
         sockets.stream()
                .gather(Gatherers.windowFixed(Math.max(1,sockets.size()/opt.getThreads())))
                .forEach(skts->{
-                   pollers.add(new XdpPoller(umemBufferPoll, skts, this));
+                   pollers.add(new XdpPoller(umemBufferPoll, skts, false,this));
                });
 
         XdpProg prog = Xdp.findFile(XDP_PROG, null, ifindex);
@@ -251,9 +250,38 @@ public class XdpIface implements Iface, XdpIngressHandler {
 
     }
 
+
+    @Override
+    public long flags() {
+        return Iface.IF_TX_CONCURRENT | (opt.isTxChecksum()?Iface.PKT_TX_L4_CSUM:0);
+    }
+
     @Override
     public boolean transmit(ByteArray data) {
-        pollers.get((int) (pollerSeq.getAndIncrement() % pollers.size())).transmitData(data);
+        return true;
+    }
+
+    @Override
+    public boolean transmit(PktBuf pktBuf) {
+        int csumStart = -1;
+        int csumOffset = 0;
+        if (pktBuf.l4Checksum() instanceof Checksum.Offload){
+            int offset = switch (pktBuf.ipProtocol()){
+                //icmp
+                case 1 -> 2;
+                //tcp
+                case 6 -> 16;
+                //udp
+                case 17 -> 6;
+                default -> -1;
+            };
+            if (offset!=-1) {
+                csumStart = pktBuf.l2Len() + pktBuf.l3Len();
+                csumOffset = offset;
+            }
+        }
+        TxDesc txDesc = new TxDesc(csumStart, csumOffset,false, pktBuf.buffer());
+        pollers.get((int) (pollerSeq.getAndIncrement() % pollers.size())).transmitData(txDesc);
         return true;
     }
 
@@ -273,8 +301,10 @@ public class XdpIface implements Iface, XdpIngressHandler {
 
     }
 
+
     @Override
-    public void handle(MemorySegment data) {
+    public void handle(RxDesc rxDesc) {
+        MemorySegment data = rxDesc.data().asSlice(rxDesc.offset(), rxDesc.len());
         ByteArray buffer = ByteArray.alloc((int) data.byteSize());
         buffer.setBuffer(0,ByteArray.wrap(data.asByteBuffer()),0,buffer.length());
         if (!ifaceIngress.enqueue(buffer)){

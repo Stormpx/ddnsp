@@ -9,6 +9,10 @@ import java.lang.foreign.ValueLayout;
 
 public record XskProdRing(XskRing ring) {
 
+    public boolean needsWakeup(){
+        return Xsk.INSTANCE.xsk_ring_prod__needs_wakeup(ring)==1;
+    }
+
     public int nbFree(int nb){
         return Xsk.INSTANCE.xsk_prod_nb_free(ring,nb);
     }

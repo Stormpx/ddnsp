@@ -29,8 +29,7 @@ import org.stormpx.net.socket.PartialSocketOptions;
 import org.stormpx.net.util.*;
 
 import java.net.*;
-import java.util.HexFormat;
-import java.util.UUID;
+import java.util.*;
 
 public class XdpServer {
 
@@ -48,40 +47,8 @@ public class XdpServer {
         this.axis = axis;
         this.channelCreator =  new ChannelCreator(axis.getContext().getEventLoopGroup(), ChannelFactoryProvider.ofPartial(),axis.getContext().getVariantResolver());
         this.channelCreator.setPartialNetspace(XDP_NETSPACE);
-        if (option.isEnable()) {
-            initOption(option.getIface());
-        }
     }
 
-    private void initOption(String iface){
-        try {
-            NetworkInterface networkInterface = Inet.findInterfaceByIdentity(iface);
-            if (networkInterface==null){
-                throw new RuntimeException("XDP server: "+ "Network interface '" + iface + "' not found");
-            }
-            if (option.getMtu()==null){
-                option.setMtu(networkInterface.getMTU());
-            }
-            if (option.getMac()==null){
-                byte[] hardwareAddress = networkInterface.getHardwareAddress();
-                if (hardwareAddress==null){
-                    throw new RuntimeException("XDP server: "+ "Interface '" + iface + "' has no MAC address. Please specify 'mac' in configuration");
-                }
-                option.setMac(HexFormat.of().withDelimiter(":").formatHex(hardwareAddress));
-            }
-            if (option.getAddress()==null){
-                InterfaceAddress interfaceAddress =
-                        networkInterface.getInterfaceAddresses().stream().filter(it->it.getAddress() instanceof Inet4Address)
-                                        .findFirst().orElse(null);
-                if (interfaceAddress==null){
-                    throw new RuntimeException("XDP server: "+ "No IP address found on interface '" + iface + "'. Please specify 'address' in configuration");
-                }
-                option.setAddress(interfaceAddress.getAddress().getHostAddress()+"/"+interfaceAddress.getNetworkPrefixLength());
-            }
-        } catch (SocketException e) {
-            throw new RuntimeException(e);
-        }
-    }
 
     private boolean acceptPacket(ProxyInfo info){
         IPPort dst = info.dst();
@@ -152,33 +119,81 @@ public class XdpServer {
 
     }
 
+    private int getMTU(NetworkInterface nic) throws SocketException {
+        return option.getMtu() == null ? nic.getMTU() : option.getMtu();
+    }
+
+    private Mac getMac(NetworkInterface nic) throws SocketException {
+        if (option.getMac() == null) {
+            byte[] hardwareAddress = nic.getHardwareAddress();
+            if (hardwareAddress==null){
+                throw new RuntimeException("XDP server: "+ "Interface '" + option.getIface() + "' has no MAC address. Please specify 'mac' in configuration");
+            }
+            return Mac.of(hardwareAddress);
+        }
+        return Mac.parse(option.getMac());
+    }
+
+    private List<IPMask> getAddress(NetworkInterface nic){
+        if (option.getAddress() == null){
+            var addresses = nic.getInterfaceAddresses().stream()
+                    .filter(it->it.getAddress() instanceof Inet4Address)
+                    .map(ifa->new IPMask(IP.of(ifa.getAddress().getAddress()),ifa.getNetworkPrefixLength()))
+                    .toList();
+
+            if (addresses.isEmpty()){
+                throw new RuntimeException("XDP server: "+ "No IP address found on interface '" + option.getIface() + "'. Please specify 'address' in configuration");
+            }
+            return addresses;
+        }
+        return List.of(Inet.parseIPMask(option.getAddress()));
+    }
+
+    private void fillBypassIps(List<IP> localIps){
+        List<String> bypassIps = Objects.requireNonNullElseGet(option.getOpt().getBypassIps(),ArrayList::new);
+        for (IP localIp : localIps) {
+            bypassIps.add(localIp.toString()+"/32");
+        }
+        option.getOpt().setBypassIps(bypassIps);
+    }
+
     public Future<Void> start(){
         if (!Platform.isLinux()){
             return Future.failedFuture("currently only supports linux");
         }
         try {
-            logger.info("XDP iface: {} mac: {} mtu: {} address: {} gateway: {}",
-                    option.getIface(),option.getMac(),option.getMtu(),option.getAddress(),option.getGateway());
+            String iface = option.getIface();
+            NetworkInterface networkInterface = Inet.findInterfaceByIdentity(iface);
+            if (networkInterface==null){
+                throw new RuntimeException("XDP server: "+ "Network interface '" + iface + "' not found");
+            }
+
             var netStack = axis.getContext().getNetStack().getNetspace(XDP_NETSPACE);
-            IPMask ipMask = Inet.parseIPMask(option.getAddress());
+            List<IPMask> addresses = getAddress(networkInterface);
+            IPMask ipMask = addresses.getFirst();
             IP gateway = IP.parse(option.getGateway());
-            Mac mac = Mac.parse(option.getMac());
+            Mac mac = getMac(networkInterface);
+            int MTU = getMTU(networkInterface);
+            logger.info("XDP iface: {} mac: {} mtu: {} address: {} gateway: {}", iface,mac,MTU,ipMask,gateway);
+            fillBypassIps(addresses.stream().map(IPMask::ip).toList());
             SubNet subNet = new SubNet(ipMask.ip(), ipMask.mask());
             NetworkParams params = new NetworkParams();
-            params.setMtu(option.getMtu())
+            params.setMtu(MTU)
                     .setSubNet(subNet)
                     .setGateway(gateway)
                     .setMacAddress(mac)
-                    .setVerifyChecksum(true)
+                    .setVerifyChecksum(option.getOpt().isRxCheck())
                     .setIfType(IfType.ETHERNET)
                     .addIp(ipMask.ip());
-            netStack.addNetwork(option.getIface(), params,()->new XdpIface(option.getIface(), option.getOpt()));
-            netStack.addRoute(new RouteItem(new SubNet(IPv4.UNSPECIFIED,0), option.getIface()));
+            netStack.addNetwork(iface, params,()->new XdpIface(iface, option.getOpt()));
+            netStack.addRoute(new RouteItem(new SubNet(IPv4.UNSPECIFIED,0), iface));
 
             InetSocketAddress bindAddress = new InetSocketAddress(InetAddress.getByAddress(IPv4.LOOPBACK.getBytes()),5474);
             return Future.any(startTcpServer(bindAddress),startUdpServer(bindAddress)).map((v)->null);
-        } catch (UnknownHostException e) {
+        }catch (UnknownHostException e) {
             return Future.failedFuture("Should not happen");
+        }catch (Throwable e){
+            return Future.failedFuture(e);
         }
 
     }

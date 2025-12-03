@@ -1,6 +1,5 @@
 package io.crowds.compoments.xdp;
 
-import java.lang.foreign.MemorySegment;
 
 public interface XdpIngressHandler {
 
@@ -8,7 +7,7 @@ public interface XdpIngressHandler {
         return false;
     }
 
-    void handle(MemorySegment ingress);
+    void handle(RxDesc rxDesc);
 
     void complete();
 

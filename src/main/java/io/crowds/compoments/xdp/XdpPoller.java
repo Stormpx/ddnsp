@@ -1,10 +1,13 @@
 package io.crowds.compoments.xdp;
 
+import io.crowds.lib.Errno;
 import io.crowds.lib.unix.Poll;
 import io.crowds.lib.unix.PollFd;
 import io.crowds.lib.unix.Unix;
 import io.crowds.lib.xdp.*;
+import io.crowds.lib.xdp.ffi.IfXdp;
 import io.crowds.lib.xdp.ffi.XdpDesc;
+import io.crowds.lib.xdp.ffi.XskTxMetadata;
 import io.crowds.util.Native;
 import io.netty.util.internal.shaded.org.jctools.queues.MpscUnboundedArrayQueue;
 import org.slf4j.Logger;
@@ -27,7 +30,7 @@ public class XdpPoller {
 
     private static final Logger logger = LoggerFactory.getLogger(XdpPoller.class);
     private static final Thread.Builder THREAD_BUILDER = Thread.ofPlatform().name("xdp-poller-",0);
-    private static final int BATCH_SIZE = 12;
+    private static final int BATCH_SIZE = 64;
     private static final int REFILL_SIZE = 64;
     private static final double LOW_WATER_MARK_FACTOR = 0.25;
     private static final double HIGH_WATER_MARK_FACTOR = 0.75;
@@ -35,8 +38,8 @@ public class XdpPoller {
     private final UmemBufferPoll bufferPoll;
     private final List<XskContext> xskCtxs;
     private final List<BpfRingBuffer> ringBuffers = new CopyOnWriteArrayList<>();
-    private final int[] wakeupFd;
-    private final AtomicBoolean wakeup = new AtomicBoolean(false);
+
+    private final Poller poller;
 
     private final Map<Integer,Runnable> eventHandler = new ConcurrentHashMap<>();
 
@@ -48,16 +51,16 @@ public class XdpPoller {
     private final CompletableFuture<Void> closedFuture = new CompletableFuture<>();
 
     private int egressCounter = -1;
-    private final Queue<ByteArray> egressQueue = new MpscUnboundedArrayQueue<>(4096);
+    private final Queue<TxDesc> egressQueue = new MpscUnboundedArrayQueue<>(4096);
     private final XdpIngressHandler ingressHandler;
 
     private short interestEvents = Poll.POLLIN;
 
-    public XdpPoller(UmemBufferPoll bufferPoll, List<XdpSocket> sockets, XdpIngressHandler ingressHandler) {
+    public XdpPoller(UmemBufferPoll bufferPoll, List<XdpSocket> sockets,boolean busyPoll, XdpIngressHandler ingressHandler) {
         this.bufferPoll = bufferPoll;
         this.xskCtxs = sockets.stream().map(XskContext::new).toList();
         this.ingressHandler = ingressHandler;
-        this.wakeupFd = Unix.INSTANCE.pipe(Unix.O_DIRECT|Unix.O_NONBLOCK);
+        this.poller = busyPoll?new BusyPoller():new SysPoller();
     }
 
     class LocalBuffer{
@@ -157,6 +160,12 @@ public class XdpPoller {
             this.socket = socket;
         }
 
+        private void kickRx(){
+            MemoryLifetimeScope.auto().active(()->{
+                Unix.INSTANCE.recvfrom(socket.fd(), MemorySegment.NULL, 0, Unix.MSG_DONTWAIT, MemorySegment.NULL, MemorySegment.NULL);
+            });
+        }
+
         private int doFill(int nb,MemorySegment idxPtr){
             XskProdRing fq = this.socket.fill();
             if (nb==0||fq.reserve(nb,idxPtr)==0){
@@ -173,7 +182,10 @@ public class XdpPoller {
                 fq.addr(idx+i,addr);
             }
             fq.submit(i);
-            logger.debug("fill {} to fd:{} fq",i,this.socket.fd());
+            if (fq.needsWakeup()){
+                kickRx();
+            }
+//            logger.debug("fill {} to fd:{} fq",i,this.socket.fd());
             return i;
         }
 
@@ -191,22 +203,23 @@ public class XdpPoller {
                         fillSize = Math.min(localBuffer.reverseFrames(fillSize),fillSize);
                         fillSize = doFill(fillSize,idxPtr);
 
-                        this.lastFill = fillSize;
+                        this.lastFill = Math.max(1,fillSize);
                         this.lastReceived = 0;
                         this.refill=true;
                     }
                     return;
                 }
                 int lastReceived = this.lastReceived;
-                int lasFill = this.lastFill;
-                int refillSize = REFILL_SIZE * ((lastReceived / lasFill)+1);
+                int lastFill = this.lastFill;
+                int refillSize = REFILL_SIZE * ((lastReceived / lastFill)+1);
+                refillSize = localBuffer.reverseFrames(refillSize);
+                refillSize = Math.min(nbFree,refillSize);
                 if (refillSize<=0){
                     return;
                 }
-                refillSize = localBuffer.reverseFrames(refillSize);
-                refillSize = Math.min(nbFree,refillSize);
                 refillSize = doFill(refillSize,idxPtr);
-                this.lastFill = refillSize;
+                this.lastFill = Math.max(1,refillSize);
+                this.lastReceived = 0;
                 int highWaterMark = (int) (fq.ring().getSize() * HIGH_WATER_MARK_FACTOR);
                 if (nbUsing+refillSize >= highWaterMark){
                     this.refill=false;
@@ -215,9 +228,10 @@ public class XdpPoller {
             }
         }
 
-        void receive(){
+        int receive(){
             XdpIngressHandler ingressHandler = XdpPoller.this.ingressHandler;
             assert ingressHandler!=null;
+            int received = 0;
             Umem umem = socket.umemInfo();
             XskConsRing rx = socket.rx();
             List<Long> addrs = new ArrayList<>();
@@ -227,22 +241,27 @@ public class XdpPoller {
                 var idx = idxPtr.get(ValueLayout.JAVA_INT,0);
                 for (int i = 0; i < nPkt; i++) {
                     XdpDesc desc = rx.desc(idx + i);
-                    MemorySegment data = desc.getData(umem);
-                    ingressHandler.handle(data);
+                    long umemAddr = desc.getUmemAddr();
+                    long dataAddr = desc.getDataAddr();
+                    int len = desc.getLen();
+                    MemorySegment data = umem.getData(umemAddr);
+                    ingressHandler.handle(new RxDesc(data,dataAddr-umemAddr,len));
                     if (!ingressHandler.isZeroCopy()) {
-                        addrs.add(desc.getUmemAddr());
+                        addrs.add(umemAddr);
                     }
                 }
                 rx.release(nPkt);
-                this.lastReceived=nPkt;
+                received+=nPkt;
+                this.lastReceived+=nPkt;
             }
             ingressHandler.complete();
             for (Long addr : addrs) {
                 localBuffer.putAddr(addr);
             }
+            return received;
         }
 
-        void releaseComp() {
+        int releaseComp() {
             try (Arena arena = Arena.ofConfined()) {
                 MemorySegment idxPtr = arena.allocate(ValueLayout.JAVA_INT);
                 XskConsRing cq = socket.comp();
@@ -253,15 +272,30 @@ public class XdpPoller {
                     localBuffer.putAddr(addr);
                 }
                 cq.release(nPkt);
+                return nPkt;
             }
 
         }
 
+        void kickTx(){
+            MemoryLifetimeScope.auto()
+                    .active(()->{
+                        long ret = Unix.INSTANCE.sendto(socket.fd(), MemorySegment.NULL, 0, Unix.MSG_DONTWAIT, MemorySegment.NULL, 0);
+                        var errno = ErrorNo.getCapturedError().errno();
+                        if (ret>=0 || errno==Errno.ENOBUFS || errno==Errno.EAGAIN || errno == Errno.EBUSY || errno == Errno.ENETDOWN){
+                            return;
+                        }
+                        logger.error("kick socket tx: {} failed: {}",socket.fd(),Unix.INSTANCE.strError(errno));
+                    });
+
+        }
+
         TxResult transmit(){
-            Queue<ByteArray> egressQueue = XdpPoller.this.egressQueue;
+            Queue<TxDesc> egressQueue = XdpPoller.this.egressQueue;
             if (egressQueue.isEmpty()){
                 return new TxResult(0,false);
             }
+            int chunkSize = socket.umemInfo().chunkSize();
             XskProdRing txRing = socket.tx();
 
             try (Arena arena = Arena.ofConfined()){
@@ -288,12 +322,41 @@ public class XdpPoller {
                         break;
                     }
 
-                    MemorySegment buffer = socket.umemInfo().getData(addr);
-                    ByteArray data = egressQueue.poll();
-                    assert data!=null;
-                    ByteArray.wrap(buffer.asByteBuffer()).setBuffer(0,data,0,data.length());
-
                     XdpDesc desc = txRing.desc(idx++);
+
+                    MemorySegment buffer = socket.umemInfo().getData(addr);
+                    TxDesc txDesc = egressQueue.poll();
+                    assert txDesc !=null;
+                    ByteArray data = txDesc.data();
+
+                    if (txDesc.isFillMeta()){
+                        long txMetadataLen = Native.getLayout(XskTxMetadata.class).byteSize();
+                        if (chunkSize - txMetadataLen < data.length()){
+                            idx--;
+                            continue;
+                        }
+                        XskTxMetadata txMetadata = Native.as(buffer.asSlice(0,txMetadataLen).fill((byte) 0), XskTxMetadata.class);
+                        long flags = 0;
+                        if (txDesc.isRequestChecksum()){
+                            var csumRequest = txMetadata.getUnion().getRequest();
+                            csumRequest.setCsum_start((short) txDesc.csumStart());
+                            csumRequest.setCsum_offset((short) txDesc.csumOffset());
+                            flags|=IfXdp.XDP_TXMD_FLAGS_CHECKSUM;
+                        }
+                        if (txDesc.isRequestTimestamp()){
+                            flags|=IfXdp.XDP_TXMD_FLAGS_TIMESTAMP;
+                        }
+                        txMetadata.setFlags(flags);
+                        desc.setOptions(desc.getOptions() | IfXdp.XDP_TX_METADATA);
+
+                        addr += txMetadataLen;
+                        buffer = buffer.asSlice(txMetadataLen);
+
+                    }
+
+
+                    ByteArray.wrap(buffer.asByteBuffer()).setBuffer(0, data,0, data.length());
+
                     desc.setAddr(addr);
                     desc.setLen(data.length());
 
@@ -301,7 +364,9 @@ public class XdpPoller {
                 }
 
                 txRing.submit(nb);
-
+                if (txRing.needsWakeup()){
+                    kickTx();
+                }
                 return new TxResult(nb,false);
             }
 
@@ -315,8 +380,9 @@ public class XdpPoller {
 
     record TxResult(int nb, boolean oom){}
 
-    private void processEgressQueue(){
+    private TxResult processEgressQueue(){
         int sockets = this.xskCtxs.size();
+        int nb = 0;
         boolean oom = false;
         while (!this.egressQueue.isEmpty()&&!oom&&sockets>0){
             XskContext xskContext = nextEgressSocket();
@@ -325,41 +391,21 @@ public class XdpPoller {
             if (result.nb==0){
                 sockets--;
             }
+            nb+= result.nb;
             oom = result.oom;
         }
-        if (!this.egressQueue.isEmpty()){
-            this.interestEvents |= Poll.POLLOUT;
-        }
+        return new TxResult(nb,oom);
     }
 
-    private void drainWakeupMessage(){
-        int fd = this.wakeupFd[0];
-        try (Arena arena = Arena.ofConfined()){
-            MemorySegment buf = arena.allocate(128);
-            MemoryLifetimeScope.of(arena).active(()->{
-                long ret = 0;
-                while ((ret = Unix.INSTANCE.read(fd,buf,buf.byteSize())) >0){}
-                if (ret==-1){
-                    int errno = ErrorNo.getCapturedError().errno();
-                    if (errno != 11){
-                        logger.warn("Unexpected errno: {} on read wakeup fd: {}",errno,Unix.INSTANCE.strError(errno));
-                    }
-                }
-            });
-        }
-
-    }
 
     private void setup(){
         Map<Integer, Runnable> eventHandlers = this.eventHandler;
-        var wakeupFd = this.wakeupFd;
         for (XskContext ctx : this.xskCtxs) {
             eventHandlers.put(ctx.socket.fd(),ctx::receive);
         }
         for (BpfRingBuffer rb : this.ringBuffers) {
             eventHandlers.put(rb.fd(), rb::consume);
         }
-        eventHandlers.put(wakeupFd[0], this::drainWakeupMessage);
 
         for (XskContext ctx : this.xskCtxs) {
             ctx.fillRing();
@@ -367,84 +413,12 @@ public class XdpPoller {
         startedFuture.complete(null);
     }
 
-    private NativeArray<PollFd> buildPollFds(Arena arena){
-        NativeArray<PollFd> pollFds = Native.structArrayAlloc(arena, PollFd.class, 1 + this.xskCtxs.size()+this.ringBuffers.size());
-        int index = 0;
-        for (BpfRingBuffer ringBuffer : this.ringBuffers) {
-            PollFd pollFd = pollFds.get(index++);
-            pollFd.setFd(ringBuffer.fd());
-            pollFd.setEvents((short) Poll.POLLIN);
-        }
-        for (XskContext xskCtx : this.xskCtxs) {
-            PollFd pollFd = pollFds.get(index++);
-            pollFd.setFd(xskCtx.socket.fd());
-            pollFd.setEvents(interestEvents);
-        }
-        PollFd pollFd = pollFds.get(index);
-        pollFd.setFd(this.wakeupFd[0]);
-        pollFd.setEvents((short) Poll.POLLIN);
-        return pollFds;
-    }
-
     private void xdpPoll(){
         while (!this.closed.get()){
-            try (Arena arena = Arena.ofConfined()){
-                var pollFds = buildPollFds(arena);
-                int poll = MemoryLifetimeScope.of(arena).active(()-> Poll.INSTANCE.poll(pollFds, pollFds.size(), 100));
-                if (poll<0){
-                    logger.error("Poll return Error: {}",Unix.INSTANCE.strError(ErrorNo.getCapturedError().errno()));
-                    continue;
-                }
-                if (poll==0){
-                    continue;
-                }
-                boolean outEvent = false;
-                Set<Integer> readableFds = new HashSet<>();
-                for (PollFd pollFd : pollFds) {
-                    int fd = pollFd.getFd();
-                    short revents = pollFd.getRevents();
-
-                    if ((revents&Poll.POLLOUT)!=0){
-                        outEvent = true;
-                    }
-                    if ((revents&Poll.POLLIN)!=0){
-                        try {
-                            Runnable runnable = this.eventHandler.get(fd);
-                            if (runnable!=null){
-                                readableFds.add(fd);
-                                runnable.run();
-                            }
-                        } catch (Exception e) {
-                            logger.error("Error occurred while processing the read event fd: {}", fd,e);
-                        }
-                    }
-
-                }
-
-                for (XskContext ctx : this.xskCtxs) {
-                    ctx.releaseComp();
-                }
-                if (outEvent||this.wakeup.get()){
-                    this.interestEvents &= ~Poll.POLLOUT;
-                    this.wakeup.set(false);
-                    processEgressQueue();
-                    if (this.wakeup.get()){
-                        if (this.egressQueue.isEmpty()){
-                            this.wakeup.set(false);
-                        }
-                    }
-
-                }
-                for (XskContext xskCtx : this.xskCtxs) {
-                    if (readableFds.contains(xskCtx.socket.fd())) {
-                        xskCtx.fillRing();
-                    }
-                }
-                this.localBuffer.freeBlocks();
-            } catch (Throwable e) {
-                logger.error("Error occurred while xdp poll",e);
-            }
+            this.poller.poll();
         }
+        this.eventHandler.clear();
+        this.poller.close();
         this.closedFuture.complete(null);
     }
 
@@ -469,33 +443,204 @@ public class XdpPoller {
         }
     }
 
-    private void tryWakeup(int code){
-        try (Arena arena = Arena.ofConfined()){
-            MemorySegment buf = arena.allocate(ValueLayout.JAVA_INT);
-            buf.set(ValueLayout.JAVA_INT,0,code);
-            MemoryLifetimeScope.of(arena).active(()->{
-                long ret = Unix.INSTANCE.write(this.wakeupFd[1],buf,buf.byteSize());
-                if (ret<0){
-                    int errno = ErrorNo.getCapturedError().errno();
-                    logger.warn("Wakeup poller failed: {}",Unix.INSTANCE.strError(errno));
-                }
-            });
-        }
-    }
-
-    public void transmitData(ByteArray data){
+    public void transmitData(TxDesc data){
         if (this.egressQueue.add(data)){
-            if (this.wakeup.compareAndSet(false,true)){
-                tryWakeup(1);
-            }
+            this.poller.wakeup(1);
         }
     }
 
     public CompletableFuture<Void> stop(){
         if (this.closed.compareAndSet(false,true)){
-            tryWakeup(-1);
+            this.poller.wakeup(-1);
         }
         return this.closedFuture;
+    }
+
+    interface Poller{
+
+        void poll();
+
+        void wakeup(int code);
+
+        void close();
+    }
+
+    class SysPoller implements Poller{
+
+        private final int[] wakeupFd;
+        private final AtomicBoolean wakeup = new AtomicBoolean(false);
+
+        public SysPoller() {
+            this.wakeupFd = Unix.INSTANCE.pipe(Unix.O_DIRECT|Unix.O_NONBLOCK);
+            eventHandler.put(this.wakeupFd[0],this::drainWakeupMessage);
+        }
+
+        private NativeArray<PollFd> buildPollFds(Arena arena){
+            NativeArray<PollFd> pollFds = Native.structArrayAlloc(arena, PollFd.class, 1 + xskCtxs.size()+ringBuffers.size());
+            int index = 1;
+            for (BpfRingBuffer ringBuffer : ringBuffers) {
+                PollFd pollFd = pollFds.get(index++);
+                pollFd.setFd(ringBuffer.fd());
+                pollFd.setEvents((short) Poll.POLLIN);
+            }
+            for (XskContext xskCtx : xskCtxs) {
+                PollFd pollFd = pollFds.get(index++);
+                pollFd.setFd(xskCtx.socket.fd());
+                pollFd.setEvents(interestEvents);
+            }
+            PollFd pollFd = pollFds.getFirst();
+            pollFd.setFd(this.wakeupFd[0]);
+            pollFd.setEvents((short) Poll.POLLIN);
+
+            return pollFds;
+        }
+
+        @Override
+        public void poll() {
+            try (Arena arena = Arena.ofConfined()){
+                var pollFds = buildPollFds(arena);
+                int poll = MemoryLifetimeScope.of(arena).active(()-> Poll.INSTANCE.poll(pollFds, pollFds.size(), 100));
+                if (poll<0){
+                    logger.error("Poll return Error: {}",Unix.INSTANCE.strError(ErrorNo.getCapturedError().errno()));
+                    return;
+                }
+                if (poll==0){
+                    return;
+                }
+                boolean outEvent = false;
+                Set<Integer> readableFds = new HashSet<>();
+                for (PollFd pollFd : pollFds) {
+                    int fd = pollFd.getFd();
+                    short revents = pollFd.getRevents();
+
+                    if ((revents&Poll.POLLOUT)!=0){
+                        outEvent = true;
+                    }
+                    if ((revents&Poll.POLLIN)!=0){
+                        try {
+                            Runnable runnable = eventHandler.get(fd);
+                            if (runnable!=null){
+                                readableFds.add(fd);
+                                runnable.run();
+                            }
+                        } catch (Exception e) {
+                            logger.error("Error occurred while processing the read event fd: {}", fd,e);
+                        }
+                    }
+
+                }
+
+                for (XskContext ctx : xskCtxs) {
+                    ctx.releaseComp();
+                }
+                if (outEvent||this.wakeup.get()){
+                    interestEvents &= ~Poll.POLLOUT;
+                    TxResult result = processEgressQueue();
+                    this.wakeup.set(false);
+                    if (!result.oom){
+                        processEgressQueue();
+                    }
+                    if (!egressQueue.isEmpty()){
+                        interestEvents |= Poll.POLLOUT;
+                    }
+                }
+                for (XskContext xskCtx : xskCtxs) {
+                    if (readableFds.contains(xskCtx.socket.fd())) {
+                        xskCtx.fillRing();
+                    }
+                }
+                localBuffer.freeBlocks();
+            } catch (Throwable e) {
+                logger.error("Error occurred while xdp poll",e);
+            }
+        }
+
+
+        private void drainWakeupMessage(){
+            int fd = this.wakeupFd[0];
+            try (Arena arena = Arena.ofConfined()){
+                MemorySegment buf = arena.allocate(128);
+                MemoryLifetimeScope.of(arena).active(()->{
+                    long ret = 0;
+                    while ((ret = Unix.INSTANCE.read(fd,buf,buf.byteSize())) >0){}
+                    if (ret==-1){
+                        int errno = ErrorNo.getCapturedError().errno();
+                        if (errno != Errno.EAGAIN){
+                            logger.warn("Unexpected errno: {} on read wakeup fd: {}",errno,Unix.INSTANCE.strError(errno));
+                        }
+                    }
+                });
+            }
+
+        }
+
+        private void tryWakeup(int code){
+            try (Arena arena = Arena.ofConfined()){
+                MemorySegment buf = arena.allocate(ValueLayout.JAVA_INT);
+                buf.set(ValueLayout.JAVA_INT,0,code);
+                MemoryLifetimeScope.of(arena).active(()->{
+                    long ret = Unix.INSTANCE.write(this.wakeupFd[1],buf,buf.byteSize());
+                    if (ret<0){
+                        int errno = ErrorNo.getCapturedError().errno();
+                        logger.warn("Wakeup poller failed: {}",Unix.INSTANCE.strError(errno));
+                    }
+                });
+            }
+        }
+        @Override
+        public void wakeup(int code) {
+            if (this.wakeup.compareAndSet(false,true)){
+                tryWakeup(code);
+            }
+        }
+
+        @Override
+        public void close() {
+            MemoryLifetimeScope.auto().active(()->{
+                Unix.INSTANCE.close(wakeupFd[0]);
+                Unix.INSTANCE.close(wakeupFd[1]);
+            });
+
+        }
+    }
+
+    class BusyPoller implements Poller{
+
+        @Override
+        public void poll() {
+            try {
+                Set<XskContext> receivedXsks = new HashSet<>();
+
+                for (BpfRingBuffer ringBuffer : ringBuffers) {
+                    ringBuffer.consume();
+                }
+
+                for (XskContext ctx : xskCtxs) {
+                    ctx.releaseComp();
+                    if (ctx.receive()>0){
+                        receivedXsks.add(ctx);
+                    }
+                }
+                processEgressQueue();
+                for (XskContext ctx : receivedXsks) {
+                    ctx.fillRing();
+                }
+
+                localBuffer.freeBlocks();
+            } catch (Throwable e) {
+                logger.error("Error occurred while xdp poll",e);
+            }
+        }
+
+        @Override
+        public void wakeup(int code) {
+
+        }
+
+        @Override
+        public void close() {
+
+        }
     }
 
 }

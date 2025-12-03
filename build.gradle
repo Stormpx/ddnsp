@@ -75,7 +75,7 @@ dependencies {
 
     implementation 'org.apache.sshd:sshd-core:2.15.0'
 
-    implementation 'org.stormpx.partialtcp:net-netty:0.0.5'
+    implementation 'org.stormpx.partialtcp:net-netty:0.0.6'
 
     implementation 'org.drasyl:netty-tun:1.2.5'
     implementation "io.netty:netty-transport-native-epoll:4.2.1.Final:linux-${arch.isAmd64()?'x86_64':'aarch_64'}"

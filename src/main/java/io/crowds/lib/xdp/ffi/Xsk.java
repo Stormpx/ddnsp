@@ -34,6 +34,14 @@ public interface Xsk {
                                  @Pointer XskUmemConfig config){
         return xsk_umem__create_with_fd(umem,0,umem_area,size,fill,comp,config);
     }
+    /**
+     * struct xsk_umem *xsk_umem__create_opts(void *umem_area,
+     * 				       struct xsk_ring_prod *fill,
+     * 				       struct xsk_ring_cons *comp,
+     * 				       struct xsk_umem_opts *opts);
+     */
+    @NativeFunction
+    MemorySegment xsk_umem__create_opts(MemorySegment umem_area,@Pointer XskRing fill, @Pointer XskRing comp,@Pointer XskUmemOpts opts);
 
     /**
      * int xsk_umem__fd(const struct xsk_umem *umem);
@@ -77,6 +85,16 @@ public interface Xsk {
                            @Pointer XskSocketConfig usr_config);
 
     /**
+     * struct xsk_socket *xsk_socket__create_opts(const char *ifname,
+     * 					   __u32 queue_id,
+     * 					   struct xsk_umem *umem,
+     * 					   struct xsk_socket_opts *opts);
+     */
+    @NativeFunction
+    MemorySegment xsk_socket__create_opts(String ifname,int queue_id,MemorySegment umem,@Pointer XskSocketOpts opts);
+
+
+    /**
      * int xsk_socket__fd(const struct xsk_socket *xsk);
      */
     @NativeFunction(fast = true)
@@ -93,6 +111,12 @@ public interface Xsk {
      */
     @NativeFunction
     int xsk_socket__update_xskmap(MemorySegment xsk, int xsks_map_fd);
+
+    /**
+     * int xsk_ring_prod__needs_wakeup(const struct xsk_ring_prod *r)
+     */
+    @NativeFunction(fast = true)
+    int xsk_ring_prod__needs_wakeup(@Pointer XskRing r);
 
     /**
      * __u32 xsk_prod_nb_free(struct xsk_ring_prod *r, __u32 nb)
