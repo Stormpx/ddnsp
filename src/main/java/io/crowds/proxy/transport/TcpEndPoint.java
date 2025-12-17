@@ -39,14 +39,24 @@ public class TcpEndPoint extends EndPoint {
                 ByteBuf buf = cumulation;
                 if (cumulation!=null){
                     cumulation = null;
-                    ctx.executor().submit(()->fireBuf(buf));
+                    ctx.executor().submit(()->{
+                        fireBuf(buf);
+                        fireReadComplete();
+                    });
                 }
                 super.read(ctx);
             }
 
             @Override
             public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
-                fireWriteable(ctx.channel().isWritable());
+                boolean writable = ctx.channel().isWritable();
+                if (!writable){
+                    ctx.flush();
+                    if (ctx.channel().isWritable()){
+                        return;
+                    }
+                }
+                fireWriteable(writable);
             }
 
             @Override
@@ -71,6 +81,12 @@ public class TcpEndPoint extends EndPoint {
                 }else {
                     fireBuf(buf);
                 }
+            }
+
+            @Override
+            public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
+                fireReadComplete();
+                super.channelReadComplete(ctx);
             }
 
             private boolean ignore(Throwable cause){
@@ -107,7 +123,7 @@ public class TcpEndPoint extends EndPoint {
         if (msg instanceof DatagramPacket packet) {
             msg=packet.content();
         }
-        channel.writeAndFlush(msg)
+        channel.write(msg)
                 .addListener(f->{
                     if (!f.isSuccess()){
                         fireException(f.cause());

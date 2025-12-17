@@ -16,7 +16,7 @@ import java.net.InetSocketAddress;
 public class TrojanTest extends ProxyTestBase {
 
     @Rule
-    public XrayRule xrayRule = new XrayRule();
+    public XrayRule xrayRule = new XrayRule(CONTAINER_NETWORK);
 
     protected ProxyTransport createProxy(ChannelCreator channelCreator) throws IOException {
         InetSocketAddress dest = new InetSocketAddress("127.0.0.1", 16831);

@@ -8,20 +8,24 @@ import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.Future;
 
 public class UdpEndPoint extends EndPoint {
-    private Channel channel;
-    private UdpChannel udpChannel;
-    private NetAddr dest;
+    private final Channel channel;
+    private final UdpChannel udpChannel;
+    private final NetAddr dest;
 
     public UdpEndPoint(Channel channel, NetAddr dest) {
         this.channel = channel;
+        this.udpChannel = null;
         this.dest = dest;
     }
 
     public UdpEndPoint(UdpChannel channel, NetAddr dest) {
-        this.udpChannel=channel;
         this.channel = channel.getChannel();
+        this.udpChannel=channel;
         this.dest=dest;
-        channel.packetHandler(dest, this::fireBuf);
+        channel.packetHandler(dest, buf->{
+            fireBuf(buf);
+            fireReadComplete();
+        });
     }
 
     @Override
@@ -31,14 +35,14 @@ public class UdpEndPoint extends EndPoint {
             return;
         }
         if (msg instanceof DatagramPacket packet){
-            channel.writeAndFlush(new DatagramPacket(packet.content(), dest.getAsInetAddr(),packet.sender()))
+            channel.write(new DatagramPacket(packet.content(), dest.getAsInetAddr(),packet.sender()))
                     .addListener(f->{
                         if (!f.isSuccess()){
                             fireException(f.cause());
                         }
                     });
         }else if (msg instanceof ByteBuf){
-            channel.writeAndFlush(new DatagramPacket((ByteBuf) msg,dest.getAsInetAddr(),null))
+            channel.write(new DatagramPacket((ByteBuf) msg,dest.getAsInetAddr(),null))
                     .addListener(f->{
                         if (!f.isSuccess()){
                             fireException(f.cause());

@@ -56,7 +56,7 @@ public class ChainTest extends ProxyTestBase {
     }
 
     @Rule
-    public XrayRule vmessRule = new XrayRule();
+    public XrayRule vmessRule = new XrayRule(CONTAINER_NETWORK);
     private ProxyServer createVmessProxy(ChannelCreator channelCreator,String name) throws IOException {
         InetSocketAddress dest = new InetSocketAddress("127.0.0.1", 16823);
         var option=new VmessOption()
@@ -68,7 +68,7 @@ public class ChainTest extends ProxyTestBase {
     }
 
     @Rule
-    public XrayRule vmessWsRule = new XrayRule();
+    public XrayRule vmessWsRule = new XrayRule(CONTAINER_NETWORK);
     protected ProxyServer createVmessProxyWithWs(ChannelCreator channelCreator,String name) throws IOException {
         InetSocketAddress dest = new InetSocketAddress("127.0.0.1", 16825);
         var option=new VmessOption()
@@ -83,7 +83,7 @@ public class ChainTest extends ProxyTestBase {
     }
 
     @Rule
-    public XrayRule ssRule = new XrayRule();
+    public XrayRule ssRule = new XrayRule(CONTAINER_NETWORK);
     private ProxyServer createSsProxy(ChannelCreator channelCreator,String name) throws IOException {
         InetSocketAddress dest = Inet.createSocketAddress("127.0.0.1", 16827);
         var option=new ShadowsocksOption()
@@ -95,7 +95,7 @@ public class ChainTest extends ProxyTestBase {
     }
 
     @Rule
-    public XrayRule ssWsRule = new XrayRule();
+    public XrayRule ssWsRule = new XrayRule(CONTAINER_NETWORK);
     protected ProxyServer createSsProxyWithWs(ChannelCreator channelCreator,String name) throws IOException {
         InetSocketAddress dest = new InetSocketAddress("127.0.0.1", 16829);
         var option=new ShadowsocksOption()
@@ -109,7 +109,7 @@ public class ChainTest extends ProxyTestBase {
     }
 
     @Rule
-    public XrayRule trojanRule = new XrayRule();
+    public XrayRule trojanRule = new XrayRule(CONTAINER_NETWORK);
     protected ProxyServer createTrojanProxy(ChannelCreator channelCreator,String name) throws IOException {
         InetSocketAddress dest = new InetSocketAddress("127.0.0.1", 16831);
         var option=new TrojanOption()
@@ -122,7 +122,7 @@ public class ChainTest extends ProxyTestBase {
     }
 
     @Rule
-    public XrayRule socksRule = new XrayRule();
+    public XrayRule socksRule = new XrayRule(CONTAINER_NETWORK);
     protected ProxyServer createSocksProxy(ChannelCreator channelCreator,String name) throws IOException {
         InetSocketAddress dest = new InetSocketAddress("127.0.0.1", 16837);
         var option=new SocksOption()
@@ -132,7 +132,7 @@ public class ChainTest extends ProxyTestBase {
     }
 
     @Rule
-    public XrayRule socksWsRule = new XrayRule();
+    public XrayRule socksWsRule = new XrayRule(CONTAINER_NETWORK);
     protected ProxyServer createSocksProxyWithWs(ChannelCreator channelCreator,String name) throws IOException {
         InetSocketAddress dest = new InetSocketAddress("127.0.0.1", 16838);
         SocksOption option=new SocksOption()
@@ -144,7 +144,7 @@ public class ChainTest extends ProxyTestBase {
     }
 
     @Rule
-    public XrayRule vlessRule = new XrayRule();
+    public XrayRule vlessRule = new XrayRule(CONTAINER_NETWORK);
     private ProxyServer createVlessProxy(ChannelCreator channelCreator,String name) throws IOException {
         InetSocketAddress dest = new InetSocketAddress("127.0.0.1", 16839);
         var option=new VlessOption()
@@ -157,7 +157,7 @@ public class ChainTest extends ProxyTestBase {
     }
 
     @Rule
-    public SshRule sshRule = new SshRule();
+    public SshRule sshRule = new SshRule(CONTAINER_NETWORK);
     protected ProxyServer createSshProxy(ChannelCreator channelCreator,String name) throws IOException, InterruptedException {
         SshOption sshOption = new SshOption();
         sshOption.setAddress(new InetSocketAddress("127.0.0.1",37432))
@@ -237,7 +237,7 @@ public class ChainTest extends ProxyTestBase {
 
     @Test
     public void tcpTest() throws Exception {
-        setupSshServer();
+//        setupSshServer();
         var list = new ArrayList<>(List.of(createVmessProxy(channelCreator,"vmess0"),createSsProxy(channelCreator,"ss0"),
                 createTrojanProxy(channelCreator,"trojan0"),createVlessProxy(channelCreator,"vless0"),createSshProxy(channelCreator,"ssh0"),
                 createSocksProxy(channelCreator,"socks0")));

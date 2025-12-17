@@ -16,10 +16,10 @@ import java.net.InetSocketAddress;
 public class SshTest extends ProxyTestBase {
 
     @Rule
-    public SshRule sshRule = new SshRule();
+    public SshRule sshRule = new SshRule(CONTAINER_NETWORK);
     protected ProxyTransport createProxy(ChannelCreator channelCreator) throws IOException, InterruptedException {
         SshOption sshOption = new SshOption();
-        sshOption.setAddress(new InetSocketAddress("127.0.0.1",37432))
+        sshOption.setAddress(new InetSocketAddress("127.0.0.1",37435))
                 .setUser("abc")
                 .setPassword("password")
                 .setVerifyStrategy(SshOption.VerifyStrategy.ACCEPT_ALL);

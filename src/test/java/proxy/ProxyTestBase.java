@@ -24,7 +24,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 public abstract class ProxyTestBase {
-    public static final Network CONTAINER_NETWORK = Network.newNetwork();
+    public final Network CONTAINER_NETWORK = Network.newNetwork();
 
     protected Context context = Ddnsp.newContext(Ddnsp::dnsResolver);
     protected VertxInternal vertx = context.getVertx();
@@ -88,6 +88,7 @@ public abstract class ProxyTestBase {
         readEndpointResponse(countDownLatch,endPoint,channel);
 
         endPoint.write(b);
+        endPoint.flush();
 
         endPoint.closeFuture().addListener(f -> {
             System.out.println("endpoint closed");
@@ -132,6 +133,7 @@ public abstract class ProxyTestBase {
 
         });
         endPoint.write(packet);
+        endPoint.flush();
 
         System.out.println();
 
@@ -142,7 +144,7 @@ public abstract class ProxyTestBase {
         channel.writeOutbound(query);
         packet=channel.readOutbound();
         endPoint.write(packet);
-
+        endPoint.flush();
         if (!countDownLatch.await(5,TimeUnit.SECONDS)){
             throw new RuntimeException("timeout..");
         }

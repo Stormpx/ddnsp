@@ -63,7 +63,9 @@ public class ProxyContext {
 
     public void bridging(EndPoint src,EndPoint dst){
         dst.bufferHandler(src::write);
+        dst.readCompleteHandler(src::flush);
         src.bufferHandler(dst::write);
+        src.readCompleteHandler(dst::flush);
         src.writabilityHandler(dst::setAutoRead);
         dst.writabilityHandler(src::setAutoRead);
         src.closeFuture().addListener(closeFuture->{

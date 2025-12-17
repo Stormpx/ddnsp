@@ -14,6 +14,7 @@ import org.junit.rules.ExternalResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.Network;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.images.builder.Transferable;
 
@@ -24,7 +25,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
-public class XrayRule extends ExternalResource {
+public class XrayRule extends AbstractRule {
 
     private static final Logger logger = LoggerFactory.getLogger(XrayRule.class);
     private GenericContainer<?> server;
@@ -32,6 +33,10 @@ public class XrayRule extends ExternalResource {
 
     private ProtocolOption inside;
     private ProtocolOption outside;
+
+    public XrayRule(Network network) {
+        super(network);
+    }
 
     public XrayRule setName(String name) {
         this.name = name;
@@ -192,7 +197,7 @@ public class XrayRule extends ExternalResource {
         if (name==null) {
             this.name = protocolOption.getName();
         }
-        container.withNetwork(ProxyTestBase.CONTAINER_NETWORK)
+        container.withNetwork(network)
                  .withNetworkAliases(name)
                  .withCopyToContainer(Transferable.of(xrayConfig.encode(), 777),"/etc/xray/config.json")
                  .withLogConsumer(new Slf4jLogConsumer(logger))

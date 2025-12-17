@@ -18,7 +18,7 @@ import java.net.InetSocketAddress;
 public class ShadowsocksTest extends ProxyTestBase {
 
     @Rule
-    public XrayRule xrayRule = new XrayRule();
+    public XrayRule xrayRule = new XrayRule(CONTAINER_NETWORK);
 
     protected ProxyTransport createProxy(ChannelCreator channelCreator) throws IOException {
         InetSocketAddress dest = Inet.createSocketAddress("127.0.0.1", 16827);

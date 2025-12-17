@@ -18,13 +18,13 @@ import java.util.function.Consumer;
 
 public class UdpChannel  extends ChannelInboundHandlerAdapter {
     private final static Logger logger= LoggerFactory.getLogger(UdpChannel.class);
+    private final static Object NULL = new Object();
 
     private final Channel channel;
     private final InetSocketAddress src;
     private final boolean closeIfEmpty;
-    private Consumer<DatagramPacket> fallbackPacketHandler;
 
-    private final Map<InetSocketAddress, Consumer<DatagramPacket>> handlers=new ConcurrentHashMap<>();
+    private final Map<Object, Consumer<DatagramPacket>> handlers=new ConcurrentHashMap<>();
 
 
 
@@ -35,23 +35,26 @@ public class UdpChannel  extends ChannelInboundHandlerAdapter {
         this.channel.pipeline().addLast(this);
     }
 
-
-    public UdpChannel fallbackHandler(Consumer<DatagramPacket> bufferHandler) {
-        this.fallbackPacketHandler = bufferHandler;
-        return this;
-    }
-
-    public UdpChannel packetHandler(NetAddr netAddr,Consumer<DatagramPacket> bufferHandler){
+    private void updateHandlers(Object key,Consumer<DatagramPacket> bufferHandler){
         if (bufferHandler==null){
-            handlers.remove(netAddr.getAsInetAddr());
+            handlers.remove(key);
             if (closeIfEmpty){
                 if (handlers.isEmpty()){
                     channel.close();
                 }
             }
         }else {
-            handlers.put(netAddr.getAsInetAddr(), bufferHandler);
+            handlers.put(key, bufferHandler);
         }
+    }
+
+    public UdpChannel fallbackHandler(Consumer<DatagramPacket> bufferHandler) {
+        updateHandlers(NULL,bufferHandler);
+        return this;
+    }
+
+    public UdpChannel packetHandler(NetAddr netAddr,Consumer<DatagramPacket> bufferHandler){
+        updateHandlers(netAddr.getAsInetAddr(),bufferHandler);
         return this;
     }
 
@@ -66,7 +69,7 @@ public class UdpChannel  extends ChannelInboundHandlerAdapter {
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         if (msg instanceof DatagramPacket packet){
             InetSocketAddress address = packet.sender();
-            Consumer<DatagramPacket> handler = address==null?this.fallbackPacketHandler:handlers.getOrDefault(address,this.fallbackPacketHandler);
+            Consumer<DatagramPacket> handler = handlers.get(address==null?NULL:address);
             if (handler!=null) {
                 handler.accept(new DatagramPacket(packet.content(),src,address));
             }

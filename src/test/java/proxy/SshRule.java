@@ -6,6 +6,7 @@ import org.junit.rules.ExternalResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.Network;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.images.builder.Transferable;
 
@@ -13,7 +14,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.List;
 
-public class SshRule extends ExternalResource {
+public class SshRule extends AbstractRule {
 
     private static final Logger logger = LoggerFactory.getLogger(SshRule.class);
     private static final String SSHD_CONFIG = """
@@ -31,6 +32,10 @@ public class SshRule extends ExternalResource {
 
     private SshOption inside;
     private SshOption outside;
+
+    public SshRule(Network network) {
+        super(network);
+    }
 
     public SshRule setName(String name) {
         this.name = name;
@@ -61,7 +66,7 @@ public class SshRule extends ExternalResource {
                  .withEnv("USER_PASSWORD",sshOption.getPassword())
                  .withEnv("SUDO_ACCESS","true")
                  .withEnv("PASSWORD_ACCESS","true")
-                 .withNetwork(ProxyTestBase.CONTAINER_NETWORK)
+                 .withNetwork(network)
                  .withNetworkAliases(name)
                  .withCopyToContainer(Transferable.of(config.toString(), Transferable.DEFAULT_FILE_MODE),"/config/sshd/sshd_config")
                  .withLogConsumer(new Slf4jLogConsumer(logger))
