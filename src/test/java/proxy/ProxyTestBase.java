@@ -88,6 +88,7 @@ public abstract class ProxyTestBase {
         readEndpointResponse(countDownLatch,endPoint,channel);
 
         endPoint.write(b);
+        endPoint.flush();
 
         endPoint.closeFuture().addListener(f -> {
             System.out.println("endpoint closed");

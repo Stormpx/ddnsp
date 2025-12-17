@@ -419,7 +419,9 @@ public class Axis {
                 }
 
                 ProxyContext proxyContext= (ProxyContext) f.get();
-                proxyContext.getDst().write(packet);
+                EndPoint dst = proxyContext.getDst();
+                dst.write(packet);
+                dst.flush();
 
             })
             ;

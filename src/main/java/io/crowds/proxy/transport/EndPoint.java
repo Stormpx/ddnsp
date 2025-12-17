@@ -23,9 +23,15 @@ public abstract class EndPoint  {
 
     private Consumer<Object> messageHandler;
 
+    private Runnable readCompleteHandler;
+
     private Consumer<Throwable> exceptionHandler=DEFAULT_EXCEPTION_HANDLER;
 
     public abstract void write(Object buf);
+
+    public void flush(){
+        channel().flush();
+    }
 
     public void setAutoRead(boolean autoRead){
         channel().config().setAutoRead(autoRead);
@@ -44,6 +50,12 @@ public abstract class EndPoint  {
         }
         this.messageHandler.accept(buf);
     }
+    protected void fireReadComplete(){
+        Runnable readCompleteHandler = this.readCompleteHandler;
+        if (readCompleteHandler!=null){
+            readCompleteHandler.run();
+        }
+    }
 
     protected void fireWriteable(boolean writeable){
         if (this.writabilityHandler==null){
@@ -61,6 +73,10 @@ public abstract class EndPoint  {
         this.messageHandler =messageHandler;
     }
 
+    public void readCompleteHandler(Runnable readCompleteHandler) {
+        this.readCompleteHandler = readCompleteHandler;
+    }
+
     public void writabilityHandler(Consumer<Boolean> writabilityHandler) {
         this.writabilityHandler = writabilityHandler;
     }
@@ -68,4 +84,6 @@ public abstract class EndPoint  {
     public void exceptionHandler(Consumer<Throwable> exceptionHandler) {
         this.exceptionHandler = exceptionHandler;
     }
+
+
 }
