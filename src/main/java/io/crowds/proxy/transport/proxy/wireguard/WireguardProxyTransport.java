@@ -11,6 +11,7 @@ import io.crowds.proxy.TP;
 import io.crowds.proxy.common.DynamicRecipientLookupHandler;
 import io.crowds.proxy.transport.Transport;
 import io.crowds.proxy.transport.proxy.FullConeProxyTransport;
+import io.crowds.util.DatagramChannelFactory;
 import io.crowds.util.Pkts;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
@@ -58,7 +59,8 @@ public class WireguardProxyTransport extends FullConeProxyTransport {
         initNetStack(axis.getContext());
 
         if (wireguardOption.getDns()!=null) {
-            var upstream = new UdpUpstream(eventLoopGroup.next(), new PartialDatagramChannel(), wireguardOption.getDns());
+            var channelFactory = DatagramChannelFactory.newFactory(it -> new PartialDatagramChannel(), PartialDatagramChannel::new);
+            var upstream = new UdpUpstream(eventLoopGroup.next(), channelFactory, wireguardOption.getDns());
             var dnsCli = new DnsCli(eventLoopGroup, new DnsCache(eventLoopGroup.next()), upstream, wireguardOption.getAddress().address() instanceof IPv6);
             this.variantResolver = new VariantResolver(()->dnsCli);
         }else{

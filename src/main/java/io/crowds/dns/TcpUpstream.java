@@ -129,6 +129,13 @@ public class TcpUpstream extends AbstractDnsUpstream{
             }
         }
 
-
+        @Override
+        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+            Promise<DnsResponse> promise = this.promise;
+            if (promise !=null&&!promise.isDone()){
+                promise.setFailure(cause);
+            }
+            ctx.close();
+        }
     }
 }

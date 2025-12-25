@@ -6,6 +6,7 @@ import io.crowds.compoments.dns.InternalDnsResolver;
 import io.crowds.dns.cache.DnsCache;
 import io.crowds.util.*;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.socket.DatagramChannel;
 import io.netty.handler.codec.dns.*;
 import io.vertx.core.Future;
 import org.slf4j.Logger;
@@ -19,7 +20,7 @@ public class DnsClient implements InternalDnsResolver {
     private final Logger logger= LoggerFactory.getLogger(DnsClient.class);
     private final EventLoopGroup eventLoopGroup;
 
-    private final DatagramChannelFactory datagramChannelFactory;
+    private final DatagramChannelFactory<? extends DatagramChannel> datagramChannelFactory;
     private final DnsCache dnsCache;
 
     private final DnsCli dnsCli;
@@ -35,7 +36,7 @@ public class DnsClient implements InternalDnsResolver {
         var upStreams = newUpStreams(context,option.getUpstreams());
         this.dnsCli = new DnsCli(eventLoopGroup,this.dnsCache,defaultStream,upStreams, option.isTryIpv6()&&Inet.isSupportsIpV6());
     }
-    public DnsClient(EventLoopGroup eventLoopGroup, DatagramChannelFactory datagramChannelFactory) {
+    public DnsClient(EventLoopGroup eventLoopGroup, DatagramChannelFactory<? extends DatagramChannel> datagramChannelFactory) {
         Objects.requireNonNull(eventLoopGroup);
         Objects.requireNonNull(datagramChannelFactory);
         this.eventLoopGroup = eventLoopGroup;
@@ -49,8 +50,7 @@ public class DnsClient implements InternalDnsResolver {
         if (address.isUnresolved()){
             return null;
         }
-        var channel = datagramChannelFactory.newChannel(AddrType.of(address.getAddress()));
-        return new UdpUpstream(eventLoopGroup.next(),channel,address);
+        return new UdpUpstream(eventLoopGroup.next(),datagramChannelFactory,address);
     }
 
     private UdpUpstream newDefaultUpstream(){
