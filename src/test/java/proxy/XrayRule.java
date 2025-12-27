@@ -8,6 +8,8 @@ import io.crowds.proxy.transport.proxy.trojan.TrojanOption;
 import io.crowds.proxy.transport.proxy.vless.VlessOption;
 import io.crowds.proxy.transport.proxy.vmess.VmessOption;
 import io.crowds.proxy.transport.ws.WsOption;
+import io.netty.pkitesting.CertificateBuilder;
+import io.netty.pkitesting.X509Bundle;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.junit.rules.ExternalResource;
@@ -18,18 +20,19 @@ import org.testcontainers.containers.Network;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.images.builder.Transferable;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.time.Instant;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class XrayRule extends AbstractRule {
 
     private static final Logger logger = LoggerFactory.getLogger(XrayRule.class);
     private GenericContainer<?> server;
     private String name;
+
 
     private ProtocolOption inside;
     private ProtocolOption outside;
@@ -51,13 +54,34 @@ public class XrayRule extends AbstractRule {
         return inside;
     }
 
-    private JsonObject buildStreamSettings(ProtocolOption protocolOption){
+    private JsonObject buildStreamSettings(ProtocolOption protocolOption) throws Exception {
         JsonObject json = new JsonObject();
         TlsOption tls = protocolOption.getTls();
         if (tls!=null) {
             if (tls.isEnable()) {
+                X509Bundle x509Bundle = new CertificateBuilder()
+                        .subject("cn=localhost")
+                        .setIsCertificateAuthority(true)
+                        .buildSelfSigned();
+                Random random = new Random();
+                String prefix = random.ints(8, '1', 'Z')
+                                      .boxed().map(Objects::toString).collect(Collectors.joining());
+                String certChainPath = "/tmp/"+ prefix +"-chain.pem";
+                String priKeyPath = "/tmp/"+ prefix +"-key.pem";
+                server.withCopyToContainer(Transferable.of(x509Bundle.getCertificatePathPEM(),777),
+                        certChainPath);
+                server.withCopyToContainer(Transferable.of(x509Bundle.getPrivateKeyPEM(),777),
+                        priKeyPath);
                 json.put("security", "tls")
-                    .put("allowInsecure", tls.isAllowInsecure());
+                    .put("allowInsecure", tls.isAllowInsecure())
+                    .put("tlsSettings",JsonObject.of(
+                            "certificates", JsonArray.of(
+                                    JsonObject.of(
+                                            "certificateFile",certChainPath,
+                                            "keyFile",priKeyPath
+                                    )
+                            )
+                    ));
             }
         }
         if (Objects.equals(protocolOption.getNetwork(),"ws")){
@@ -80,7 +104,7 @@ public class XrayRule extends AbstractRule {
         return json;
     }
 
-    private JsonObject buildXrayConfig(ProtocolOption protocolOption,GenericContainer<?> container){
+    private JsonObject buildXrayConfig(ProtocolOption protocolOption,GenericContainer<?> container) throws Exception {
 
         JsonArray inbounds = new JsonArray();
         switch (protocolOption) {
@@ -102,11 +126,15 @@ public class XrayRule extends AbstractRule {
                 container.withExposedPorts(vless.getAddress()
                                                 .getPort());
                 inbounds.add(new JsonObject().put("protocol", "vless")
-                                             .put("port", vless.getAddress()
-                                                               .getPort())
-                                             .put("settings", new JsonObject().put("clients",
-                                                                                      new JsonArray().add(new JsonObject().put("id", vless.getId())))
-                                                                              .put("decryption", "none"))
+                                             .put("port", vless.getAddress().getPort())
+                                             .put("settings", new JsonObject()
+                                                     .put("clients", JsonArray.of(JsonObject.of(
+                                                             "id",vless.getId(),
+                                                             "flow",vless.getFlow()
+                                                             )
+                                                     ))
+                                                     .put("decryption", "none")
+                                             )
                                              .put("streamSettings", buildStreamSettings(protocolOption)));
             }
             case TrojanOption trojan -> {
@@ -192,7 +220,13 @@ public class XrayRule extends AbstractRule {
             throw new IllegalStateException("Xray server already started");
         }
         GenericContainer<?> container = new GenericContainer<>("teddysun/xray");
-        JsonObject xrayConfig = buildXrayConfig(protocolOption, container);
+        server = container;
+        JsonObject xrayConfig = null;
+        try {
+            xrayConfig = buildXrayConfig(protocolOption, container);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
         logger.info("xray config: {}",xrayConfig.encodePrettily());
         if (name==null) {
             this.name = protocolOption.getName();
@@ -204,7 +238,7 @@ public class XrayRule extends AbstractRule {
                  .withAccessToHost(true);
 
 
-        server = container;
+
         server.start();
         fixOption(protocolOption, server);
         return protocolOption;

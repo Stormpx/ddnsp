@@ -2,6 +2,7 @@ package io.crowds.proxy.transport;
 
 public class TlsOption {
     private boolean enable;
+    private boolean warpHandler;
     private boolean allowInsecure=false;
     private String serverName;
 
@@ -11,6 +12,15 @@ public class TlsOption {
         this.enable = other.enable;
         this.allowInsecure = other.allowInsecure;
         this.serverName = other.serverName;
+    }
+
+    public boolean isWarpHandler() {
+        return warpHandler;
+    }
+
+    public TlsOption setWarpHandler(boolean warpHandler) {
+        this.warpHandler = warpHandler;
+        return this;
     }
 
     public boolean isAllowInsecure() {

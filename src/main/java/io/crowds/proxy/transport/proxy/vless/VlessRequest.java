@@ -7,8 +7,9 @@ import java.util.UUID;
 public class VlessRequest {
     private UUID id;
     private Destination destination;
+    private Vless.Flow flow;
+    private AddonsOuterClass.Addons addons;
 
-    private Object payload;
 
     public VlessRequest(UUID id, Destination destination) {
         this.id = id;
@@ -23,12 +24,21 @@ public class VlessRequest {
         return destination;
     }
 
-    public VlessRequest setPayload(Object payload) {
-        this.payload = payload;
+    public AddonsOuterClass.Addons getAddons() {
+        return addons;
+    }
+
+    public VlessRequest setAddons(AddonsOuterClass.Addons addons) {
+        this.addons = addons;
         return this;
     }
 
-    public Object getPayload() {
-        return payload;
+    public Vless.Flow getFlow() {
+        return flow;
+    }
+
+    public VlessRequest setFlow(Vless.Flow flow) {
+        this.flow = flow;
+        return this;
     }
 }

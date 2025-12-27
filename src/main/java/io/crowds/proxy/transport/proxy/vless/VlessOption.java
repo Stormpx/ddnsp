@@ -8,6 +8,7 @@ import java.util.UUID;
 public class VlessOption extends ProtocolOption {
     private InetSocketAddress address;
     private String id;
+    private String flow;
 
     public VlessOption() {
     }
@@ -37,6 +38,15 @@ public class VlessOption extends ProtocolOption {
 
     public VlessOption setId(String id) {
         this.id = id;
+        return this;
+    }
+
+    public String getFlow() {
+        return flow;
+    }
+
+    public VlessOption setFlow(String flow) {
+        this.flow = flow;
         return this;
     }
 }

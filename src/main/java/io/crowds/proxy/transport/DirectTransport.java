@@ -7,7 +7,6 @@ import io.crowds.proxy.common.DynamicRecipientLookupHandler;
 import io.crowds.util.AddrType;
 import io.crowds.util.Async;
 import io.crowds.util.Inet;
-import io.crowds.util.Strs;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoop;
@@ -17,8 +16,6 @@ import io.netty.util.concurrent.PromiseNotifier;
 import io.netty.util.concurrent.SucceededFuture;
 
 import javax.net.ssl.SSLException;
-import java.net.Inet6Address;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
 import java.util.Objects;

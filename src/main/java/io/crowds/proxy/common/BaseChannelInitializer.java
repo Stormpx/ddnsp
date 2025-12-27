@@ -10,10 +10,7 @@ import io.netty.channel.nio.AbstractNioChannel;
 import io.netty.channel.unix.UnixChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
-import io.netty.handler.ssl.OpenSsl;
-import io.netty.handler.ssl.SslContext;
-import io.netty.handler.ssl.SslContextBuilder;
-import io.netty.handler.ssl.SslProvider;
+import io.netty.handler.ssl.*;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.util.internal.PlatformDependent;
@@ -56,7 +53,8 @@ public class BaseChannelInitializer extends ChannelInitializer<Channel> {
 
     public BaseChannelInitializer tls(boolean tls, boolean allowInsecure, String serverName, int port) throws SSLException {
         if (tls){
-            var builder= SslContextBuilder.forClient().sslProvider(OpenSsl.isAvailable()?SslProvider.OPENSSL:SslProvider.JDK);
+            var builder= SslContextBuilder.forClient()
+                                          .sslProvider(OpenSsl.isAvailable()?SslProvider.OPENSSL:SslProvider.JDK);
             if (allowInsecure)
                 builder.trustManager(InsecureTrustManagerFactory.INSTANCE);
             this.sslContext= builder.build();
