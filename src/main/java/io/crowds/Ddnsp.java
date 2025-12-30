@@ -21,9 +21,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 public class Ddnsp {
-    private final static Logger logger= LoggerFactory.getLogger(Ddnsp.class);
-
-    private final static StableValue<InternalDnsResolver> INTERNAL_DNS_RESOLVER =StableValue.of();
+    private static final Logger logger= LoggerFactory.getLogger(Ddnsp.class);
+    private static final FallbackDnsResolver FALLBACK_DNS_RESOLVER = new FallbackDnsResolver();
+    private static final StableValue<InternalDnsResolver> INTERNAL_DNS_RESOLVER =StableValue.of();
     private static MethodHandles.Lookup lookup=null;
 
     private static MethodHandles.Lookup fetchMethodHandlesLookup() {
@@ -91,7 +91,7 @@ public class Ddnsp {
     }
 
     public static InternalDnsResolver dnsResolver(){
-        return INTERNAL_DNS_RESOLVER.orElseSet(FallbackDnsResolver::new);
+        return INTERNAL_DNS_RESOLVER.orElse(FALLBACK_DNS_RESOLVER);
     }
 
 

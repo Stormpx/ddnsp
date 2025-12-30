@@ -2,6 +2,8 @@ package io.crowds.compoments.dns;
 
 import io.crowds.util.AddrType;
 import io.vertx.core.Future;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -9,7 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class FallbackDnsResolver implements InternalDnsResolver{
-
+    private static final Logger logger = LoggerFactory.getLogger(FallbackDnsResolver.class);
 
     @Override
     public Future<List<InetAddress>> bootResolveAll(String host, AddrType addrType) {
@@ -24,6 +26,9 @@ public class FallbackDnsResolver implements InternalDnsResolver{
     @Override
     public Future<List<InetAddress>> resolveAll(String host, AddrType addrType) {
         try {
+            if (logger.isDebugEnabled()){
+                logger.debug("Fallback internal dns resolver lookup: {},{}",host,addrType);
+            }
             InetAddress[] addresses = InetAddress.getAllByName(host);
             List<InetAddress> result=new ArrayList<>();
             for (InetAddress address : addresses) {
@@ -43,6 +48,9 @@ public class FallbackDnsResolver implements InternalDnsResolver{
     @Override
     public Future<InetAddress> resolve(String host, AddrType addrType) {
         try {
+            if (logger.isDebugEnabled()){
+                logger.debug("Fallback internal dns resolver lookup: {},{}",host,addrType);
+            }
             InetAddress[] addresses = InetAddress.getAllByName(host);
             for (InetAddress address : addresses) {
                 if (addrType==null||AddrType.of(address)==addrType){
