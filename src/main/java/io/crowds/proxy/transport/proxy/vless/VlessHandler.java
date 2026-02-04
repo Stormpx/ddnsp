@@ -35,6 +35,7 @@ public class VlessHandler extends ChannelDuplexHandler {
     private VlessRequest request;
     private VlessTlsClamp tlsClamp;
     private SslHandler tlsHandler;
+    private boolean drainPendingData = false;
 
     private int serverPaddingCounter = 0;
     private int clientPaddingCounter = 0;
@@ -77,13 +78,14 @@ public class VlessHandler extends ChannelDuplexHandler {
                 tlsClamp.getWrite().context.fireChannelRead(data);
                 tlsClamp.getWrite().context.fireChannelReadComplete();
             }
+            drainPendingData = true;
         } catch (Throwable e) {
             throw new RuntimeException(e);
         }
     }
 
     private void tryRemoveTlsHandlers(ChannelHandlerContext ctx){
-        if (this.tlsClamp.isSkipRead() && this.tlsClamp.isSkipWrite()){
+        if (this.tlsClamp.isSkipRead() && this.tlsClamp.isSkipWrite() && drainPendingData){
             ctx.pipeline()
                .remove(tlsHandler)
                .remove(tlsClamp.getRead())

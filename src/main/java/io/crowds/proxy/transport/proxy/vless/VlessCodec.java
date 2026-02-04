@@ -228,30 +228,21 @@ public class VlessCodec extends CombinedChannelDuplexHandler<ByteToMessageDecode
                 paddingLen = in.readShort();
             }
 
-            if (this.contentLen>0){
-                int len = Math.min(in.readableBytes(),this.contentLen);
-                if (len<=0){
-                    return;
-                }
-                ByteBuf content = in.readRetainedSlice(len);
-                out.add(new VisionData(paddingCommand,content,false,false));
-                this.contentLen -= len;
-            }
-
-            int skipBytes = Math.min(in.readableBytes(),paddingLen);
-            if (skipBytes <= 0) {
+            if (in.readableBytes() < contentLen+paddingLen){
                 return;
             }
-            in.skipBytes(skipBytes);
-            paddingLen -= skipBytes;
-            if (paddingLen <= 0) {
-                if (paddingCommand == Vless.COMMAND_PADDING_END || paddingCommand == Vless.COMMAND_PADDING_DIRECT) {
-                    paddingBuffer = false;
-                }
-                paddingCommand = -1;
-                contentLen = -1;
-                paddingLen = -1;
+
+            ByteBuf content = in.readRetainedSlice(contentLen);
+            in.skipBytes(paddingLen);
+            VisionData visionData = new VisionData(paddingCommand, content, false, false);
+            if (paddingCommand == Vless.COMMAND_PADDING_END || paddingCommand == Vless.COMMAND_PADDING_DIRECT) {
+                paddingBuffer = false;
             }
+            paddingCommand = -1;
+            contentLen = -1;
+            paddingLen = -1;
+
+            out.add(visionData);
 
         }
 
