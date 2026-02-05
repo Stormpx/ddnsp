@@ -19,24 +19,18 @@ import io.netty.util.concurrent.Promise;
 
 import java.net.InetSocketAddress;
 
-public class SocksProxyTransport extends FullConeProxyTransport {
-    private SocksOption socksOption;
+public class SocksProxyTransport extends FullConeProxyTransport<SocksOption> {
 
     private final Destination destination;
 
     public SocksProxyTransport(ChannelCreator channelCreator, SocksOption socksOption) {
         super(channelCreator, socksOption);
-        this.socksOption=socksOption;
         this.destination=new Destination(NetAddr.of(socksOption.getRemote()),TP.TCP);
     }
 
-    @Override
-    public String getTag() {
-        return socksOption.getName();
-    }
 
     @Override
-    protected Destination getRemote(TP tp) {
+    public Destination getRemote(TP tp) {
         return destination;
     }
 
@@ -47,7 +41,7 @@ public class SocksProxyTransport extends FullConeProxyTransport {
     }
 
     @Override
-    protected Future<Channel> proxy(Channel channel, NetLocation netLocation,Transport delegate) {
+    protected Future<Channel> proxy(Channel channel, NetLocation netLocation) {
         Promise<Channel> promise=channel.eventLoop().newPromise();
         HandlerName handlerName = handlerName();
         SocksClientNegotiator negotiator = new SocksClientNegotiator(handlerName,channel,
@@ -58,7 +52,7 @@ public class SocksProxyTransport extends FullConeProxyTransport {
             }else{
                 NetAddr netAddr = future.get();
                 Future<Channel> channelFuture = this.transport.openChannel(channel.eventLoop(),
-                        new Destination(netAddr, TP.UDP), netLocation.getSrc().isIpv4()? AddrType.IPV4:AddrType.IPV6,delegate);
+                        new Destination(netAddr, TP.UDP), null);
                 Async.cascadeFailure(channelFuture, promise, f-> {
                     Channel udpChannel = f.get();
                     udpChannel.pipeline().addLast(handlerName.with("udpHandler"),new SocksUdpHandler(netAddr));

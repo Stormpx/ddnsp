@@ -42,10 +42,9 @@ import java.net.UnknownHostException;
 import java.util.Comparator;
 import java.util.List;
 
-public class WireguardProxyTransport extends FullConeProxyTransport {
+public class WireguardProxyTransport extends FullConeProxyTransport<WireguardOption> {
     private static final Logger logger = LoggerFactory.getLogger(WireguardProxyTransport.class);
     private final String netspace;
-    private final WireguardOption wireguardOption;
     private final PartialNetspace netStack;
     private final VariantResolver variantResolver;
 
@@ -55,7 +54,6 @@ public class WireguardProxyTransport extends FullConeProxyTransport {
     public WireguardProxyTransport(Axis axis, WireguardOption wireguardOption) {
         super(axis.getChannelCreator(), wireguardOption);
         this.netspace = wireguardOption.getName();
-        this.wireguardOption = wireguardOption;
         this.netStack = axis.getContext().getNetStack().getNetspace(netspace);
 
 
@@ -82,6 +80,7 @@ public class WireguardProxyTransport extends FullConeProxyTransport {
 
     private void initNetStack(Context context){
         var netStack = this.netStack;
+        WireguardOption wireguardOption = getProtocolOption();
 
         WireguardIface iface = new WireguardIface();
         List<Peer> peers = wireguardOption.getPeers().stream()
@@ -131,13 +130,9 @@ public class WireguardProxyTransport extends FullConeProxyTransport {
         return this;
     }
 
-    @Override
-    public String getTag() {
-        return wireguardOption.getName();
-    }
 
-
-    public Future<Channel> createChannel(EventLoop eventLoop, NetLocation netLocation, Transport ignore) throws Exception {
+    public Future<Channel> createChannel(EventLoop eventLoop, NetLocation netLocation) throws Exception {
+        WireguardOption wireguardOption = getProtocolOption();
         Promise<Channel> promise = eventLoop.newPromise();
         Class<? extends AbstractPartialChannel> klass = netLocation.getTp()== TP.TCP? PartialSocketChannel.class: PartialDatagramChannel.class;
         var bootstrap = new Bootstrap()

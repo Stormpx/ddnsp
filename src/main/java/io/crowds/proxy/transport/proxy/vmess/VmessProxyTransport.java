@@ -10,31 +10,23 @@ import io.netty.util.concurrent.Future;
 
 import java.util.Objects;
 
-public class VmessProxyTransport extends AbstractProxyTransport {
-
-
-    private VmessOption vmessOption;
+public class VmessProxyTransport extends AbstractProxyTransport<VmessOption> {
 
 
     public VmessProxyTransport(ChannelCreator channelCreator,VmessOption vmessOption) {
-        super( channelCreator,vmessOption);
         Objects.requireNonNull(vmessOption);
-        this.vmessOption=vmessOption;
+        super(channelCreator,vmessOption);
+    }
+
+
+    @Override
+    public Destination getRemote(TP tp) {
+        return new Destination(NetAddr.of(getProtocolOption().getAddress()),TP.TCP);
     }
 
     @Override
-    public String getTag() {
-        return vmessOption.getName();
-    }
-
-    @Override
-    protected Destination getRemote(TP tp) {
-        return new Destination(NetAddr.of(vmessOption.getAddress()),TP.TCP);
-    }
-
-    @Override
-    protected Future<Channel> proxy(Channel channel, NetLocation netLocation, Transport delegate) {
-        new VmessHandler(handlerName(),channel,vmessOption,netLocation).handshake();
+    protected Future<Channel> proxy(Channel channel, NetLocation netLocation) {
+        new VmessHandler(handlerName(),channel,getProtocolOption(),netLocation).handshake();
         return channel.eventLoop().newSucceededFuture(channel);
     }
 

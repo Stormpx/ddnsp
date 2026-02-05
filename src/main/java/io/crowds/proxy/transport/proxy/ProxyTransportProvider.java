@@ -7,7 +7,12 @@ import io.crowds.proxy.transport.proxy.AbstractProxyTransport;
 public interface ProxyTransportProvider {
 
 
-    ProxyTransport get(String name);
+    default ProxyTransport get(String name){
+        return get(name,false);
+    }
+
+    ProxyTransport get(String name,boolean copy);
 
     ProxyTransport create(ProtocolOption protocolOption);
+
 }

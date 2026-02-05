@@ -3,9 +3,11 @@ package io.crowds.proxy.select;
 import io.crowds.proxy.*;
 import io.crowds.proxy.transport.ProtocolOption;
 import io.crowds.proxy.transport.ProxyTransport;
+import io.crowds.proxy.transport.proxy.AbstractProxyTransport;
 import io.crowds.proxy.transport.proxy.ProxyTransportProvider;
 import io.crowds.proxy.transport.proxy.block.BlockProxyTransport;
 import io.crowds.proxy.transport.proxy.chain.ChainProxyTransport;
+import io.crowds.proxy.transport.proxy.chain.ProxyChainException;
 import io.crowds.proxy.transport.proxy.direct.DirectProxyTransport;
 import io.crowds.proxy.transport.proxy.localdns.DnsForwardProxyTransport;
 import io.netty.channel.local.LocalAddress;
@@ -63,7 +65,9 @@ public class TransportProvider {
                 ProxyTransportProvider provider = new ProxyTransportProvider() {
                     final ProxyTransportProvider subProvider = new ProxyTransportProvider() {
                         @Override
-                        public ProxyTransport get(String name) {return null;}
+                        public ProxyTransport get(String name,boolean copy) {
+                            throw new UnsupportedOperationException("Sub-provider does not support get ProxyTransport.");
+                        }
                         @Override
                         public ProxyTransport create(ProtocolOption protocolOption) {
                             ProxyTransport transport = ProxyTransport.create(axis,protocolOption);
@@ -74,8 +78,15 @@ public class TransportProvider {
                         }
                     };
                     @Override
-                    public ProxyTransport get(String name) {
-                        return map.get(name);
+                    public ProxyTransport get(String name,boolean copy) {
+                        ProxyTransport proxyTransport = map.get(name);
+                        if (proxyTransport!=null && copy){
+                            if (!(proxyTransport instanceof AbstractProxyTransport<?> abstractProxyTransport)){
+                                throw new ProxyChainException("Cannot copy proxy transport: "+name);
+                            }
+                            proxyTransport = ProxyTransport.create(axis,abstractProxyTransport.getProtocolOption());
+                        }
+                        return proxyTransport;
                     }
 
                     @Override

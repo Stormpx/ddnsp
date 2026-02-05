@@ -17,32 +17,25 @@ import org.bouncycastle.jcajce.provider.digest.SHA224;
 
 import java.util.HexFormat;
 
-public class TrojanProxyTransport extends FullConeProxyTransport {
-    private TrojanOption trojanOption;
-
+public class TrojanProxyTransport extends FullConeProxyTransport<TrojanOption> {
 
     public TrojanProxyTransport(ChannelCreator channelCreator, TrojanOption trojanOption) {
-        super(channelCreator, trojanOption.setTls(trojanOption.getTls()!=null?trojanOption.getTls():new TlsOption().setEnable(true)));
-        this.trojanOption=trojanOption;
+        trojanOption.setTls(trojanOption.getTls()!=null?trojanOption.getTls():new TlsOption().setEnable(true));
+        super(channelCreator, trojanOption);
+    }
 
+
+    @Override
+    public Destination getRemote(TP tp) {
+        return new Destination(NetAddr.of(getProtocolOption().getAddress()),TP.TCP);
     }
 
     @Override
-    public String getTag() {
-        return trojanOption.getName();
-    }
-
-    @Override
-    protected Destination getRemote(TP tp) {
-        return new Destination(NetAddr.of(trojanOption.getAddress()),TP.TCP);
-    }
-
-    @Override
-    protected Future<Channel> proxy(Channel channel, NetLocation netLocation, Transport delegate) {
+    protected Future<Channel> proxy(Channel channel, NetLocation netLocation) {
         HandlerName baseName = handlerName();
         channel.pipeline()
                 .addLast(baseName.with("codec"),new TrojanCodec(netLocation.getTp()))
-                .addLast(baseName.with("handler"),new TrojanHandler(trojanOption,netLocation));
+                .addLast(baseName.with("handler"),new TrojanHandler(getProtocolOption(),netLocation));
 
         return channel.eventLoop().newSucceededFuture(channel);
     }

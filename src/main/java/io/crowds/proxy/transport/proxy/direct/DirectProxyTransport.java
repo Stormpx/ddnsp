@@ -12,8 +12,7 @@ import io.netty.util.concurrent.Future;
 
 import java.util.Optional;
 
-public class DirectProxyTransport extends FullConeProxyTransport {
-    private final ProtocolOption protocolOption;
+public class DirectProxyTransport extends FullConeProxyTransport<ProtocolOption> {
 
     public DirectProxyTransport(ChannelCreator channelCreator) {
         this(channelCreator,new ProtocolOption());
@@ -22,18 +21,17 @@ public class DirectProxyTransport extends FullConeProxyTransport {
 
     public DirectProxyTransport(ChannelCreator channelCreator, ProtocolOption protocolOption) {
         super(channelCreator,protocolOption);
-        this.protocolOption = protocolOption;
     }
 
     @Override
     public String getTag() {
-        return Optional.ofNullable(protocolOption)
+        return Optional.ofNullable(getProtocolOption())
                 .map(ProtocolOption::getName)
                 .orElse("direct");
     }
 
     @Override
-    protected Future<Channel> proxy(Channel channel, NetLocation netLocation, Transport delegate) {
+    protected Future<Channel> proxy(Channel channel, NetLocation netLocation) {
 
         if (netLocation.getTp()==TP.TCP){
             channel.attr(ProxyContext.SEND_ZC_SUPPORTED);

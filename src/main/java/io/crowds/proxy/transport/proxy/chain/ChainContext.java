@@ -28,7 +28,7 @@ public class ChainContext {
 
 
 
-    public ChainContext(EventLoop eventLoop, NetLocation netLocation, List<AbstractProxyTransport> proxyTransports,Transport transport) {
+    public ChainContext(EventLoop eventLoop, NetLocation netLocation, List<AbstractProxyTransport<?>> proxyTransports,Transport transport) {
         Objects.requireNonNull(eventLoop);
         Objects.requireNonNull(netLocation);
         Objects.requireNonNull(proxyTransports);
@@ -38,11 +38,11 @@ public class ChainContext {
         initChain(proxyTransports);
     }
 
-    private void initChain(List<AbstractProxyTransport> proxyTransports){
-        Iterator<AbstractProxyTransport> iterator = proxyTransports.iterator();
+    private void initChain(List<AbstractProxyTransport<?>> proxyTransports){
+        Iterator<AbstractProxyTransport<?>> iterator = proxyTransports.iterator();
         ProxyTransportTransport transport = null;
         while (iterator.hasNext()){
-            AbstractProxyTransport proxyTransport = iterator.next();
+            AbstractProxyTransport<?> proxyTransport = iterator.next();
             transport=new ProxyTransportTransport(netLocation.getSrc(),proxyTransport,transport);
         }
         if (transport==null){
@@ -58,9 +58,9 @@ public class ChainContext {
 
     class ProxyTransportTransport implements Transport{
         private final NetAddr src;
-        private final AbstractProxyTransport proxyTransport;
+        private final AbstractProxyTransport<?> proxyTransport;
         private final Transport head;
-        public ProxyTransportTransport(NetAddr src, AbstractProxyTransport proxyTransport, Transport head) {
+        public ProxyTransportTransport(NetAddr src, AbstractProxyTransport<?> proxyTransport, Transport head) {
             this.src = src;
             this.proxyTransport = proxyTransport;
             this.head = head;
@@ -71,18 +71,18 @@ public class ChainContext {
             Promise<Channel> promise = eventLoop.newPromise();
             Future<Channel> channelFuture;
             NetLocation nextLocation = new NetLocation(src, dest.addr(), dest.tp());
-            if (head ==null){
-                //the last ProxyTransportTransport. which is first node.
-                if (chainOutTransport!=null) {
-                    channelFuture = proxyTransport.createChannel(eventLoop, nextLocation, chainOutTransport);
-                }else{
-                    channelFuture = proxyTransport.createChannel(eventLoop, nextLocation);
-                }
-            }else{
-                channelFuture = proxyTransport.createChannel(eventLoop, nextLocation, head);
-            }
-
-            Async.cascadeFailure(channelFuture,promise,f-> ShadowChannel.shadow(f.get()).addListener(Async.cascade(promise)));
+//            if (head ==null){
+//                //the last ProxyTransportTransport. which is first node.
+//                if (chainOutTransport!=null) {
+//                    channelFuture = proxyTransport.createChannel(eventLoop, nextLocation, chainOutTransport);
+//                }else{
+//                    channelFuture = proxyTransport.createChannel(eventLoop, nextLocation);
+//                }
+//            }else{
+//                channelFuture = proxyTransport.createChannel(eventLoop, nextLocation, head);
+//            }
+//
+//            Async.cascadeFailure(channelFuture,promise,f-> ShadowChannel.shadow(f.get()).addListener(Async.cascade(promise)));
             return promise;
         }
 

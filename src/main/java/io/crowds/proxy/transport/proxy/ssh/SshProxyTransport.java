@@ -45,17 +45,15 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-public class SshProxyTransport extends AbstractProxyTransport {
+public class SshProxyTransport extends AbstractProxyTransport<SshOption> {
     private final static Logger logger= LoggerFactory.getLogger(SshProxyTransport.class);
 
 
     private final SshClient sshClient;
-    private final SshOption sshOption;
     private final ChannelDelegateServiceFactoryFactory channelDelegateServiceFactoryFactory;
 
     public SshProxyTransport(ChannelCreator channelCreator,SshOption sshOption) {
         super(channelCreator,sshOption);
-        this.sshOption = sshOption;
         this.channelDelegateServiceFactoryFactory=new ChannelDelegateServiceFactoryFactory();
         this.sshClient = setupClient();
     }
@@ -74,6 +72,7 @@ public class SshProxyTransport extends AbstractProxyTransport {
     }
     private SshClient setupClient(){
         var sshClient = SshClient.setUpDefaultClient();
+        SshOption sshOption = getProtocolOption();
         ServerKeyVerifier verifier = switch (sshOption.getVerifyStrategy()){
             case REJECT -> RejectAllServerKeyVerifier.INSTANCE;
             case REJECT_UNKNOWNS -> new DefaultKnownHostsServerKeyVerifier(RejectAllServerKeyVerifier.INSTANCE);
@@ -130,14 +129,10 @@ public class SshProxyTransport extends AbstractProxyTransport {
         return sshClient;
     }
 
-    @Override
-    public String getTag() {
-        return sshOption.getName();
-    }
 
     @Override
-    protected Destination getRemote(TP tp) {
-        return new Destination(NetAddr.of(sshOption.getAddress()),TP.TCP);
+    public Destination getRemote(TP tp) {
+        return new Destination(NetAddr.of(getProtocolOption().getAddress()),TP.TCP);
     }
 
     private <S extends SshFuture<S>,T> void cascadeSshFuture(Lambdas.Supplier_WithExceptions<SshFuture<S>,IOException> futureSupplier,
@@ -173,7 +168,8 @@ public class SshProxyTransport extends AbstractProxyTransport {
     }
 
     @Override
-    protected Future<Channel> proxy(Channel channel, NetLocation netLocation,Transport delegate) {
+    protected Future<Channel> proxy(Channel channel, NetLocation netLocation) {
+        SshOption sshOption = getProtocolOption();
         Promise<Channel> promise = channel.eventLoop().newPromise();
         //here the channel already created. so we specify host to  127.0.0,1 to avoid dns lookup.
         cascadeSshFuture(
@@ -197,10 +193,10 @@ public class SshProxyTransport extends AbstractProxyTransport {
     }
 
     @Override
-    public Future<Channel> createChannel(EventLoop eventLoop, NetLocation netLocation, Transport transport) throws Exception {
+    public Future<Channel> createChannel(EventLoop eventLoop, NetLocation netLocation) throws Exception {
         if (netLocation.getTp()== TP.UDP){
             return eventLoop.newFailedFuture(new IllegalArgumentException("SSH protocol does not support proxy UDP"));
         }
-        return super.createChannel(eventLoop, netLocation,transport);
+        return super.createChannel(eventLoop, netLocation);
     }
 }

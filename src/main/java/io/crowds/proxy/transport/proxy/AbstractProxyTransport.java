@@ -11,44 +11,61 @@ import io.netty.util.concurrent.Promise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class AbstractProxyTransport implements ProxyTransport {
+public abstract class AbstractProxyTransport<OPT extends ProtocolOption> implements ProxyTransport {
     private final static Logger logger= LoggerFactory.getLogger(AbstractProxyTransport.class);
-    protected ChannelCreator channelCreator;
+    private final OPT protocolOption;
+    private final String protocol;
+    protected final ChannelCreator channelCreator;
     protected Transport transport;
-    private String protocol;
-    public AbstractProxyTransport(ChannelCreator channelCreator,ProtocolOption protocolOption) {
+
+    public AbstractProxyTransport(ChannelCreator channelCreator,OPT protocolOption) {
         this.channelCreator = channelCreator;
+        this.protocolOption = protocolOption;
         this.transport= TransportFactory.newTransport(protocolOption,channelCreator);
         this.protocol= protocolOption.getProtocol();
+    }
+
+    public Transport getTransport() {
+        return transport;
+    }
+
+    public AbstractProxyTransport setTransport(Transport transport) {
+        this.transport = transport;
+        return this;
+    }
+
+    public OPT getProtocolOption() {
+        return protocolOption;
     }
 
     protected HandlerName handlerName(){
         return new HandlerName(protocol+"-"+getTag());
     }
 
-    protected Destination getRemote(TP tp){return null;}
+    public Destination getRemote(TP tp){return null;}
 
-    protected Future<Channel> proxy(Channel channel, NetLocation netLocation,Transport delegate){
+    protected Future<Channel> proxy(Channel channel, NetLocation netLocation){
         return channel.eventLoop().newSucceededFuture(channel);
     }
 
     public Future<Channel> createChannel(EventLoop eventLoop, NetLocation netLocation) throws Exception {
-        return createChannel(eventLoop,netLocation,transport);
-    }
-
-    public Future<Channel> createChannel(EventLoop eventLoop, NetLocation netLocation, Transport delegate) throws Exception {
-
         Destination destination = getRemote(netLocation.getTp());
         if (destination==null) {
             destination = new Destination(netLocation.getDst(),netLocation.getTp());
         }
         Promise<Channel> promise = eventLoop.newPromise();
 
-        Async.toFuture(this.transport.openChannel(eventLoop,destination,netLocation.getSrc().isIpv4()? AddrType.IPV4:AddrType.IPV6,delegate))
-                .compose(it->Async.toFuture(proxy(it,netLocation,delegate)))
-                .onComplete(Async.futureCascadeCallback(promise));
+        Async.toFuture(this.transport.openChannel(eventLoop,destination,netLocation.getSrc().isIpv4()? AddrType.IPV4:AddrType.IPV6))
+             .compose(it->Async.toFuture(proxy(it,netLocation)))
+             .onComplete(Async.futureCascadeCallback(promise));
 
         return promise;
+    }
+
+
+    @Override
+    public String getTag() {
+        return getProtocolOption().getName();
     }
 
     @Override

@@ -12,15 +12,13 @@ import io.crowds.proxy.transport.proxy.AbstractProxyTransport;
 import io.netty.channel.Channel;
 import io.netty.util.concurrent.Future;
 
-public class VlessProxyTransport extends AbstractProxyTransport {
+public class VlessProxyTransport extends AbstractProxyTransport<VlessOption>{
 
-    private final VlessOption vlessOption;
     private final Vless.Flow flow;
     private final Destination destination;
 
     public VlessProxyTransport(ChannelCreator channelCreator, VlessOption vlessOption) {
         super(channelCreator, vlessOption);
-        this.vlessOption=vlessOption;
         this.flow = Vless.Flow.of(vlessOption.getFlow());
         this.destination=new Destination(NetAddr.of(vlessOption.getAddress()),TP.TCP);
         TlsOption tls = vlessOption.getTls();
@@ -29,23 +27,20 @@ public class VlessProxyTransport extends AbstractProxyTransport {
         }
     }
 
-    @Override
-    public String getTag() {
-        return vlessOption.getName();
-    }
 
     @Override
-    protected Destination getRemote(TP tp) {
+    public Destination getRemote(TP tp) {
         return destination;
     }
 
     @Override
-    protected Future<Channel> proxy(Channel channel, NetLocation netLocation, Transport delegate) {
+    protected Future<Channel> proxy(Channel channel, NetLocation netLocation) {
+        VlessOption vlessOption = getProtocolOption();
         HandlerName baseName = handlerName();
         Destination dest = new Destination(netLocation);
         channel.pipeline()
                .addLast(baseName.with("codec"), new VlessCodec(dest))
-               .addLast(baseName.with("handler"), new VlessHandler(flow,vlessOption.getUUID(), dest));
+               .addLast(baseName.with("handler"), new VlessHandler(flow, vlessOption.getUUID(), dest));
         return channel.eventLoop().newSucceededFuture(channel);
     }
 }

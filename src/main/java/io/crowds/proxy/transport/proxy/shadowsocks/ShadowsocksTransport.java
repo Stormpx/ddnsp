@@ -21,14 +21,12 @@ import java.net.SocketAddress;
 import java.util.Objects;
 
 
-public class ShadowsocksTransport extends FullConeProxyTransport {
+public class ShadowsocksTransport extends FullConeProxyTransport<ShadowsocksOption> {
 
-    private ShadowsocksOption shadowsocksOption;
     private SaltPool saltPool;
 
     public ShadowsocksTransport(ChannelCreator channelCreator, ShadowsocksOption shadowsocksOption) {
         super(channelCreator,shadowsocksOption);
-        this.shadowsocksOption = shadowsocksOption;
         Objects.requireNonNull(shadowsocksOption.getCipher());
         this.saltPool=switch (shadowsocksOption.getCipher()){
             case AES_128_GCM_2022,AES_256_GCM_2022 ->new SaltPool(channelCreator.getEventLoopGroup().next());
@@ -36,20 +34,17 @@ public class ShadowsocksTransport extends FullConeProxyTransport {
         };
     }
 
-    @Override
-    public String getTag() {
-        return shadowsocksOption.getName();
-    }
 
     @Override
-    protected Destination getRemote(TP tp) {
-        return new Destination(NetAddr.of(shadowsocksOption.getAddress()),tp);
+    public Destination getRemote(TP tp) {
+        return new Destination(NetAddr.of(getProtocolOption().getAddress()),tp);
     }
 
 
 
     @Override
-    protected Future<Channel> proxy(Channel channel, NetLocation netLocation,Transport delegate) {
+    protected Future<Channel> proxy(Channel channel, NetLocation netLocation) {
+        ShadowsocksOption shadowsocksOption = getProtocolOption();
         HandlerName baseName = handlerName();
         var codecName = baseName.with("codec");
         var handlerName = baseName.with("handler");

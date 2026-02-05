@@ -146,7 +146,7 @@ public class DirectTransport implements Transport {
         return promise;
     }
 
-    public Future<Channel> createChannelInternal(EventLoop eventLoop, Destination destination, AddrType preferType) throws Exception {
+    private Future<Channel> createChannelInternal(EventLoop eventLoop, Destination destination, AddrType preferType) throws Exception {
         NetAddr addr = destination.addr();
         TP tp = destination.tp();
         BaseChannelInitializer initializer = new BaseChannelInitializer();
@@ -163,7 +163,7 @@ public class DirectTransport implements Transport {
     @Override
     public Future<Channel> openChannel(EventLoop eventLoop, Destination destination, AddrType preferType, Transport delegate) throws Exception {
         if (delegate!=null&&delegate!=this){
-            return delegate.openChannel(eventLoop,destination,preferType,delegate);
+            return delegate.openChannel(eventLoop,destination,preferType);
         }else{
             return createChannelInternal(eventLoop, destination, preferType);
         }

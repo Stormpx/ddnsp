@@ -15,11 +15,11 @@ import io.netty.util.concurrent.Promise;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-public abstract class FullConeProxyTransport extends AbstractProxyTransport {
+public abstract class FullConeProxyTransport<OPT extends ProtocolOption> extends AbstractProxyTransport<OPT> {
 
     private final Map<NetAddr,Future<UdpChannel>> udpChannelMap;
 
-    public FullConeProxyTransport(ChannelCreator channelCreator, ProtocolOption protocolOption) {
+    public FullConeProxyTransport(ChannelCreator channelCreator, OPT protocolOption) {
         super(channelCreator,protocolOption);
         this.udpChannelMap=new ConcurrentHashMap<>();
     }

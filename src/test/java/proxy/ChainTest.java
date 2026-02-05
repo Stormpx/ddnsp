@@ -9,6 +9,7 @@ import io.crowds.proxy.transport.proxy.ProxyTransportProvider;
 import io.crowds.proxy.transport.proxy.chain.ChainOption;
 import io.crowds.proxy.transport.proxy.chain.ChainProxyTransport;
 import io.crowds.proxy.transport.proxy.chain.NodeType;
+import io.crowds.proxy.transport.proxy.chain.ProxyChainException;
 import io.crowds.proxy.transport.proxy.shadowsocks.CipherAlgo;
 import io.crowds.proxy.transport.proxy.shadowsocks.ShadowsocksOption;
 import io.crowds.proxy.transport.proxy.shadowsocks.ShadowsocksTransport;
@@ -30,6 +31,7 @@ import io.crowds.util.Lambdas;
 import org.apache.sshd.server.SshServer;
 import org.apache.sshd.server.forward.AcceptAllForwardingFilter;
 import org.apache.sshd.server.keyprovider.SimpleGeneratorHostKeyProvider;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.testcontainers.Testcontainers;
@@ -39,19 +41,28 @@ import java.net.InetSocketAddress;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 public class ChainTest extends ProxyTestBase {
 
-    protected record ProxyServer(ProxyTransport header,ProxyTransport node){
+    protected record ProxyServer(String tag, Supplier<ProxyTransport> headerFn, Supplier<ProxyTransport> nodeFn){
+
+        ProxyTransport header(){
+            return headerFn.get();
+        }
+        ProxyTransport node(){
+            return nodeFn.get();
+        }
 
     }
 
     private ProxyServer createServer(XrayRule xrayRule,ProtocolOption option,Function<ProtocolOption,ProxyTransport> createTransport) throws IOException {
         xrayRule.start(option);
         return new ProxyServer(
-                createTransport.apply(xrayRule.getOutside()),
-                createTransport.apply(xrayRule.getInside())
+                option.getName(),
+                ()->createTransport.apply(xrayRule.getOutside()),
+                ()->createTransport.apply(xrayRule.getInside())
         );
     }
 
@@ -167,8 +178,9 @@ public class ChainTest extends ProxyTestBase {
                  .setName(name);
         sshRule.start(sshOption);
         return new ProxyServer(
-                new SshProxyTransport(channelCreator, sshRule.getOutside()),
-                new SshProxyTransport(channelCreator, sshRule.getInside())
+                name,
+                ()->new SshProxyTransport(channelCreator, sshRule.getOutside()),
+                ()->new SshProxyTransport(channelCreator, sshRule.getInside())
         );
     }
 
@@ -189,23 +201,29 @@ public class ChainTest extends ProxyTestBase {
         Testcontainers.exposeHostPorts(sshServer.getPort());
     }
 
+    record Pt(ProxyTransport original,Supplier<ProxyTransport> copyFn){ }
+
     private ProxyTransport createChainProxyTransport(List<ProxyServer> proxyTransport){
         List<NodeType> nodeTypes=new ArrayList<>();
-        proxyTransport.stream().map(it->it.header.getTag()).forEach(it->nodeTypes.add(new NodeType.Name(it)));
+        proxyTransport.stream().map(ProxyServer::tag).forEach(it->nodeTypes.add(new NodeType.Name(it)));
 
-        Map<String, ProxyTransport> transportMap =
-                proxyTransport.stream().skip(1).collect(Collectors.toMap(it->it.node.getTag(), it->it.node));
+        Map<String, Pt> transportMap =
+                proxyTransport.stream().skip(1).collect(Collectors.toMap(ProxyServer::tag, it->new Pt(it.node(),it.nodeFn())));
 
-        ProxyTransport header = proxyTransport.getFirst().header;
-        transportMap.put(header.getTag(), header);
+        ProxyServer first = proxyTransport.getFirst();
+        transportMap.put(first.tag(), new Pt(first.header(), first.headerFn()));
 
         ChainOption chainOption = new ChainOption().setNodes(nodeTypes);
         chainOption.setName("chain");
         ChainProxyTransport transport = new ChainProxyTransport(channelCreator, chainOption);
         transport.initTransport(new ProxyTransportProvider() {
             @Override
-            public ProxyTransport get(String name) {
-                return transportMap.get(name);
+            public ProxyTransport get(String name,boolean copy) {
+                Pt pt = transportMap.get(name);
+                if (copy){
+                    return pt.copyFn().get();
+                }
+                return pt.original();
             }
 
             @Override
@@ -223,7 +241,7 @@ public class ChainTest extends ProxyTestBase {
         tmp.add(transports.get(idx));
         if (tmp.size()== transports.size()) {
             System.out.println(tmp.stream()
-                                  .map(it->it.header.getTag())
+                                  .map(ProxyServer::tag)
                                   .collect(Collectors.joining(",")));
             tmpHandler.accept(tmp);
         }
@@ -242,7 +260,7 @@ public class ChainTest extends ProxyTestBase {
                 createTrojanProxy(channelCreator,"trojan0"),createVlessProxy(channelCreator,"vless0"),createSshProxy(channelCreator,"ssh0"),
                 createSocksProxy(channelCreator,"socks0")));
         Collections.shuffle(list);
-        System.out.println(list.stream().map(it->it.header.getTag()).collect(Collectors.joining(",")));
+        System.out.println(list.stream().map(ProxyServer::tag).collect(Collectors.joining(",")));
 //        List<ProxyTransport> proxies = new ArrayList<>();
 //        for (int i = 0; i < list.size(); i++) {
 //            all(list,proxies,i, Lambdas.rethrowConsumer(it->{
@@ -278,5 +296,48 @@ public class ChainTest extends ProxyTestBase {
                 udpTest(createChainProxyTransport(it));
             }));
         }
+    }
+
+    @Test
+    public void circularReferenceTest() throws Exception {
+
+        String chain1 = "chain1";
+        String chain2 = "chain2";
+        String chain3 = "chain3";
+
+        ChainOption chainOption1 = new ChainOption().setNodes(List.of(new NodeType.Name(chain2)));
+        chainOption1.setName(chain1);
+        ChainProxyTransport transport1 = new ChainProxyTransport(channelCreator, chainOption1);
+
+        ChainOption chainOption2 = new ChainOption().setNodes(List.of(new NodeType.Name(chain3)));
+        chainOption2.setName(chain2);
+        ChainProxyTransport transport2 = new ChainProxyTransport(channelCreator, chainOption2);
+
+        ChainOption chainOption3 = new ChainOption().setNodes(List.of(new NodeType.Name(chain1)));
+        chainOption3.setName(chain3);
+        ChainProxyTransport transport3 = new ChainProxyTransport(channelCreator, chainOption3);
+
+        Map<String, ProxyTransport> transportMap = Map.of(
+                chain1, transport1,
+                chain2, transport2,
+                chain3, transport3
+        );
+        var provider = new ProxyTransportProvider() {
+            @Override
+            public ProxyTransport get(String name,boolean copy) {
+                return transportMap.get(name);
+            }
+
+            @Override
+            public ProxyTransport create(ProtocolOption protocolOption) {
+                return null;
+            }
+        };
+
+        ProxyChainException proxyChainException = Assert.assertThrows(
+                ProxyChainException.class, () -> transport1.initTransport(provider));
+
+        proxyChainException.printStackTrace();
+
     }
 }
