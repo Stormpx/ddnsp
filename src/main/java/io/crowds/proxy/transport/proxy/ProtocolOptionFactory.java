@@ -32,6 +32,7 @@ import org.stormpx.net.util.SubNet;
 import java.net.InetSocketAddress;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class ProtocolOptionFactory {
@@ -43,9 +44,17 @@ public class ProtocolOptionFactory {
         var tls=json.getBoolean("enable",false);
         var tlsAllowInsecure=json.getBoolean("allowInsecure",false);
         var tlsServerName=json.getString("serverName");
+
+        List<String> alpn = null;
+        JsonArray alpnArr = json.getJsonArray("alpn");
+        if (alpnArr!=null){
+            alpn = alpnArr.stream().filter(it->it instanceof String).map(Object::toString).collect(Collectors.toList());
+        }
+
         tlsOption.setEnable(tls)
                 .setAllowInsecure(tlsAllowInsecure)
-                .setServerName(tlsServerName);
+                .setServerName(tlsServerName)
+                .setAlpn(alpn);
 
         return tlsOption;
 

@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLException;
 import java.net.NetworkInterface;
+import java.util.List;
 import java.util.function.BiConsumer;
 
 
@@ -51,10 +52,20 @@ public class BaseChannelInitializer extends ChannelInitializer<Channel> {
 
 
 
-    public BaseChannelInitializer tls(boolean tls, boolean allowInsecure, String serverName, int port) throws SSLException {
+    public BaseChannelInitializer tls(boolean tls, boolean allowInsecure, String serverName, int port, List<String> alpn) throws SSLException {
         if (tls){
             var builder= SslContextBuilder.forClient()
                                           .sslProvider(OpenSsl.isAvailable()?SslProvider.OPENSSL:SslProvider.JDK);
+            if (alpn!=null&&!alpn.isEmpty()){
+                builder.applicationProtocolConfig(
+                       new ApplicationProtocolConfig(
+                               ApplicationProtocolConfig.Protocol.ALPN,
+                               ApplicationProtocolConfig.SelectorFailureBehavior.NO_ADVERTISE,
+                               ApplicationProtocolConfig.SelectedListenerFailureBehavior.ACCEPT,
+                               alpn
+                       )
+                );
+            }
             if (allowInsecure)
                 builder.trustManager(InsecureTrustManagerFactory.INSTANCE);
             this.sslContext= builder.build();

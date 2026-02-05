@@ -1,9 +1,12 @@
 package io.crowds.proxy.transport;
 
+import java.util.List;
+
 public class TlsOption {
     private boolean enable;
     private boolean warpHandler;
     private boolean allowInsecure=false;
+    private List<String> alpn;
     private String serverName;
 
     public TlsOption() {
@@ -48,6 +51,14 @@ public class TlsOption {
 
     public TlsOption setEnable(boolean enable) {
         this.enable = enable;
+        return this;
+    }
+    public List<String> getAlpn() {
+        return alpn;
+    }
+
+    public TlsOption setAlpn(List<String> alpn) {
+        this.alpn = alpn;
         return this;
     }
 }

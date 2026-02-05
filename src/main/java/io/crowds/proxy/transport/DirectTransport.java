@@ -109,7 +109,7 @@ public class DirectTransport implements Transport {
         if (tlsOption!=null&& tlsOption.isEnable()){
             initializer.tls(true,tlsOption.isAllowInsecure(),
                     tlsOption.getServerName()==null?dst.getHost():tlsOption.getServerName(),
-                    dst.getPort());
+                    dst.getPort(), tlsOption.getAlpn());
         }
         Async.cascadeFailure(resolve(eventLoop,preferType,dst),promise,resolveFuture->{
             NetAddr dest = resolveFuture.get();
