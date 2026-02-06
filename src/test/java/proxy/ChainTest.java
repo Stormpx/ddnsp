@@ -19,6 +19,9 @@ import io.crowds.proxy.transport.proxy.ssh.SshOption;
 import io.crowds.proxy.transport.proxy.ssh.SshProxyTransport;
 import io.crowds.proxy.transport.proxy.trojan.TrojanOption;
 import io.crowds.proxy.transport.proxy.trojan.TrojanProxyTransport;
+import io.crowds.proxy.transport.proxy.tuic.TuicOption;
+import io.crowds.proxy.transport.proxy.tuic.TuicProxyTransport;
+import io.crowds.proxy.transport.proxy.tuic.UdpMode;
 import io.crowds.proxy.transport.proxy.vless.VlessOption;
 import io.crowds.proxy.transport.proxy.vless.VlessProxyTransport;
 import io.crowds.proxy.transport.proxy.vmess.Security;
@@ -184,6 +187,24 @@ public class ChainTest extends ProxyTestBase {
         );
     }
 
+    @Rule
+    public SingboxRule tuicRule = new SingboxRule(CONTAINER_NETWORK);
+    private ProxyServer createTuicProxy(ChannelCreator channelCreator,String name) throws IOException {
+        TuicOption tuicOption =new TuicOption();
+        tuicOption.setAddress(new InetSocketAddress("127.0.0.1", 16845))
+                .setUuid(UUID.randomUUID())
+                .setPassword("passpasspass")
+                .setUdpMode(UdpMode.NATIVE)
+                .setName("tuic")
+                .setTls(new TlsOption().setEnable(true).setAllowInsecure(true).setAlpn(List.of("h3")));
+        tuicRule.start(tuicOption);
+        return new ProxyServer(
+                name,
+                ()->new TuicProxyTransport(channelCreator, (TuicOption) tuicRule.getOutside()),
+                ()->new TuicProxyTransport(channelCreator, (TuicOption) tuicRule.getInside())
+        );
+    }
+
     private void setupSshServer() throws IOException {
         SshServer sshServer = SshServer.setUpDefaultServer();
         sshServer.setHost("127.0.0.1");
@@ -269,8 +290,17 @@ public class ChainTest extends ProxyTestBase {
 //        }
 
         tcpTest(createChainProxyTransport(list));
+    }
 
-//        tcpTest(createChainProxyTransport(list));
+    @Test
+    public void tcpTest1() throws Exception {
+        var list = new ArrayList<>(List.of(createVmessProxy(channelCreator,"vmess0"),createSsProxy(channelCreator,"ss0"),
+                createTrojanProxy(channelCreator,"trojan0"),createVlessProxy(channelCreator,"vless0"),createTuicProxy(channelCreator,"tuic0"),
+                createSocksProxy(channelCreator,"socks0")));
+        Collections.shuffle(list);
+        System.out.println(list.stream().map(ProxyServer::tag).collect(Collectors.joining(",")));
+
+        tcpTest(createChainProxyTransport(list));
     }
 
     @Test
@@ -289,7 +319,7 @@ public class ChainTest extends ProxyTestBase {
 
     @Test
     public void udpTest() throws Exception {
-        var list = List.of(createSsProxy(channelCreator,"ss0"),createVmessProxy(channelCreator,"vmess0"));
+        var list = List.of(createSsProxy(channelCreator,"ss0"),createVmessProxy(channelCreator,"vmess0"),createTuicProxy(channelCreator,"tuic0"));
 
         for (int i = 0; i < list.size(); i++) {
             allCombination(list,new ArrayList<>(),i, Lambdas.rethrowConsumer(it->{

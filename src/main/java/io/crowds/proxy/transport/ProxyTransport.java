@@ -15,6 +15,8 @@ import io.crowds.proxy.transport.proxy.ssh.SshOption;
 import io.crowds.proxy.transport.proxy.ssh.SshProxyTransport;
 import io.crowds.proxy.transport.proxy.trojan.TrojanOption;
 import io.crowds.proxy.transport.proxy.trojan.TrojanProxyTransport;
+import io.crowds.proxy.transport.proxy.tuic.TuicOption;
+import io.crowds.proxy.transport.proxy.tuic.TuicProxyTransport;
 import io.crowds.proxy.transport.proxy.vless.VlessOption;
 import io.crowds.proxy.transport.proxy.vless.VlessProxyTransport;
 import io.crowds.proxy.transport.proxy.vmess.VmessOption;
@@ -45,6 +47,8 @@ public interface ProxyTransport {
             return new VlessProxyTransport(channelCreator, (VlessOption) protocolOption);
         } else if ("ssh".equalsIgnoreCase(protocol)){
             return new SshProxyTransport(channelCreator, (SshOption) protocolOption);
+        } else if ("tuic".equalsIgnoreCase(protocol)){
+            return new TuicProxyTransport(channelCreator, (TuicOption) protocolOption);
         } else if ("wg".equalsIgnoreCase(protocol)){
             return new WireguardProxyTransport(axis, (WireguardOption) protocolOption);
         } else if ("chain".equalsIgnoreCase(protocol)){

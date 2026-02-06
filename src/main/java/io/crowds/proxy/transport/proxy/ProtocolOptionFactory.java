@@ -11,6 +11,8 @@ import io.crowds.proxy.transport.proxy.shadowsocks.ShadowsocksOption;
 import io.crowds.proxy.transport.proxy.socks.SocksOption;
 import io.crowds.proxy.transport.proxy.ssh.SshOption;
 import io.crowds.proxy.transport.proxy.trojan.TrojanOption;
+import io.crowds.proxy.transport.proxy.tuic.TuicOption;
+import io.crowds.proxy.transport.proxy.tuic.UdpMode;
 import io.crowds.proxy.transport.proxy.vless.VlessOption;
 import io.crowds.proxy.transport.proxy.vmess.Security;
 import io.crowds.proxy.transport.proxy.vmess.User;
@@ -182,6 +184,33 @@ public class ProtocolOptionFactory {
         return sshOption;
     }
 
+    private static TuicOption parseTuic(JsonObject json){
+        TuicOption tuicOption = new TuicOption();
+        var host=json.getString("host");
+        var port=json.getInteger("port");
+        String uuidStr = json.getString("uuid");
+        String password = json.getString("password");
+        String udpMode = json.getString("udpMode");
+        InetSocketAddress address = Inet.createSocketAddress(host,port);
+        if (Strs.isBlank(uuidStr)){
+            throw new IllegalArgumentException("uuid is required");
+        }
+        UUID uuid = UUID.fromString(uuidStr);
+        if (Strs.isBlank(password)){
+            throw new IllegalArgumentException("password is required");
+        }
+        UdpMode mode = UdpMode.of(udpMode);
+        if (mode==null){
+            logger.warn("invalid udpMode: {}. use native mode by default",udpMode);
+            mode = UdpMode.NATIVE;
+        }
+        tuicOption.setAddress(address)
+                .setUuid(uuid)
+                .setPassword(password)
+                .setUdpMode(mode);
+        return tuicOption;
+    }
+
     private static SubNet parseSubNet(String address){
         int index = address.indexOf("/");
         if (index==-1){
@@ -301,6 +330,8 @@ public class ProtocolOptionFactory {
                 protocolOption=parseVless(json);
             }else if("ssh".equalsIgnoreCase(protocol)){
                 protocolOption=parseSsh(json);
+            }else if("tuic".equalsIgnoreCase(protocol)){
+                protocolOption=parseTuic(json);
             }else if ("wg".equals(protocol)||"wireguard".equals(protocol)){
                 protocolOption=parseWireguard(json);
                 protocolOption.setProtocol("wg");
