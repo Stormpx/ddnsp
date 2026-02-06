@@ -35,7 +35,6 @@ public class VlessHandler extends ChannelDuplexHandler {
     private VlessRequest request;
     private VlessTlsClamp tlsClamp;
     private SslHandler tlsHandler;
-    private boolean drainPendingData = false;
 
     private int serverPaddingCounter = 0;
     private int clientPaddingCounter = 0;
@@ -70,28 +69,18 @@ public class VlessHandler extends ChannelDuplexHandler {
         }
     }
 
-    private void drainTlsHandlerPendingData(){
-        try {
-            ByteBuf buf = TlsUtils.internalBuffer(tlsHandler);
-            if (buf.isReadable()) {
-                ByteBuf data = buf.readRetainedSlice(buf.readableBytes());
-                tlsClamp.getWrite().context.fireChannelRead(data);
-                tlsClamp.getWrite().context.fireChannelReadComplete();
-            }
-            drainPendingData = true;
-        } catch (Throwable e) {
-            throw new RuntimeException(e);
-        }
-    }
 
     private void tryRemoveTlsHandlers(ChannelHandlerContext ctx){
-        if (this.tlsClamp.isSkipRead() && this.tlsClamp.isSkipWrite() && drainPendingData){
-            ctx.pipeline()
-               .remove(tlsHandler)
-               .remove(tlsClamp.getRead())
-               .remove(tlsClamp.getWrite());
-            this.tlsHandler = null;
-            this.tlsClamp = null;
+
+        if (this.tlsClamp.isSkipRead() && this.tlsClamp.isSkipWrite()){
+            ctx.executor().submit(()->{
+                ctx.pipeline()
+                   .remove(tlsHandler)
+                   .remove(tlsClamp.getRead())
+                   .remove(tlsClamp.getWrite());
+                this.tlsHandler = null;
+                this.tlsClamp = null;
+            });
         }
     }
 
@@ -99,15 +88,7 @@ public class VlessHandler extends ChannelDuplexHandler {
         if (this.tlsClamp!=null){
             //skip the tls read
             this.tlsClamp.setSkipRead(true);
-            ctx.executor().submit(()->{
-                try {
-                    drainTlsHandlerPendingData();
-                    tryRemoveTlsHandlers(ctx);
-                } catch (Exception e) {
-                    logger.error("",e);
-                    ctx.channel().close();
-                }
-            });
+            tryRemoveTlsHandlers(ctx);
         }
     }
 

@@ -207,6 +207,7 @@ public class VlessCodec extends CombinedChannelDuplexHandler<ByteToMessageDecode
         private void decodeVisionFlow(ChannelHandlerContext ctx, ByteBuf in, List<Object> out){
             if (!paddingBuffer){
                 out.add(in.readRetainedSlice(in.readableBytes()));
+                return;
             }
             if (!uuidRead){
                 if (in.readableBytes()<16){

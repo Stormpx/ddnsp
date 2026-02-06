@@ -1,10 +1,16 @@
 package io.crowds.proxy.transport.proxy.vless;
 
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
+import io.netty.handler.codec.ByteToMessageDecoder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class VlessTlsClamp  {
 
+    private static final Logger logger = LoggerFactory.getLogger(VlessTlsClamp.class);
     private final VlessTlsClampRead read = new VlessTlsClampRead();
     private final VlessTlsClampWrite write = new VlessTlsClampWrite();
 
@@ -48,6 +54,11 @@ public class VlessTlsClamp  {
         public ChannelHandlerContext context;
         private boolean skip;
 
+        private final ByteToMessageDecoder.Cumulator cumulator = ByteToMessageDecoder.MERGE_CUMULATOR;
+        private ByteBuf cumulation = Unpooled.EMPTY_BUFFER;
+
+        private int tlsCipherTextLen = -1;
+
         @Override
         public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
             this.context = ctx;
@@ -55,8 +66,33 @@ public class VlessTlsClamp  {
 
         @Override
         public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+//            logger.info("channelRead: skip={}, msg={}", skip, msg);
+            boolean skip = this.skip;
             if (!skip){
-                ctx.fireChannelRead(msg);
+                assert msg instanceof ByteBuf;
+                this.cumulation = cumulator.cumulate(ctx.alloc(), cumulation, (ByteBuf) msg);
+                while (cumulation.isReadable() && !skip){
+                    if (tlsCipherTextLen==-1){
+                        if (cumulation.readableBytes()<5){
+                            return;
+                        }
+                        tlsCipherTextLen = 5 + ((cumulation.getUnsignedShort(cumulation.readerIndex() + 3) & 0xFFFF));
+                    }
+                    if (cumulation.readableBytes() < tlsCipherTextLen){
+                        return;
+                    }
+                    //make sure we read a full tls record
+                    ByteBuf slice = cumulation.readRetainedSlice(tlsCipherTextLen);
+                    tlsCipherTextLen = -1;
+                    ctx.fireChannelRead(slice);
+                    skip = this.skip;
+                }
+                if (skip){
+                    if (cumulation.isReadable()){
+                        write.context.fireChannelRead(cumulation);
+                    }
+                    cumulation = null;
+                }
             }else {
                 write.context.fireChannelRead(msg);
             }
