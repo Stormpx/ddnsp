@@ -1,5 +1,6 @@
 package io.crowds.proxy.transport;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class TlsOption {
@@ -15,6 +16,7 @@ public class TlsOption {
         this.enable = other.enable;
         this.allowInsecure = other.allowInsecure;
         this.serverName = other.serverName;
+        this.alpn = new ArrayList<>(other.alpn);
     }
 
     public boolean isWarpHandler() {
