@@ -219,7 +219,7 @@ public class XrayRule extends AbstractRule {
         if (server!=null){
             throw new IllegalStateException("Xray server already started");
         }
-        GenericContainer<?> container = new GenericContainer<>("teddysun/xray");
+        GenericContainer<?> container = new GenericContainer<>("teddysun/xray:25.12.8");
         server = container;
         JsonObject xrayConfig = null;
         try {
@@ -233,9 +233,10 @@ public class XrayRule extends AbstractRule {
         }
         container.withNetwork(network)
                  .withNetworkAliases(name)
-                 .withCopyToContainer(Transferable.of(xrayConfig.encode(), 777),"/etc/xray/config.json")
+                 .withCopyToContainer(Transferable.of(xrayConfig.encode(), 777),"/tmp/xray/config.json")
                  .withLogConsumer(new Slf4jLogConsumer(logger))
-                 .withAccessToHost(true);
+                 .withAccessToHost(true)
+                 .withCommand("xray -c /tmp/xray/config.json");
 
 
 
