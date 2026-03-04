@@ -49,3 +49,4 @@ config.yaml
 *.dll
 *.dylib
 tmp/
+code/
