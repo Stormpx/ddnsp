@@ -3,8 +3,11 @@ package io.crowds.proxy.common;
 import io.crowds.proxy.DomainNetAddr;
 import io.crowds.proxy.NetAddr;
 import io.crowds.util.IPCIDR;
+import io.crowds.util.IPMask;
 import io.crowds.util.Inet;
 import io.crowds.util.Ints;
+import org.stormpx.net.util.IP;
+import org.stormpx.net.util.Lpm;
 
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
@@ -13,12 +16,13 @@ import java.util.Objects;
 
 public class NatMap {
 
-    private final List<NatEntry> entries = new ArrayList<>();
+    private final List<NatEntry.Domain> domainEntries = new ArrayList<>();
+    private final Lpm<NatEntry.Cidr> addrLpm = new Lpm<>();
 
     sealed interface NatEntry  {
 
         record Domain(String domain,Translator translator) implements NatEntry{}
-        record Cidr(IPCIDR cidr,Translator translator) implements NatEntry{}
+        record Cidr(IPMask cidr, Translator translator) implements NatEntry{}
     }
 
     static class Translator{
@@ -88,8 +92,8 @@ public class NatMap {
         NatEntry entry = null;
         if (pattern.contains("/")){
             try {
-                IPCIDR ipcidr = new IPCIDR(pattern);
-                entry = new NatEntry.Cidr(ipcidr,translator);
+                IPMask ipMask = Inet.parseIPMask(pattern);
+                entry = new NatEntry.Cidr(ipMask,translator);
             } catch (Exception e) {
                 throw new IllegalArgumentException("Invalid pattern",e);
             }
@@ -99,33 +103,28 @@ public class NatMap {
             if (socketAddress.isUnresolved()) {
                 entry = new NatEntry.Domain(pattern, translator);
             } else {
-                entry = new NatEntry.Cidr(new IPCIDR(socketAddress.getAddress(),32), translator);
+                entry = new NatEntry.Cidr(new IPMask(IP.of(socketAddress.getAddress().getAddress()),32), translator);
             }
         }
+        switch (entry){
+            case NatEntry.Cidr cidr -> this.addrLpm.add(cidr.cidr.ip(), cidr.cidr.mask(),cidr);
+            case NatEntry.Domain domain -> this.domainEntries.add(domain);
+        }
 
-        this.entries.add(entry);
     }
 
 
     public NetAddr translate(NetAddr dest){
-        for (NatEntry entry : entries) {
-            switch (entry){
-                case NatEntry.Cidr cidr -> {
-                    if (dest instanceof DomainNetAddr){
-                        continue;
-                    }
-                    if (cidr.cidr.isMatch(dest.getAsInetAddr().getAddress().getAddress())){
-                        return cidr.translator.translate(dest);
-                    }
+        if (dest instanceof DomainNetAddr){
+            for (NatEntry.Domain domain : domainEntries) {
+                if (domain.domain.equalsIgnoreCase(dest.getHost())){
+                    return domain.translator.translate(dest);
                 }
-                case NatEntry.Domain domain -> {
-                    if (!(dest instanceof DomainNetAddr)){
-                        continue;
-                    }
-                    if (domain.domain.equalsIgnoreCase(dest.getHost())){
-                        return domain.translator.translate(dest);
-                    }
-                }
+            }
+        }else{
+            NatEntry.Cidr cidr = this.addrLpm.lookup(IP.of(dest.getAsInetAddr().getAddress().getAddress()));
+            if (cidr!=null){
+                return cidr.translator.translate(dest);
             }
         }
         return null;

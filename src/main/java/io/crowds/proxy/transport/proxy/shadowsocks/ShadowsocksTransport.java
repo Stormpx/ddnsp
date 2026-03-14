@@ -37,7 +37,7 @@ public class ShadowsocksTransport extends FullConeProxyTransport<ShadowsocksOpti
 
     @Override
     public Destination getRemote(TP tp) {
-        return new Destination(NetAddr.of(getProtocolOption().getAddress()),tp);
+        return new Destination(NetAddr.of(getProtocolOption().getAddress()), TP.UDP);
     }
 
 

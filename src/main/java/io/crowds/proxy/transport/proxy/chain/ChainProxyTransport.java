@@ -132,8 +132,6 @@ public class ChainProxyTransport extends AbstractProxyTransport<ChainOption> {
     @Override
     public Future<Channel> createChannel(EventLoop eventLoop, NetLocation netLocation) throws Exception {
         return this.proxyTransports.getLast().createChannel(eventLoop,netLocation);
-//        ChainContext context = new ChainContext(eventLoop, netLocation, proxyTransports,delegate!=this.transport?delegate:null);
-//        return context.createChannel();
     }
 
 }
