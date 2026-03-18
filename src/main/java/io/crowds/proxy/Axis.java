@@ -241,12 +241,14 @@ public class Axis {
 
         if (postRouteNats!=null) {
             NatMap natMap = postRouteNats.get(transport.proxy().getTag());
-            NetAddr addr = natMap.translate(netLocation.getDst());
-            if (addr!=null){
-                if (logger.isDebugEnabled())
-                    logger.debug("post route nat {} -> {}",netLocation.getDst(),addr);
-                netLocation = new NetLocation(netLocation.getSrc(),addr,netLocation.getTp());
-                proxyContext.withNetLocation(netLocation);
+            if (natMap!=null){
+                NetAddr addr = natMap.translate(netLocation.getDst());
+                if (addr!=null){
+                    if (logger.isDebugEnabled())
+                        logger.debug("post route nat {} -> {}",netLocation.getDst(),addr);
+                    netLocation = new NetLocation(netLocation.getSrc(),addr,netLocation.getTp());
+                    proxyContext.withNetLocation(netLocation);
+                }
             }
         }
 
