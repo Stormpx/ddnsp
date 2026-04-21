@@ -2,10 +2,7 @@ package io.crowds.proxy.transport;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelDuplexHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.EventLoop;
+import io.netty.channel.*;
 import io.netty.channel.socket.ChannelInputShutdownEvent;
 import io.netty.channel.socket.ChannelOutputShutdownEvent;
 import io.netty.channel.socket.DatagramPacket;
@@ -157,8 +154,11 @@ public class TcpEndPoint extends EndPoint {
                     if (!f.isSuccess()){
                         fireException(f.cause());
                     }
-                    logger.info("shutdown:{} outbuffer: {}",this.shutdown,channel.unsafe().outboundBuffer().isEmpty());
-                    if (this.shutdown==Shutdown.OUTPUT && channel.unsafe().outboundBuffer().isEmpty()){
+                    ChannelOutboundBuffer buffer = channel.unsafe().outboundBuffer();
+                    if (shutdown!=null) {
+                        logger.info("shutdown:{} outbuffer_null: {} empty:{}",this.shutdown,buffer==null, buffer != null && buffer.isEmpty());
+                    }
+                    if (this.shutdown==Shutdown.OUTPUT && (buffer==null||buffer.isEmpty())){
                         logger.error("shutdown output after all msg flushed");
                         shutdown(Shutdown.OUTPUT);
                     }
@@ -193,11 +193,14 @@ public class TcpEndPoint extends EndPoint {
                 close();
             }else {
                 this.shutdown = shutdown;
-                if (channel() instanceof DuplexChannel duplex){
+                if (channel instanceof DuplexChannel duplex){
                     switch (shutdown){
                         case INPUT -> duplex.shutdownInput();
                         case OUTPUT -> {
-                            if (channel.unsafe().outboundBuffer().isEmpty()){
+                            ChannelOutboundBuffer buffer = channel.unsafe().outboundBuffer();
+                            if (buffer==null)
+                                return;
+                            if (buffer.isEmpty()){
                                 logger.info("shutdown output");
                                 duplex.shutdownOutput();
                             }else{
