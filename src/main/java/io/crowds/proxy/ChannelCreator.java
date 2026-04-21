@@ -79,6 +79,7 @@ public class ChannelCreator {
         var cf=getBootstrap(eventLoop)
                         .channelFactory(channelFactoryProvider.getSocketChannelFactory())
                         .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
+                        .option(ChannelOption.ALLOW_HALF_CLOSURE, true)
                         .handler(initializer)
                         .connect(remote,local);
         cf.addListener(f->{

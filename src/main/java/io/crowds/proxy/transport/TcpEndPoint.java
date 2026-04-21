@@ -2,10 +2,8 @@ package io.crowds.proxy.transport;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelDuplexHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.socket.DatagramPacket;
+import io.netty.channel.*;
+import io.netty.channel.socket.*;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.http2.Http2Exception;
 import io.netty.util.ReferenceCountUtil;
@@ -20,7 +18,8 @@ public class TcpEndPoint extends EndPoint {
     private final Channel channel;
     private final Collection<Class<? extends Throwable>> ignoreExceptions;
     private final boolean closeOnException;
-    private boolean closed;
+    private volatile boolean closed;
+    private Shutdown shutdown;
 
     public TcpEndPoint(Channel channel) {
         this.channel = channel;
@@ -28,23 +27,43 @@ public class TcpEndPoint extends EndPoint {
         this.closeOnException = false;
         setAutoRead(false);
         init();
+        this.shutdown = channel instanceof DuplexChannel duplex && duplex.isInputShutdown() ? Shutdown.INPUT:null;
     }
+
 
     private void init(){
         this.channel.pipeline().addLast(new ChannelDuplexHandler() {
             private ByteBuf cumulation;
             private final ByteToMessageDecoder.Cumulator cumulator = ByteToMessageDecoder.COMPOSITE_CUMULATOR;
+
+            private boolean shouldBreakRead(ChannelHandlerContext ctx){
+                if (shutdown==Shutdown.INPUT){
+                    return true;
+                }
+                return ctx.channel() instanceof DuplexChannel duplex && duplex.isInputShutdown();
+            }
+
             @Override
             public void read(ChannelHandlerContext ctx) throws Exception {
-                ByteBuf buf = cumulation;
                 if (cumulation!=null){
+                    ByteBuf buf = cumulation;
                     cumulation = null;
                     ctx.executor().submit(()->{
                         fireBuf(buf);
                         fireReadComplete();
+                        if (shouldBreakRead(ctx)){
+                            ctx.channel().config().setAutoRead(false);
+                            return;
+                        }
+                        ctx.read();
                     });
+                }else{
+                    if (shouldBreakRead(ctx)){
+                        ctx.channel().config().setAutoRead(false);
+                        return;
+                    }
+                    ctx.read();
                 }
-                super.read(ctx);
             }
 
             @Override
@@ -89,6 +108,22 @@ public class TcpEndPoint extends EndPoint {
                 super.channelReadComplete(ctx);
             }
 
+            @Override
+            public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+                var shutdown = TcpEndPoint.this.shutdown;
+                if (evt instanceof ChannelInputShutdownEvent){
+                    ctx.channel().config().setAutoRead(false);
+                    if (shutdown != Shutdown.INPUT) {
+                        fireShutdown(TcpEndPoint.this.shutdown = Shutdown.INPUT);
+                    }
+                }else if (evt instanceof ChannelOutputShutdownEvent){
+                    if (shutdown != Shutdown.OUTPUT) {
+                        fireShutdown(TcpEndPoint.this.shutdown = Shutdown.OUTPUT);
+                    }
+                }
+                super.userEventTriggered(ctx, evt);
+            }
+
             private boolean ignore(Throwable cause){
                 for (Class<? extends Throwable> exKlass : ignoreExceptions) {
                     if (exKlass.isInstance(cause)){
@@ -114,9 +149,9 @@ public class TcpEndPoint extends EndPoint {
 
     }
 
-    @Override
-    public void write(Object msg) {
-        if (!channel.isActive()||closed){
+    private void doWrite(Object msg){
+        if (this.shutdown==Shutdown.OUTPUT){
+            logger.error("Attempt to write message after shutdownOutput is scheduled");
             ReferenceCountUtil.safeRelease(msg);
             return;
         }
@@ -128,12 +163,71 @@ public class TcpEndPoint extends EndPoint {
                     if (!f.isSuccess()){
                         fireException(f.cause());
                     }
-                });;
+                    ChannelOutboundBuffer buffer = channel.unsafe().outboundBuffer();
+                    if (this.shutdown==Shutdown.OUTPUT){
+                        if (buffer!=null&&buffer.isEmpty()){
+                            ((DuplexChannel)(channel)).shutdownOutput();
+                        }
+                    }
+                });
+    }
+
+    @Override
+    public void write(Object msg) {
+        if (!channel.isActive()||closed){
+            ReferenceCountUtil.safeRelease(msg);
+            return;
+        }
+        EventLoop eventLoop = channel.eventLoop();
+        if (eventLoop.inEventLoop()){
+            doWrite(msg);
+        }else{
+            eventLoop.execute(()-> doWrite(msg));
+        }
     }
 
     @Override
     public Channel channel() {
         return channel;
+    }
+
+    public Shutdown getShutdown() {
+        return shutdown;
+    }
+
+    @Override
+    public void shutdown(Shutdown shutdown) {
+        EventLoop eventLoop = channel.eventLoop();
+        if (eventLoop.inEventLoop()){
+            if (channel instanceof DuplexChannel duplex){
+                if (this.shutdown !=null && this.shutdown != shutdown){
+                    close();
+                }else{
+                    this.shutdown = shutdown;
+                    switch (shutdown){
+                        case INPUT -> {
+                            duplex.shutdownInput();
+                            duplex.config().setAutoRead(false);
+                        }
+                        case OUTPUT -> {
+                            ChannelOutboundBuffer buffer = channel.unsafe().outboundBuffer();
+                            if (buffer==null)
+                                return;
+                            if (!buffer.isEmpty()) {
+                                flush();
+                            } else {
+                                duplex.shutdownOutput();
+                            }
+                        }
+                    }
+                }
+            }else{
+                close();
+            }
+        }else{
+            eventLoop.execute(()-> shutdown(shutdown));
+        }
+
     }
 
     @Override

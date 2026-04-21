@@ -59,6 +59,7 @@ public class SocksServer {
         bootstrap
                 .option(ChannelOption.SO_REUSEADDR,true)
                 .childOption(ChannelOption.SO_REUSEADDR,true)
+                .childOption(ChannelOption.ALLOW_HALF_CLOSURE,true)
                 .childHandler(new ChannelInitializer<SocketChannel>() {
                     @Override
                     protected void initChannel(SocketChannel ch) throws Exception {

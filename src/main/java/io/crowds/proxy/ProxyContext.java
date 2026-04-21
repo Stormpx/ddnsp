@@ -68,6 +68,8 @@ public class ProxyContext {
         src.readCompleteHandler(dst::flush);
         src.writabilityHandler(dst::setAutoRead);
         dst.writabilityHandler(src::setAutoRead);
+        src.shutdownHandler(shutdown-> dst.shutdown(shutdown.reverse()));
+        dst.shutdownHandler(shutdown-> src.shutdown(shutdown.reverse()));
         src.closeFuture().addListener(closeFuture->{
             fireClose();
             dst.close();
@@ -104,6 +106,15 @@ public class ProxyContext {
         }
         src.setAutoRead(true);
         dst.setAutoRead(true);
+        eventLoop.submit(()->{
+            if (src.getShutdown()!=null){
+                dst.shutdown(src.getShutdown().reverse());
+            }
+            if (dst.getShutdown()!=null){
+                src.shutdown(dst.getShutdown().reverse());
+            }
+        });
+
     }
 
     private void fireClose(){
