@@ -165,9 +165,7 @@ public class TcpEndPoint extends EndPoint {
                     }
                     if (this.shutdown==Shutdown.OUTPUT){
                         logger.error(channel.remoteAddress()+" shutdown output after all msg flushed");
-                        if (buffer==null){
-                            close();
-                        }else if (buffer.isEmpty()){
+                        if (buffer!=null&&buffer.isEmpty()){
                             ((DuplexChannel)(channel)).shutdownOutput();
                         }
                     }
@@ -212,13 +210,14 @@ public class TcpEndPoint extends EndPoint {
                             ChannelOutboundBuffer buffer = channel.unsafe().outboundBuffer();
                             if (buffer==null)
                                 return;
-                            if (buffer.isEmpty()){
-                                logger.info(channel.remoteAddress()+" shutdown output");
-                                duplex.shutdownOutput();
-                            }else{
-                                logger.info(channel.remoteAddress()+" nonono");
-                                flush();
-                            }
+                            duplex.shutdownOutput();
+//                            if (buffer.isEmpty()){
+//                                logger.info(channel.remoteAddress()+" shutdown output");
+//                                duplex.shutdownOutput();
+//                            }else{
+//                                logger.info(channel.remoteAddress()+" nonono");
+//                                flush();
+//                            }
                         }
                     }
                 }else{
