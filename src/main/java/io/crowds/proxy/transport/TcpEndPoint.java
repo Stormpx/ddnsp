@@ -156,6 +156,7 @@ public class TcpEndPoint extends EndPoint {
                         fireException(f.cause());
                     }
                     if (this.shutdownPoint <= this.writeComps){
+                        logger.warn("flush all the message,shutdown output");
                         shutdown(Shutdown.OUTPUT);
                     }else if (this.shutdownPoint!=Long.MAX_VALUE){
                         if (channel.unsafe().outboundBuffer().isEmpty()){
@@ -201,6 +202,7 @@ public class TcpEndPoint extends EndPoint {
                                 this.shutdownPoint = this.msgWrites;
                                 flush();
                             } else{
+                                logger.warn("shutdown output");
                                 duplex.shutdownOutput();
                             }
                         }
