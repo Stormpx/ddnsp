@@ -38,6 +38,14 @@ public class TcpEndPoint extends EndPoint {
         init();
     }
 
+    @Override
+    public void setAutoRead(boolean autoRead) {
+        if (shutdown==Shutdown.INPUT){
+            return;
+        }
+        super.setAutoRead(autoRead);
+    }
+
     private void init(){
         this.channel.pipeline().addLast(new ChannelDuplexHandler() {
             private ByteBuf cumulation;
@@ -191,7 +199,7 @@ public class TcpEndPoint extends EndPoint {
                         case OUTPUT -> {
                             if (this.shutdownPoint == Long.MAX_VALUE){
                                 this.shutdownPoint = this.msgWrites;
-//                                flush();
+                                flush();
                             } else{
                                 duplex.shutdownOutput();
                             }
