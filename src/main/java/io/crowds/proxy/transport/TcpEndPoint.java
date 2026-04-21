@@ -108,8 +108,10 @@ public class TcpEndPoint extends EndPoint {
             @Override
             public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
                 if (evt instanceof ChannelInputShutdownEvent){
+                    logger.info("shutdownInput Event");
                     fireShutdown(TcpEndPoint.this.shutdown = Shutdown.INPUT);
                 }else if (evt instanceof ChannelOutputShutdownEvent){
+                    logger.info("shutdownOutput Event");
                     fireShutdown(TcpEndPoint.this.shutdown = Shutdown.OUTPUT);
                 }
                 super.userEventTriggered(ctx, evt);
@@ -190,6 +192,7 @@ public class TcpEndPoint extends EndPoint {
     public void shutdown(Shutdown shutdown) {
         EventLoop eventLoop = channel.eventLoop();
         if (eventLoop.inEventLoop()){
+            logger.info("shutdown call this:{} param:{}",this.shutdown,shutdown);
             if (this.shutdown !=null && this.shutdown != shutdown){
                 close();
             }else {
