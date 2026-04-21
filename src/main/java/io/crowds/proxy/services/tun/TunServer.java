@@ -8,10 +8,7 @@ import io.crowds.proxy.common.UdpTransparentHandler;
 import io.crowds.util.ChannelFactoryProvider;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.DefaultEventLoop;
+import io.netty.channel.*;
 import io.netty.channel.socket.SocketChannel;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
@@ -118,6 +115,7 @@ public class TunServer {
 
         serverBootstrap
                 .group(context.getAcceptor(),context.getEventLoopGroup())
+                .childOption(ChannelOption.ALLOW_HALF_CLOSURE,true)
                 .childHandler(new ChannelInitializer<SocketChannel>(){
                     @Override
                     protected void initChannel(SocketChannel ch) throws Exception {

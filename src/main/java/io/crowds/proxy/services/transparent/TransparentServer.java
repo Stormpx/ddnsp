@@ -62,7 +62,8 @@ public class TransparentServer {
                        .option(ChannelOption.SO_REUSEADDR,true)
                        .option(UnixChannelOption.SO_REUSEPORT,true)
                        .option(EpollChannelOption.IP_TRANSPARENT,true)
-                       .childOption(EpollChannelOption.IP_TRANSPARENT,true);
+                       .childOption(EpollChannelOption.IP_TRANSPARENT,true)
+                       .childOption(ChannelOption.ALLOW_HALF_CLOSURE,true);
 
         serverBootstrap
                 .group(context.getAcceptor(),context.getEventLoopGroup())
