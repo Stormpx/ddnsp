@@ -104,12 +104,16 @@ public class TcpEndPoint extends EndPoint {
 
             @Override
             public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+                var shutdown = TcpEndPoint.this.shutdown;
                 if (evt instanceof ChannelInputShutdownEvent){
                     logger.info("shutdownInput Event");
                     fireShutdown(TcpEndPoint.this.shutdown = Shutdown.INPUT);
                 }else if (evt instanceof ChannelOutputShutdownEvent){
                     logger.info("shutdownOutput Event");
                     fireShutdown(TcpEndPoint.this.shutdown = Shutdown.OUTPUT);
+                }
+                if (shutdown!=null && shutdown != TcpEndPoint.this.shutdown){
+                    ctx.close();
                 }
                 super.userEventTriggered(ctx, evt);
             }
@@ -154,7 +158,8 @@ public class TcpEndPoint extends EndPoint {
                         fireException(f.cause());
                     }
                     if (this.shutdown==Shutdown.OUTPUT && channel.unsafe().outboundBuffer().isEmpty()){
-                        logger.error("shutdownPoint has been set but outboundBuffer isEmpty");
+                        logger.error("shutdown output after all msg flushed");
+                        shutdown(Shutdown.OUTPUT);
                     }
                 });
     }
@@ -183,6 +188,7 @@ public class TcpEndPoint extends EndPoint {
         EventLoop eventLoop = channel.eventLoop();
         if (eventLoop.inEventLoop()){
             if (this.shutdown !=null && this.shutdown != shutdown){
+                logger.info("close channel");
                 close();
             }else {
                 this.shutdown = shutdown;
@@ -191,6 +197,7 @@ public class TcpEndPoint extends EndPoint {
                         case INPUT -> duplex.shutdownInput();
                         case OUTPUT -> {
                             if (channel.unsafe().outboundBuffer().isEmpty()){
+                                logger.info("shutdown output");
                                 duplex.shutdownOutput();
                             }
                         }
