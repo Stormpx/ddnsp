@@ -25,9 +25,6 @@ public class TcpEndPoint extends EndPoint {
     private final Collection<Class<? extends Throwable>> ignoreExceptions;
     private final boolean closeOnException;
     private volatile boolean closed;
-    private long msgWrites;
-    private long writeComps;
-    private long shutdownPoint = Long.MAX_VALUE;
     private Shutdown shutdown;
 
     public TcpEndPoint(Channel channel) {
@@ -143,7 +140,7 @@ public class TcpEndPoint extends EndPoint {
     }
 
     private void doWrite(Object msg){
-        if (this.shutdownPoint!=Long.MAX_VALUE){
+        if (this.shutdown==Shutdown.OUTPUT){
             logger.error("Attempt to write message after shutdownOutput is scheduled");
             ReferenceCountUtil.safeRelease(msg);
             return;
@@ -153,22 +150,13 @@ public class TcpEndPoint extends EndPoint {
         }
         channel.write(msg)
                 .addListener(f->{
-                    this.writeComps++;
-
                     if (!f.isSuccess()){
                         fireException(f.cause());
                     }
-                    if (this.shutdownPoint <= this.writeComps){
-                        logger.warn("flush all the message,shutdown output");
-                        shutdown(Shutdown.OUTPUT);
-                    }else if (this.shutdownPoint!=Long.MAX_VALUE){
-                        logger.info("msgw:{} wcomp:{} point:{}",this.msgWrites,this.writeComps,this.shutdownPoint);
-                        if (channel.unsafe().outboundBuffer().isEmpty()){
-                            logger.error("shutdownPoint has been set but outboundBuffer isEmpty");
-                        }
+                    if (this.shutdown==Shutdown.OUTPUT && channel.unsafe().outboundBuffer().isEmpty()){
+                        logger.error("shutdownPoint has been set but outboundBuffer isEmpty");
                     }
                 });
-        this.msgWrites++;
     }
 
     @Override
@@ -194,7 +182,6 @@ public class TcpEndPoint extends EndPoint {
     public void shutdown(Shutdown shutdown) {
         EventLoop eventLoop = channel.eventLoop();
         if (eventLoop.inEventLoop()){
-            logger.info("shutdown call this:{} param:{}",this.shutdown,shutdown);
             if (this.shutdown !=null && this.shutdown != shutdown){
                 close();
             }else {
@@ -203,11 +190,7 @@ public class TcpEndPoint extends EndPoint {
                     switch (shutdown){
                         case INPUT -> duplex.shutdownInput();
                         case OUTPUT -> {
-                            if (this.shutdownPoint == Long.MAX_VALUE){
-                                this.shutdownPoint = this.msgWrites;
-                                flush();
-                            } else{
-                                logger.warn("shutdown output");
+                            if (channel.unsafe().outboundBuffer().isEmpty()){
                                 duplex.shutdownOutput();
                             }
                         }
