@@ -108,7 +108,7 @@ public class TcpEndPoint extends EndPoint {
                         fireShutdown(Shutdown.INPUT);
                     }
                 }else if (evt instanceof ChannelOutputShutdownEvent){
-                    if (shutdown==Shutdown.INPUT){
+                    if (shutdown==Shutdown.OUTPUT){
                         logger.info(ctx.channel().remoteAddress()+"Already shutdown Output");
                     }else {
                         logger.info(ctx.channel().remoteAddress()+"shutdownOutput Event");
