@@ -40,7 +40,7 @@ public class TcpEndPoint extends EndPoint {
 
     @Override
     public void setAutoRead(boolean autoRead) {
-        if (shutdown==Shutdown.INPUT){
+        if (autoRead&&shutdown==Shutdown.INPUT){
             return;
         }
         super.setAutoRead(autoRead);
