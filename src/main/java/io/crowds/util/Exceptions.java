@@ -15,7 +15,7 @@ public class Exceptions {
             "(?:connection.*(?:reset|closed|abort|broken)|broken.*pipe)", Pattern.CASE_INSENSITIVE);
 
     private static final Pattern IGNORABLE_PARTIAL_ERROR_MESSAGE = Pattern.compile(
-            "(?:Closed)", Pattern.CASE_INSENSITIVE);
+            "(?:Closed|timeout)", Pattern.CASE_INSENSITIVE);
 
 
     private static final Pattern IGNORABLE_TLS_ERROR_MESSAGE = Pattern.compile(

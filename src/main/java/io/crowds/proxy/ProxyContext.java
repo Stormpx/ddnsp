@@ -68,6 +68,8 @@ public class ProxyContext {
         src.readCompleteHandler(dst::flush);
         src.writabilityHandler(dst::setAutoRead);
         dst.writabilityHandler(src::setAutoRead);
+        src.shutdownHandler(shutdown-> dst.shutdown(shutdown.reverse()));
+        dst.shutdownHandler(shutdown-> src.shutdown(shutdown.reverse()));
         src.closeFuture().addListener(closeFuture->{
             fireClose();
             dst.close();

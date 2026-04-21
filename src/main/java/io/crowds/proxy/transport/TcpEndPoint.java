@@ -5,7 +5,11 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.EventLoop;
+import io.netty.channel.socket.ChannelInputShutdownEvent;
+import io.netty.channel.socket.ChannelOutputShutdownEvent;
 import io.netty.channel.socket.DatagramPacket;
+import io.netty.channel.socket.DuplexChannel;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.http2.Http2Exception;
 import io.netty.util.ReferenceCountUtil;
@@ -20,7 +24,11 @@ public class TcpEndPoint extends EndPoint {
     private final Channel channel;
     private final Collection<Class<? extends Throwable>> ignoreExceptions;
     private final boolean closeOnException;
-    private boolean closed;
+    private volatile boolean closed;
+    private long msgWrites;
+    private long writeComps;
+    private long shutdownPoint = Long.MAX_VALUE;
+    private Shutdown shutdown;
 
     public TcpEndPoint(Channel channel) {
         this.channel = channel;
@@ -89,6 +97,16 @@ public class TcpEndPoint extends EndPoint {
                 super.channelReadComplete(ctx);
             }
 
+            @Override
+            public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+                if (evt instanceof ChannelInputShutdownEvent){
+                    fireShutdown(TcpEndPoint.this.shutdown = Shutdown.INPUT);
+                }else if (evt instanceof ChannelOutputShutdownEvent){
+                    fireShutdown(TcpEndPoint.this.shutdown = Shutdown.OUTPUT);
+                }
+                super.userEventTriggered(ctx, evt);
+            }
+
             private boolean ignore(Throwable cause){
                 for (Class<? extends Throwable> exKlass : ignoreExceptions) {
                     if (exKlass.isInstance(cause)){
@@ -114,9 +132,9 @@ public class TcpEndPoint extends EndPoint {
 
     }
 
-    @Override
-    public void write(Object msg) {
-        if (!channel.isActive()||closed){
+    private void doWrite(Object msg){
+        if (this.shutdownPoint!=Long.MAX_VALUE){
+            logger.error("Attempt to write message after shutdownOutput is scheduled");
             ReferenceCountUtil.safeRelease(msg);
             return;
         }
@@ -125,15 +143,64 @@ public class TcpEndPoint extends EndPoint {
         }
         channel.write(msg)
                 .addListener(f->{
+                    this.writeComps++;
                     if (!f.isSuccess()){
                         fireException(f.cause());
                     }
-                });;
+                    if (this.shutdownPoint <= this.writeComps){
+                        shutdown(Shutdown.OUTPUT);
+                    }
+                });
+        this.msgWrites++;
+    }
+
+    @Override
+    public void write(Object msg) {
+        if (!channel.isActive()||closed){
+            ReferenceCountUtil.safeRelease(msg);
+            return;
+        }
+        EventLoop eventLoop = channel.eventLoop();
+        if (eventLoop.inEventLoop()){
+            doWrite(msg);
+        }else{
+            eventLoop.execute(()-> doWrite(msg));
+        }
     }
 
     @Override
     public Channel channel() {
         return channel;
+    }
+
+    @Override
+    public void shutdown(Shutdown shutdown) {
+        EventLoop eventLoop = channel.eventLoop();
+        if (eventLoop.inEventLoop()){
+            if (this.shutdown !=null && this.shutdown != shutdown){
+                close();
+            }else {
+                this.shutdown = shutdown;
+                if (channel() instanceof DuplexChannel duplex){
+                    switch (shutdown){
+                        case INPUT -> duplex.shutdownInput();
+                        case OUTPUT -> {
+                            if (this.shutdownPoint != Long.MAX_VALUE){
+                                this.shutdownPoint = this.msgWrites;
+                                flush();
+                            } else{
+                                duplex.shutdownOutput();
+                            }
+                        }
+                    }
+                }else{
+                    close();
+                }
+            }
+        }else{
+            eventLoop.execute(()-> shutdown(shutdown));
+        }
+
     }
 
     @Override
