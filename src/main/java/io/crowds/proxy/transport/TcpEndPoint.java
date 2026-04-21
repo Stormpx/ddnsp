@@ -154,6 +154,7 @@ public class TcpEndPoint extends EndPoint {
         channel.write(msg)
                 .addListener(f->{
                     this.writeComps++;
+
                     if (!f.isSuccess()){
                         fireException(f.cause());
                     }
@@ -161,6 +162,7 @@ public class TcpEndPoint extends EndPoint {
                         logger.warn("flush all the message,shutdown output");
                         shutdown(Shutdown.OUTPUT);
                     }else if (this.shutdownPoint!=Long.MAX_VALUE){
+                        logger.info("msgw:{} wcomp:{} point:{}",this.msgWrites,this.writeComps,this.shutdownPoint);
                         if (channel.unsafe().outboundBuffer().isEmpty()){
                             logger.error("shutdownPoint has been set but outboundBuffer isEmpty");
                         }
