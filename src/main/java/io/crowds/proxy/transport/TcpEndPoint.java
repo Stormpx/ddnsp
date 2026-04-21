@@ -157,6 +157,7 @@ public class TcpEndPoint extends EndPoint {
                     if (!f.isSuccess()){
                         fireException(f.cause());
                     }
+                    logger.info("shutdown:{} outbuffer: {}",this.shutdown,channel.unsafe().outboundBuffer().isEmpty());
                     if (this.shutdown==Shutdown.OUTPUT && channel.unsafe().outboundBuffer().isEmpty()){
                         logger.error("shutdown output after all msg flushed");
                         shutdown(Shutdown.OUTPUT);
@@ -199,6 +200,9 @@ public class TcpEndPoint extends EndPoint {
                             if (channel.unsafe().outboundBuffer().isEmpty()){
                                 logger.info("shutdown output");
                                 duplex.shutdownOutput();
+                            }else{
+                                logger.info("nonono");
+                                flush();
                             }
                         }
                     }
