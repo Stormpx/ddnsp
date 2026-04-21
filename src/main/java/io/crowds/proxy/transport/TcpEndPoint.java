@@ -189,7 +189,7 @@ public class TcpEndPoint extends EndPoint {
                     switch (shutdown){
                         case INPUT -> duplex.shutdownInput();
                         case OUTPUT -> {
-                            if (this.shutdownPoint != Long.MAX_VALUE){
+                            if (this.shutdownPoint == Long.MAX_VALUE){
                                 this.shutdownPoint = this.msgWrites;
 //                                flush();
                             } else{
