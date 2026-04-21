@@ -99,7 +99,8 @@ public class TcpEndPoint extends EndPoint {
             @Override
             public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
                 var shutdown = TcpEndPoint.this.shutdown;
-                if (evt instanceof ChannelInputShutdownReadComplete){
+                if (evt instanceof ChannelInputShutdownEvent){
+                    ctx.channel().config().setAutoRead(false);
                     if (shutdown==Shutdown.INPUT){
                         logger.info(ctx.channel().remoteAddress()+" Already shutdown Input");
                     }else {
@@ -203,7 +204,10 @@ public class TcpEndPoint extends EndPoint {
                 this.shutdown = shutdown;
                 if (channel instanceof DuplexChannel duplex){
                     switch (shutdown){
-                        case INPUT -> duplex.shutdownInput();
+                        case INPUT -> {
+                            duplex.shutdownInput();
+                            duplex.config().setAutoRead(false);
+                        }
                         case OUTPUT -> {
                             ChannelOutboundBuffer buffer = channel.unsafe().outboundBuffer();
                             if (buffer==null)
