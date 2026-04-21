@@ -149,6 +149,10 @@ public class TcpEndPoint extends EndPoint {
                     }
                     if (this.shutdownPoint <= this.writeComps){
                         shutdown(Shutdown.OUTPUT);
+                    }else if (this.shutdownPoint!=Long.MAX_VALUE){
+                        if (channel.unsafe().outboundBuffer().isEmpty()){
+                            logger.error("shutdownPoint has been set but outboundBuffer isEmpty");
+                        }
                     }
                 });
         this.msgWrites++;
