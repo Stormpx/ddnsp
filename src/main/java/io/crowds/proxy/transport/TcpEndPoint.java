@@ -3,10 +3,7 @@ package io.crowds.proxy.transport;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
-import io.netty.channel.socket.ChannelInputShutdownEvent;
-import io.netty.channel.socket.ChannelOutputShutdownEvent;
-import io.netty.channel.socket.DatagramPacket;
-import io.netty.channel.socket.DuplexChannel;
+import io.netty.channel.socket.*;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.http2.Http2Exception;
 import io.netty.util.ReferenceCountUtil;
@@ -102,15 +99,22 @@ public class TcpEndPoint extends EndPoint {
             @Override
             public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
                 var shutdown = TcpEndPoint.this.shutdown;
-                if (evt instanceof ChannelInputShutdownEvent){
-                    logger.info("shutdownInput Event");
-                    fireShutdown(TcpEndPoint.this.shutdown = Shutdown.INPUT);
+                if (evt instanceof ChannelInputShutdownReadComplete){
+                    if (shutdown==Shutdown.INPUT){
+                        logger.info(ctx.channel().remoteAddress()+"Already shutdown Input");
+                    }else {
+                        logger.info(ctx.channel().remoteAddress()+"shutdownInput Event");
+                        TcpEndPoint.this.shutdown = Shutdown.INPUT;
+                        fireShutdown(Shutdown.INPUT);
+                    }
                 }else if (evt instanceof ChannelOutputShutdownEvent){
-                    logger.info("shutdownOutput Event");
-                    fireShutdown(TcpEndPoint.this.shutdown = Shutdown.OUTPUT);
-                }
-                if (shutdown!=null && shutdown != TcpEndPoint.this.shutdown){
-                    ctx.close();
+                    if (shutdown==Shutdown.INPUT){
+                        logger.info(ctx.channel().remoteAddress()+"Already shutdown Output");
+                    }else {
+                        logger.info(ctx.channel().remoteAddress()+"shutdownOutput Event");
+                        TcpEndPoint.this.shutdown = Shutdown.OUTPUT;
+                        fireShutdown(Shutdown.OUTPUT);
+                    }
                 }
                 super.userEventTriggered(ctx, evt);
             }
@@ -142,7 +146,7 @@ public class TcpEndPoint extends EndPoint {
 
     private void doWrite(Object msg){
         if (this.shutdown==Shutdown.OUTPUT){
-            logger.error("Attempt to write message after shutdownOutput is scheduled");
+            logger.error(channel.remoteAddress()+"Attempt to write message after shutdownOutput is scheduled");
             ReferenceCountUtil.safeRelease(msg);
             return;
         }
@@ -156,11 +160,15 @@ public class TcpEndPoint extends EndPoint {
                     }
                     ChannelOutboundBuffer buffer = channel.unsafe().outboundBuffer();
                     if (shutdown!=null) {
-                        logger.info("shutdown:{} outbuffer_null: {} empty:{}",this.shutdown,buffer==null, buffer != null && buffer.isEmpty());
+                        logger.info(channel.remoteAddress()+"shutdown:{} outbuffer_null: {} empty:{}",this.shutdown,buffer==null, buffer != null && buffer.isEmpty());
                     }
-                    if (this.shutdown==Shutdown.OUTPUT && (buffer==null||buffer.isEmpty())){
-                        logger.error("shutdown output after all msg flushed");
-                        shutdown(Shutdown.OUTPUT);
+                    if (this.shutdown==Shutdown.OUTPUT){
+                        logger.error(channel.remoteAddress()+"shutdown output after all msg flushed");
+                        if (buffer==null){
+                            close();
+                        }else if (buffer.isEmpty()){
+                            ((DuplexChannel)(channel)).shutdownOutput();
+                        }
                     }
                 });
     }
@@ -189,7 +197,7 @@ public class TcpEndPoint extends EndPoint {
         EventLoop eventLoop = channel.eventLoop();
         if (eventLoop.inEventLoop()){
             if (this.shutdown !=null && this.shutdown != shutdown){
-                logger.info("close channel");
+                logger.info(channel.remoteAddress()+"close channel");
                 close();
             }else {
                 this.shutdown = shutdown;
@@ -201,10 +209,10 @@ public class TcpEndPoint extends EndPoint {
                             if (buffer==null)
                                 return;
                             if (buffer.isEmpty()){
-                                logger.info("shutdown output");
+                                logger.info(channel.remoteAddress()+"shutdown output");
                                 duplex.shutdownOutput();
                             }else{
-                                logger.info("nonono");
+                                logger.info(channel.remoteAddress()+"nonono");
                                 flush();
                             }
                         }
