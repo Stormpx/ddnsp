@@ -190,45 +190,45 @@ public class TcpEndPoint extends EndPoint {
     public Channel channel() {
         return channel;
     }
-//
-//    @Override
-//    public void shutdown(Shutdown shutdown) {
-//        EventLoop eventLoop = channel.eventLoop();
-//        if (eventLoop.inEventLoop()){
-//            if (this.shutdown !=null && this.shutdown != shutdown){
-//                logger.info(channel.remoteAddress()+" close channel");
-//                close();
-//            }else {
-//                this.shutdown = shutdown;
-//                if (channel instanceof DuplexChannel duplex){
-//                    switch (shutdown){
-//                        case INPUT -> {
-//                            duplex.shutdownInput();
-//                            duplex.config().setAutoRead(false);
-//                        }
-//                        case OUTPUT -> {
-//                            ChannelOutboundBuffer buffer = channel.unsafe().outboundBuffer();
-//                            if (buffer==null)
-//                                return;
+
+    @Override
+    public void shutdown(Shutdown shutdown) {
+        EventLoop eventLoop = channel.eventLoop();
+        if (eventLoop.inEventLoop()){
+            if (this.shutdown !=null && this.shutdown != shutdown){
+                logger.info(channel.remoteAddress()+" close channel");
+                close();
+            }else {
+                this.shutdown = shutdown;
+                if (channel instanceof DuplexChannel duplex){
+                    switch (shutdown){
+                        case INPUT -> {
+                            duplex.shutdownInput();
+                            duplex.config().setAutoRead(false);
+                        }
+                        case OUTPUT -> {
+                            ChannelOutboundBuffer buffer = channel.unsafe().outboundBuffer();
+                            if (buffer==null)
+                                return;
 //                            duplex.shutdownOutput();
-////                            if (buffer.isEmpty()){
-////                                logger.info(channel.remoteAddress()+" shutdown output");
-////                                duplex.shutdownOutput();
-////                            }else{
-////                                logger.info(channel.remoteAddress()+" nonono");
-////                                flush();
-////                            }
-//                        }
-//                    }
-//                }else{
-//                    close();
-//                }
-//            }
-//        }else{
-//            eventLoop.execute(()-> shutdown(shutdown));
-//        }
-//
-//    }
+                            if (buffer.isEmpty()){
+                                logger.info(channel.remoteAddress()+" shutdown output");
+                                duplex.shutdownOutput();
+                            }else{
+                                logger.info(channel.remoteAddress()+" nonono");
+                                flush();
+                            }
+                        }
+                    }
+                }else{
+                    close();
+                }
+            }
+        }else{
+            eventLoop.execute(()-> shutdown(shutdown));
+        }
+
+    }
 
     @Override
     public void close() {
