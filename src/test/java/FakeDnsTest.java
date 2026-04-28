@@ -49,11 +49,11 @@ public class FakeDnsTest {
     @Test
     public void test() throws UnknownHostException, InterruptedException {
         NioEventLoopGroup eventLoopGroup = new NioEventLoopGroup();
-        FakeDns fakeDns = new FakeDns(eventLoopGroup.next(), new LinearRouter(Arrays.asList("kw;google;test")), new IPCIDR("192.168.1.0/24"),null,"domain");
+        FakeDns fakeDns = new FakeDns(eventLoopGroup.next(), new LinearRouter(Arrays.asList("kw;google;test")), new IPCIDR("192.168.1.0/24"),null,"ip");
         String targetDomain = "www.google.com";
         InetAddress realAddr = InetAddress.getByName("10.10.10.10");
         var r=new DefaultDnsResponse(0, DnsOpCode.QUERY, DnsResponseCode.NOERROR)
-                .addRecord(DnsSection.ANSWER,new DefaultDnsRawRecord(targetDomain,DnsRecordType.A,3, Unpooled.wrappedBuffer(realAddr.getAddress())));
+                .addRecord(DnsSection.ANSWER,new DefaultDnsRawRecord(targetDomain,DnsRecordType.A,8, Unpooled.wrappedBuffer(realAddr.getAddress())));
 
         EmbeddedChannel channel = new EmbeddedChannel(){
             @Override

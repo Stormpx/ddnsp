@@ -51,7 +51,7 @@ public class CacheTest {
 
 
         var cnameRecord1 = new DefaultDnsRawRecord("test.com.", DnsRecordType.CNAME, 100,
-                Unpooled.copiedBuffer("bar.com.".getBytes(StandardCharsets.US_ASCII)));
+                DnsKit.encodeDomainName("bar.com.",Unpooled.buffer()));
         cache.cache(cnameRecord1,eventLoop);
         records = cache.get("test.com.", DnsRecordType.A, true);
         Assert.assertEquals(1,records.size());
