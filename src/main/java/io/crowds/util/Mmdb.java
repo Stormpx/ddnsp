@@ -166,7 +166,7 @@ public class Mmdb {
             CountryResponse response = database.tryCountry(address).orElse(null);
             if (response==null)
                 return null;
-            return response.getCountry().getIsoCode();
+            return response.country().isoCode();
         }catch (ClosedDatabaseException e){
             return null;
         } catch (IOException | GeoIp2Exception e) {
