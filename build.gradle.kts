@@ -164,21 +164,21 @@ dependencies {
     implementation("com.maxmind.geoip2:geoip2:5.0.2")
     implementation("org.bouncycastle:bcpkix-jdk18on:1.84")
     implementation("io.github.dreamlike-ocean:panama-generator:4.2.0-SNAPSHOT")
-    implementation("io.vertx:vertx-core:5.0.11")
-    implementation("io.vertx:vertx-web:5.0.11")
-    implementation("io.vertx:vertx-config:5.0.0")
-    implementation("io.vertx:vertx-config-yaml:5.0.0")
+    implementation("io.vertx:vertx-core:5.0.12")
+    implementation("io.vertx:vertx-web:5.0.12")
+    implementation("io.vertx:vertx-config:5.0.12")
+    implementation("io.vertx:vertx-config-yaml:5.0.12")
     implementation("ch.qos.logback:logback-core:1.5.25")
     implementation("ch.qos.logback:logback-classic:1.5.25")
 
     implementation("org.apache.sshd:sshd-core:2.15.0")
 
-    implementation("org.stormpx.partialtcp:net-netty:0.0.6")
+    implementation("org.stormpx.partialtcp:net-netty:0.0.7")
 
     implementation("org.drasyl:netty-tun:1.2.5")
-    implementation("io.netty:netty-codec-protobuf:4.2.1.Final")
+    implementation("io.netty:netty-codec-protobuf:4.2.13.Final")
 
-    implementation("io.netty:netty-transport-native-epoll:4.2.1.Final:linux-${if(arch.isAmd64) {"x86_64"} else { "aarch_64" }}")
+    implementation("io.netty:netty-transport-native-epoll:4.2.13.Final:linux-${if(arch.isAmd64) {"x86_64"} else { "aarch_64" }}")
 
 
     if (os.isWindows){
@@ -192,7 +192,7 @@ dependencies {
 
 
 
-    testImplementation("io.netty:netty-pkitesting:4.2.1.Final")
+    testImplementation("io.netty:netty-pkitesting:4.2.12.Final")
 
     testImplementation("org.testcontainers:testcontainers:1.21.2")
     testImplementation("org.testcontainers:testcontainers-nginx:2.0.1")
