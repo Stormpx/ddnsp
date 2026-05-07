@@ -48,6 +48,9 @@ public class Http2ServerHandler extends ChannelInitializer<SocketChannel> {
         }
 
         private void sendResponseStatus(ChannelHandlerContext ctx,HttpResponseStatus status,boolean endStream){
+            if (!ctx.channel().isActive()){
+                return;
+            }
             DefaultHttp2Headers headers = new DefaultHttp2Headers();
             headers.status(status.codeAsText());
             DefaultHttp2HeadersFrame headersFrame = new DefaultHttp2HeadersFrame(headers, endStream);

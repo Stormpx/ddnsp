@@ -11,6 +11,7 @@ import io.netty.util.concurrent.ScheduledFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.channels.ClosedChannelException;
 import java.util.concurrent.TimeUnit;
 
 public class SniSniffingHandler extends AbstractSniHandler<Void> {
@@ -46,6 +47,20 @@ public class SniSniffingHandler extends AbstractSniHandler<Void> {
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         ctx.fireChannelActive();
         checkStartTimeout(ctx);
+    }
+
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        if (!promise.isDone()) {
+            promise.tryFailure(new ClosedChannelException());
+        }
+        super.channelInactive(ctx);
+    }
+
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        promise.tryFailure(cause);
+        super.exceptionCaught(ctx, cause);
     }
 
     private void cleanup(ChannelHandlerContext ctx){

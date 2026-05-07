@@ -101,6 +101,9 @@ public class Http1ServerHandler extends ChannelInitializer<SocketChannel> {
         }
 
         private void sendResponse(ChannelHandlerContext ctx,HttpRequest req,HttpResponseStatus responseStatus){
+            if (!ctx.channel().isActive()){
+                return;
+            }
             ctx.writeAndFlush(new DefaultHttpResponse(req.protocolVersion(), responseStatus))
                     .addListener(ChannelFutureListener.CLOSE);
         }

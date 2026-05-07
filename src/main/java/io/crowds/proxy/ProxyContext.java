@@ -246,6 +246,9 @@ public class ProxyContext {
         return tag;
     }
 
+    public boolean isClosed() {
+        return close;
+    }
 
     public ProxyContext closeHandler(Consumer<Void> closeHandler) {
         this.closeHandler = closeHandler;

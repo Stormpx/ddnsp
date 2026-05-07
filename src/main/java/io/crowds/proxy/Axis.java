@@ -18,8 +18,7 @@ import io.crowds.proxy.transport.UdpEndPoint;
 import io.crowds.util.Exceptions;
 import io.crowds.util.IPCIDR;
 import io.crowds.util.Lambdas;
-import io.netty.channel.Channel;
-import io.netty.channel.EventLoop;
+import io.netty.channel.*;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.DatagramPacket;
 import io.netty.util.ReferenceCountUtil;
@@ -31,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.*;
+import java.nio.channels.ClosedChannelException;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -38,7 +38,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import java.util.stream.Gatherers;
 import java.util.stream.Stream;
 
 public class Axis {
@@ -277,13 +276,15 @@ public class Axis {
         return fakeContext;
     }
 
-    private void logException(SocketAddress srcAddr,SocketAddress dstAddr,Throwable t,boolean src){
+    private void logException(NetLocation netLocation,Throwable t,boolean exceptionFromSrc){
+        NetAddr srcAddr = netLocation.getSrc();
+        NetAddr dstAddr = netLocation.getDst();
         if (Exceptions.isExpected(t)){
             if (Exceptions.shouldLogMessage(t)) {
-                logger.error("{}->{} caught exception from {}: {}",srcAddr,dstAddr,src?"src":"dst",t.getMessage());
+                logger.error("{}->{} Expected exception caught from {}: {}",srcAddr,dstAddr,exceptionFromSrc?"src":"dst",t.getMessage());
             }
         }else{
-            logger.error("{}->{} caught exception from {}",srcAddr,dstAddr,src?"src":"dst",t);
+            logger.error("{}->{} Unexpected exception caught from {}",srcAddr,dstAddr,exceptionFromSrc?"src":"dst",t);
         }
     }
 
@@ -301,6 +302,13 @@ public class Axis {
             logger.info("{} {} to {} via [{}]", tp,netLocation.getSrc(),netLocation.getDst(), transport.getChain());
         }
 
+    }
+
+    private void logPreConnectError(NetLocation netLocation, Throwable cause){
+        if (logger.isDebugEnabled()){
+            logger.error("",cause);
+        }
+        logger.error("Exception occurred before {} connecting to {}: {}",netLocation.getSrc(),netLocation.getDst(),cause.getMessage());
     }
 
 
@@ -340,40 +348,61 @@ public class Axis {
         Promise<Void> promise = channel.eventLoop().newPromise();
         channel.config().setAutoRead(false);
 
-        NetLocation netLocation = new NetLocation(getNetAddr(srcAddr),getNetAddr(dstAddr), TP.TCP);
-        createTcpContext(channel,netLocation)
-                .addListener(f->{
-                    assert f.isSuccess();
-                    try {
-                        ProxyContext proxyContext = (ProxyContext) f.get();
-                        TcpEndPoint src = new TcpEndPoint(channel);
-                        src.exceptionHandler(t->logException(srcAddr,dstAddr,t,true));
-                        Transport transport= lookupTransport(proxyContext);
-                        logRouteInfo(proxyContext,transport);
-                        ProxyTransport proxy = transport.proxy();
-                        proxy.createEndPoint(proxyContext)
-                             .addListener(future -> {
-                                 if (!future.isSuccess()){
-                                     if (logger.isDebugEnabled())
-                                         logger.error("",future.cause());
-                                     logger.error("failed to connect remote: {} > {}",proxyContext.getNetLocation().getDst().getAddress(),future.cause().getMessage());
-                                     promise.tryFailure(future.cause());
-                                     src.close();
-                                     return;
-                                 }
-                                 EndPoint dst= (EndPoint) future.get();
-                                 dst.exceptionHandler(t->logException(netLocation.getSrc().getAddress(),netLocation.getDst().getAddress(),t,false));
-                                 proxyContext.bridging(src,dst);
-                                 promise.trySuccess(null);
-                                 proxyContext.setAutoRead();
-                             });
-                    } catch (Exception e) {
-                        logger.error("",e);
-                        promise.tryFailure(e);
-                        channel.close();
-                    }
+        var contextFuture = createTcpContext(channel,new NetLocation(getNetAddr(srcAddr),getNetAddr(dstAddr), TP.TCP));
+        ChannelErrorListener errorListener;
+        if (!contextFuture.isDone()){
+            errorListener = new ChannelErrorListener();
+            channel.pipeline().addLast(errorListener);
+        } else {
+            errorListener = null;
+        }
+        contextFuture.addListener(f->{
+            assert f.isSuccess();
+            try {
+                ProxyContext proxyContext = (ProxyContext) f.get();
+                NetLocation netLocation = proxyContext.getNetLocation();
+                if (!channel.isActive()){
+                    Throwable cause = errorListener==null?new ClosedChannelException():errorListener.cause;
+                    logPreConnectError(netLocation,cause);
+                    promise.tryFailure(cause);
+                    return;
+                }
+                if (errorListener!=null){
+                    channel.pipeline().remove(errorListener);
+                }
+                TcpEndPoint src = new TcpEndPoint(channel);
+                src.exceptionHandler(t->logException(netLocation,t,true));
+                Transport transport= lookupTransport(proxyContext);
+                logRouteInfo(proxyContext,transport);
+                ProxyTransport proxy = transport.proxy();
+                proxy.createEndPoint(proxyContext)
+                     .addListener(future -> {
+                         if (!future.isSuccess()){
+                             if (logger.isDebugEnabled())
+                                 logger.error("",future.cause());
+                             logger.error("failed to connect remote: {} > {}", netLocation.getDst().getAddress(),future.cause().getMessage());
+                             promise.tryFailure(future.cause());
+                             src.close();
+                             return;
+                         }
+                         EndPoint dst= (EndPoint) future.get();
+                         dst.exceptionHandler(t->logException(netLocation,t,false));
+                         proxyContext.bridging(src,dst);
+                         if (proxyContext.isClosed()){
+                             promise.tryFailure(new ClosedChannelException());
+                         }else{
+                             promise.trySuccess(null);
+                             proxyContext.setAutoRead();
+                         }
 
-                });
+                     });
+            } catch (Exception e) {
+                logger.error("",e);
+                promise.tryFailure(e);
+                channel.close();
+            }
+
+        });
 
         return promise;
     }
@@ -394,7 +423,7 @@ public class Axis {
                         .withFakeContext(fakeContext);
                 Promise<ProxyContext> promise = proxyContext.getEventLoop().newPromise();
                 var src=new UdpEndPoint(datagramChannel,netLocation.getSrc());
-                src.exceptionHandler(t->logException(netLocation.getSrc().getAddress(),netLocation.getDst().getAddress(),t,true));
+                src.exceptionHandler(t->logException(netLocation,t,true));
                 Transport transport= lookupTransport(proxyContext);
                 logRouteInfo(proxyContext,transport);
                 ProxyTransport proxy = transport.proxy();
@@ -405,7 +434,7 @@ public class Axis {
                                 return;
                             }
                             EndPoint dst= (EndPoint) future.get();
-                            dst.exceptionHandler(t->logException(netLocation.getSrc().getAddress(),netLocation.getDst().getAddress(),t,false));
+                            dst.exceptionHandler(t->logException(netLocation,t,false));
                             proxyContext.bridging(src,dst);
                             promise.trySuccess(proxyContext);
                             proxyContext.setAutoRead();
@@ -481,5 +510,16 @@ public class Axis {
         }
 
 
+    }
+
+    private static class ChannelErrorListener extends ChannelInboundHandlerAdapter {
+        private Throwable cause;
+
+
+        @Override
+        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+            this.cause = cause;
+            ctx.close();
+        }
     }
 }
