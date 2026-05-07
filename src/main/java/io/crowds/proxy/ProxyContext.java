@@ -8,6 +8,8 @@ import io.netty.channel.EventLoop;
 import io.netty.channel.epoll.EpollSocketChannel;
 import io.netty.channel.socket.DatagramPacket;
 import io.netty.util.AttributeKey;
+import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.Ticker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,6 +18,7 @@ import java.lang.invoke.VarHandle;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 public class ProxyContext {
@@ -31,7 +34,7 @@ public class ProxyContext {
             throw new InternalError(e);
         }
     }
-
+    private Ticker ticker = Ticker.systemTicker();
     private final EventLoop eventLoop;
     private EndPoint src;
     private EndPoint dst;
@@ -46,9 +49,57 @@ public class ProxyContext {
     private boolean close;
     private Consumer<Void> closeHandler;
 
+    private final HalfClosureTimer halfClosureTimer = new HalfClosureTimer();
+
     public ProxyContext(EventLoop eventLoop, NetLocation netLocation) {
         this.eventLoop = eventLoop;
         this.netLocation = Objects.requireNonNull(netLocation);
+    }
+
+    private class HalfClosureTimer implements Runnable{
+        private static final long timeoutNanos = TimeUnit.MINUTES.toNanos(30);
+        private volatile Future<?> timeout;
+        private volatile long lastFlushTime;
+
+        private boolean isScheduled(){
+            return timeout!=null;
+        }
+
+        private void recordFlushTime(){
+            if (isScheduled()) {
+                lastFlushTime = ticker.nanoTime();
+            }
+        }
+        private void cancel(){
+            if (timeout!=null){
+                timeout.cancel(false);
+                timeout = null;
+            }
+        }
+        private void schedule(long delay){
+            timeout = eventLoop.schedule(this,delay,TimeUnit.NANOSECONDS);
+        }
+
+        private void schedule(){
+            schedule(timeoutNanos);
+        }
+
+        @Override
+        public void run() {
+            if (close){
+                return;
+            }
+            long nextDelay = timeoutNanos - (ticker.nanoTime() - lastFlushTime);
+
+            if (nextDelay <= 0){
+                src.close();
+                dst.close();
+                return;
+            }
+
+            schedule(nextDelay);
+
+        }
     }
 
     private boolean isSpliceAvailable(EndPoint src,EndPoint dst){
@@ -61,15 +112,27 @@ public class ProxyContext {
                 && srcSocket.eventLoop()==dstSocket.eventLoop();
     }
 
+    private void flushEndPoint(EndPoint target){
+        halfClosureTimer.recordFlushTime();
+        target.flush();
+    }
+
+    private void shutdownEndpoint(EndPoint peer, EndPoint.Shutdown shutdown, EndPoint target){
+        if (!halfClosureTimer.isScheduled()) {
+            halfClosureTimer.schedule();
+        }
+        target.shutdown(shutdown.reverse());
+    }
+
     public void bridging(EndPoint src,EndPoint dst){
         dst.bufferHandler(src::write);
-        dst.readCompleteHandler(src::flush);
+        dst.readCompleteHandler(()->flushEndPoint(src));
         src.bufferHandler(dst::write);
-        src.readCompleteHandler(dst::flush);
+        src.readCompleteHandler(()->flushEndPoint(dst));
         src.writabilityHandler(dst::setAutoRead);
         dst.writabilityHandler(src::setAutoRead);
-        src.shutdownHandler(shutdown-> dst.shutdown(shutdown.reverse()));
-        dst.shutdownHandler(shutdown-> src.shutdown(shutdown.reverse()));
+        src.shutdownHandler(shutdown-> shutdownEndpoint(src,shutdown,dst));
+        dst.shutdownHandler(shutdown-> shutdownEndpoint(dst,shutdown,src));
         src.closeFuture().addListener(closeFuture->{
             fireClose();
             dst.close();
@@ -107,17 +170,24 @@ public class ProxyContext {
         src.setAutoRead(true);
         dst.setAutoRead(true);
         eventLoop.submit(()->{
+            boolean shutdown = false;
             if (src.getShutdown()!=null){
+                shutdown = true;
                 dst.shutdown(src.getShutdown().reverse());
             }
             if (dst.getShutdown()!=null){
+                shutdown = true;
                 src.shutdown(dst.getShutdown().reverse());
+            }
+            if (shutdown){
+                halfClosureTimer.schedule();
             }
         });
 
     }
 
     private void fireClose(){
+        halfClosureTimer.cancel();
         Consumer<Void> closeHandler = this.closeHandler;
         if (CLOSE.compareAndSet(this,false,true)){
             if (closeHandler!=null)
