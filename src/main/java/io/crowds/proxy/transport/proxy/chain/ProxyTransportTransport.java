@@ -27,7 +27,7 @@ public class ProxyTransportTransport implements Transport {
         NetLocation nextLocation = new NetLocation(src, dest.addr(), dest.tp());
         Future<Channel> channelFuture = proxyTransport.createChannel(eventLoop, nextLocation);
 
-        Async.cascadeFailure(channelFuture,promise, f-> ShadowChannel.shadow(f.get()).addListener(Async.cascade(promise)));
+        Async.cascadeFailure(channelFuture,promise, f-> promise.setSuccess(ShadowChannel.shadow(f.get())));
         return promise;
     }
 

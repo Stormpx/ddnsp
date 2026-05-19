@@ -2,247 +2,246 @@ package io.crowds.proxy.common;
 
 import io.crowds.util.Async;
 import io.netty.channel.*;
-import io.netty.util.ReferenceCounted;
-import io.netty.util.concurrent.Future;
-import io.netty.util.concurrent.Promise;
+import io.netty.util.DefaultAttributeMap;
 
 import java.net.SocketAddress;
-import java.nio.channels.ClosedChannelException;
-import java.time.format.DateTimeFormatter;
 
 /**
- * the shadow of other Channel. but with clean channelPipeline
- * only focus on data transfer. other Channel operation direct delegate to the master channel
+ * Shadow of another Channel, but with a clean ChannelPipeline.
+ * Only focuses on data transfer. Other Channel operations are directly delegated to the original channel.
  */
-public class ShadowChannel extends AbstractChannel {
+public class ShadowChannel extends DefaultAttributeMap implements Channel {
+    private final Channel parent;
+    private final ChannelPipeline pipeline;
+    private final ShadowUnsafe unsafe;
 
-    private final Channel master;
-    private final ChannelConfig config;
-    private final ChannelMetadata metadata;
-    private volatile boolean active=true;
-
-    private SocketAddress localAddress;
-
-    ShadowChannel(Channel master) {
-        super(null);
-        this.master=master;
-        this.metadata=new ChannelMetadata(false);
-        this.config=new DefaultChannelConfig(this);
-        this.master.pipeline().addLast("shadow-pipeline-handler",new BridgingPipeLineHandler(this));
-        this.master.closeFuture().addListener(_->close());
-        this.pipeline().addFirst("internal-head-context",new InternalHeadContext());
+    private ShadowChannel(Channel parent) {
+        this.parent = parent;
+        this.unsafe = new ShadowUnsafe();
+        this.pipeline = new DefaultChannelPipeline(this){};
+        this.parent.pipeline().addLast("shadow-pipeline-handler",new BridgingPipelineHandler());
+        if (parent.isRegistered()){
+            pipeline.fireChannelRegistered();
+        }
     }
 
     public static ShadowChannel getChannel(Channel channel){
-        var handler =channel.pipeline().get(BridgingPipeLineHandler.class);
-        return handler != null ? handler.shadowChannel : null;
-    }
-
-    public static ShadowChannel getDeepestChannel(Channel channel){
-        ShadowChannel shadowChannel = getChannel(channel);
-        while (shadowChannel!=null){
-            ShadowChannel nextChannel = getChannel(shadowChannel);
-            if (nextChannel==null){
-                break;
-            }
-            shadowChannel=nextChannel;
-        }
-        return shadowChannel;
+        var handler =channel.pipeline().get(BridgingPipelineHandler.class);
+        return handler != null ? handler.channel() : null;
     }
 
     public static boolean isAlreadyExists(Channel channel){
-        return channel.pipeline().get(BridgingPipeLineHandler.class)!=null;
+        return channel.pipeline().get(BridgingPipelineHandler.class)!=null;
     }
 
-    public static Future<ShadowChannel> shadow(Channel channel){
+    public static ShadowChannel shadow(Channel channel){
         var isShadowAlreadyExists = isAlreadyExists(channel);
         if (isShadowAlreadyExists){
-            return channel.eventLoop().newFailedFuture(new IllegalStateException("Master channel already shadowed"));
+            throw new IllegalStateException("Channel already shadowed");
         }
-        Promise<ShadowChannel> promise = channel.eventLoop().newPromise();
-        ShadowChannel shadowChannel = new ShadowChannel(channel);
-        if (channel.eventLoop()!=null){
-            Async.cascadeFailure(channel.eventLoop().register(shadowChannel),promise,_->promise.trySuccess(shadowChannel));
-        }else{
-            promise.trySuccess(shadowChannel);
-        }
-        return promise;
+        return new ShadowChannel(channel);
     }
 
-    public Channel getMaster(){
-        return master;
-    }
-
-    @Override
-    protected AbstractUnsafe newUnsafe() {
-        return new ShadowUnsafe();
-    }
-
-    @Override
-    protected boolean isCompatible(EventLoop loop) {
-        return master.eventLoop()==loop;
-    }
-
-    @Override
-    protected SocketAddress localAddress0() {
-        return master.localAddress();
-    }
-
-    @Override
-    protected SocketAddress remoteAddress0() {
-        return master.remoteAddress();
-    }
-
-    @Override
-    protected void doBind(SocketAddress localAddress) throws Exception {
-        //do nothing
-        this.localAddress=localAddress;
-    }
-    @Override
-    public ChannelFuture bind(SocketAddress localAddress) {
-        ChannelPromise channelPromise = newPromise();
-        this.localAddress=localAddress;
-        Async.cascadeFailure(pipeline().bind(localAddress),channelPromise,f->master.bind(this.localAddress,channelPromise));
-        return channelPromise;
-    }
-    @Override
-    protected void doDisconnect() throws Exception {
-        if (!master.isActive()){
-            this.active=false;
-        }
-    }
-
-    @Override
-    public ChannelFuture disconnect() {
-        ChannelPromise channelPromise = newPromise();
-        Async.cascadeFailure(master.disconnect(),channelPromise,f->pipeline().disconnect(channelPromise));
-        return channelPromise;
-    }
-
-    @Override
-    protected void doClose() throws Exception {
-        this.active=false;
-    }
-    @Override
-    public ChannelFuture close() {
-        ChannelPromise channelPromise = newPromise();
-        Async.cascadeFailure(master.close(),channelPromise,f->pipeline().close(channelPromise));
-        return channelPromise;
-    }
-
-    @Override
-    protected void doBeginRead() throws Exception {
-        master.read();
-    }
-
-    @Override
-    protected void doWrite(ChannelOutboundBuffer in) throws Exception {
-        while (true){
-            Object current = in.current();
-            if (current==null){
-                break;
-            }
-            if (!master.isOpen()){
-                in.remove(new ClosedChannelException());
-            }else{
-                if (current instanceof ReferenceCounted counted){
-                    counted.retain();
-                }
-                master.write(current);
-                in.remove();
-            }
-        }
-        master.flush();
-    }
-
-
-    @Override
-    public ChannelConfig config() {
-        return config;
-    }
-
-    @Override
-    public boolean isOpen() {
-        return active;
-    }
-
-    @Override
-    public boolean isActive() {
-        return active;
-    }
-
-    @Override
-    public ChannelMetadata metadata() {
-        return metadata;
-    }
-
-    class ShadowUnsafe extends AbstractUnsafe{
-        @Override
-        public void connect(SocketAddress remoteAddress, SocketAddress localAddress, ChannelPromise promise) {
-            master.connect(remoteAddress,localAddress,promise);
-        }
-
-    }
-
-    class InternalHeadContext extends ChannelOutboundHandlerAdapter{
+    private final class ShadowUnsafe implements Unsafe{
 
         @Override
-        public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-            master.write(msg).addListener(Async.cascade(promise));
+        public RecvByteBufAllocator.Handle recvBufAllocHandle() {
+            return parent.unsafe().recvBufAllocHandle();
+        }
+
+        @Override
+        public SocketAddress localAddress() {
+            return parent.unsafe().localAddress();
+        }
+
+        @Override
+        public SocketAddress remoteAddress() {
+            return parent.unsafe().remoteAddress();
+        }
+
+        @Override
+        public void register(EventLoop eventLoop, ChannelPromise promise) {
+            eventLoop.register(parent).addListener(Async.cascade(promise));
+        }
+
+        @Override
+        public void bind(SocketAddress localAddress, ChannelPromise promise) {
+            parent.bind(localAddress).addListener(Async.cascade(promise));
         }
 
         @Override
-        public void flush(ChannelHandlerContext ctx) throws Exception {
-            master.flush();
+        public void connect(SocketAddress remoteAddress, SocketAddress localAddress, ChannelPromise promise) {
+            parent.connect(remoteAddress,localAddress).addListener(Async.cascade(promise));
+        }
+
+        @Override
+        public void disconnect(ChannelPromise promise) {
+            parent.disconnect().addListener(Async.cascade(promise));
+        }
+
+        @Override
+        public void close(ChannelPromise promise) {
+            parent.close().addListener(Async.cascade(promise));
+        }
+
+        @Override
+        public void closeForcibly() {
+            parent.unsafe().closeForcibly();
+        }
+
+        @Override
+        public void deregister(ChannelPromise promise) {
+            parent.deregister().addListener(Async.cascade(promise));
+        }
+
+        @Override
+        public void beginRead() {
+            parent.read();
+        }
+
+        @Override
+        public void write(Object msg, ChannelPromise promise) {
+            parent.write(msg).addListener(Async.cascade(promise));
+        }
+
+        @Override
+        public void flush() {
+            parent.flush();
+        }
+
+        @Override
+        public ChannelPromise voidPromise() {
+            return new DefaultChannelPromise(ShadowChannel.this);
+        }
+
+        @Override
+        public ChannelOutboundBuffer outboundBuffer() {
+            return parent.unsafe().outboundBuffer();
         }
     }
 
-    class BridgingPipeLineHandler extends ChannelInboundHandlerAdapter{
-        private ShadowChannel shadowChannel;
+    private final class BridgingPipelineHandler extends ChannelInboundHandlerAdapter{
 
-        public BridgingPipeLineHandler(ShadowChannel shadowChannel) {
-            this.shadowChannel = shadowChannel;
+
+        ShadowChannel channel(){
+            return ShadowChannel.this;
         }
 
         @Override
-        public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
-            if (isRegistered()){
-                deregister();
-            }
-        }
-
-        @Override
-        public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-            if (isOpen()) {
-                pipeline().fireChannelRead(msg);
-            }
-        }
-
-        @Override
-        public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
-            if (isOpen()) {
-                pipeline().fireChannelReadComplete();
-            }
-        }
-
-        @Override
-        public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-            pipeline().fireUserEventTriggered(evt);
-        }
-
-        @Override
-        public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
-            pipeline().fireChannelWritabilityChanged();
-        }
-
-        @Override
-        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-            pipeline().fireExceptionCaught(cause);
+        public void channelActive(ChannelHandlerContext ctx) throws Exception {
+            pipeline.fireChannelActive();
         }
 
         @Override
         public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-            pipeline().fireChannelInactive();
+            pipeline.fireChannelInactive();
         }
+
+        @Override
+        public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
+            pipeline.fireChannelRegistered();
+        }
+
+        @Override
+        public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
+            pipeline.fireChannelUnregistered();
+        }
+
+        @Override
+        public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+            pipeline.fireChannelRead(msg);
+        }
+
+        @Override
+        public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
+            pipeline.fireChannelReadComplete();
+        }
+
+        @Override
+        public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+            pipeline.fireUserEventTriggered(evt);
+        }
+
+        @Override
+        public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
+            pipeline.fireChannelWritabilityChanged();
+        }
+
+        @Override
+        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+            pipeline.fireExceptionCaught(cause);
+        }
+
+    }
+
+
+    @Override
+    public ChannelId id() {
+        return parent.id();
+    }
+
+    @Override
+    public EventLoop eventLoop() {
+        return parent.eventLoop();
+    }
+
+    @Override
+    public Channel parent() {
+        return parent;
+    }
+
+    @Override
+    public ChannelConfig config() {
+        return parent.config();
+    }
+
+    @Override
+    public boolean isOpen() {
+        return parent.isOpen();
+    }
+
+    @Override
+    public boolean isRegistered() {
+        return parent.isRegistered();
+    }
+
+    @Override
+    public boolean isActive() {
+        return parent.isActive();
+    }
+
+    @Override
+    public ChannelMetadata metadata() {
+        return parent.metadata();
+    }
+
+    @Override
+    public SocketAddress localAddress() {
+        return parent.localAddress();
+    }
+
+    @Override
+    public SocketAddress remoteAddress() {
+        return parent.remoteAddress();
+    }
+
+    @Override
+    public ChannelFuture closeFuture() {
+        return parent.closeFuture();
+    }
+
+    @Override
+    public Unsafe unsafe() {
+        return unsafe;
+    }
+
+    @Override
+    public ChannelPipeline pipeline() {
+        return pipeline;
+    }
+
+    @Override
+    public int compareTo(Channel o) {
+        return parent.compareTo(o);
     }
 }
