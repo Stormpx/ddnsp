@@ -407,7 +407,7 @@ public class Axis {
         return promise;
     }
 
-    public void handleUdp0(DatagramChannel datagramChannel, DatagramPacket packet, Consumer<DatagramPacket> fallbackPacketHandler){
+    public void handleUdp0(Channel datagramChannel, DatagramPacket packet, Consumer<DatagramPacket> fallbackPacketHandler){
         try {
             NetAddr recipient = getNetAddr(packet.recipient());
             NetAddr sender = getNetAddr(packet.sender());

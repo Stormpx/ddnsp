@@ -4,6 +4,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.DefaultByteBufHolder;
 
 public class Capsule extends DefaultByteBufHolder {
+    public final static int TYPE_DATAGRAM = 0x00;
 
     private final int type;
 
@@ -13,7 +14,7 @@ public class Capsule extends DefaultByteBufHolder {
     }
 
     public static Capsule datagram(ByteBuf data){
-        return new Capsule(0,data);
+        return new Capsule(TYPE_DATAGRAM,data);
     }
 
     public int type() {
