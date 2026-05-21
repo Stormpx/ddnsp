@@ -165,7 +165,7 @@ public class TcpEndPoint extends EndPoint {
                     }
                     ChannelOutboundBuffer buffer = channel.unsafe().outboundBuffer();
                     if (this.shutdown==Shutdown.OUTPUT){
-                        if (buffer!=null&&buffer.isEmpty()){
+                        if (buffer!=null&&buffer.totalPendingWriteBytes() > 0){
                             ((DuplexChannel)(channel)).shutdownOutput();
                         }
                     }
@@ -213,7 +213,7 @@ public class TcpEndPoint extends EndPoint {
                             ChannelOutboundBuffer buffer = channel.unsafe().outboundBuffer();
                             if (buffer==null)
                                 return;
-                            if (!buffer.isEmpty()) {
+                            if (buffer.totalPendingWriteBytes() > 0) {
                                 flush();
                             } else {
                                 duplex.shutdownOutput();
