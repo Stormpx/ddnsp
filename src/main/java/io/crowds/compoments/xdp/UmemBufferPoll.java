@@ -42,6 +42,10 @@ public class UmemBufferPoll {
     public Block get(){
         return blocks.poll();
     }
+    public boolean isEmpty(){
+        return blocks.isEmpty();
+    }
+
 
     public void put(Block block){
         if (!block.isFull()){
