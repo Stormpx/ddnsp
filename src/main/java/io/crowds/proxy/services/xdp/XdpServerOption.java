@@ -8,6 +8,7 @@ public class XdpServerOption {
     private String gateway;
     private Integer mtu;
     private XdpOpt opt;
+    private boolean segTap;
 
     public Integer getMtu() {
         return mtu;
@@ -69,6 +70,15 @@ public class XdpServerOption {
 
     public XdpServerOption setOpt(XdpOpt opt) {
         this.opt = opt;
+        return this;
+    }
+
+    public boolean isSegTap() {
+        return segTap;
+    }
+
+    public XdpServerOption setSegTap(boolean segTap) {
+        this.segTap = segTap;
         return this;
     }
 }

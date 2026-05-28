@@ -2,6 +2,7 @@ package io.crowds.proxy.services.xdp;
 
 import io.crowds.Context;
 import io.crowds.Platform;
+import io.crowds.compoments.partial.SegmentLogger;
 import io.crowds.proxy.Axis;
 import io.crowds.proxy.ChannelCreator;
 import io.crowds.proxy.common.TcpTransparentHandler;
@@ -12,9 +13,7 @@ import io.crowds.util.Inet;
 import io.crowds.util.SemVer;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelInitializer;
+import io.netty.channel.*;
 import io.netty.channel.socket.SocketChannel;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
@@ -68,9 +67,12 @@ public class XdpServer {
                        .option(PartialChannelOption.NETSPACE,XDP_NETSPACE)
                        .option(PartialChannelOption.of(PartialSocketOptions.TRANSPARENT_PROXY), this::acceptPacket)
                        .option(PartialChannelOption.of(PartialSocketOptions.IP_TRANSPARENT),true);
-
+        if (option.isSegTap()){
+            serverBootstrap.option(PartialChannelOption.of(PartialSocketOptions.SEGMENT_TAPPER), SegmentLogger::new);
+        }
         serverBootstrap
                 .group(context.getAcceptor(),context.getEventLoopGroup())
+                .childOption(ChannelOption.ALLOW_HALF_CLOSURE,true)
                 .childHandler(new ChannelInitializer<SocketChannel>(){
                     @Override
                     protected void initChannel(SocketChannel ch) throws Exception {
@@ -190,7 +192,7 @@ public class XdpServer {
                     .setVerifyChecksum(option.getOpt().isRxCheck())
                     .setIfType(IfType.ETHERNET)
                     .addIp(ipMask.ip());
-            netStack.addNetwork(iface, params,()->new XdpIface(iface, option.getOpt()));
+            netStack.addNetwork(iface, params,()->new XdpIface(iface, option.getOpt(), (IoEventLoopGroup) axis.getContext().getEventLoopGroup()));
             netStack.addRoute(new RouteItem(new SubNet(IPv4.UNSPECIFIED,0), iface));
 
             InetSocketAddress bindAddress = new InetSocketAddress(InetAddress.getByAddress(IPv4.LOOPBACK.getBytes()),5474);

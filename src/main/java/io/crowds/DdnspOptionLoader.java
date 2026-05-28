@@ -227,6 +227,7 @@ public class DdnspOptionLoader {
                            .setAddress(xdpJson.getString("address"))
                            .setGateway(xdpJson.getString("gateway"))
                            .setMtu(xdpJson.getInteger("mtu"))
+                           .setSegTap(xdpJson.getBoolean("segTap",false))
                            .setOpt(XdpOpt.of(Objects.requireNonNullElse(xdpJson.getJsonObject("opt"),JsonObject.of())));
             if (xdpServerOption.isEnable()) {
                 if (xdpServerOption.getIface() == null) {

@@ -7,6 +7,9 @@ import io.crowds.lib.xdp.ffi.BpfMap;
 import io.crowds.lib.xdp.ffi.LibBpf;
 import io.crowds.util.IPMask;
 import io.crowds.util.Inet;
+import io.netty.channel.EventLoop;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.IoEventLoopGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.stormpx.net.buffer.ByteArray;
@@ -38,7 +41,7 @@ public class XdpIface implements Iface, XdpIngressHandler {
     private final String iface;
     private final int ifindex;
     private final XdpOpt opt;
-
+    private final IoEventLoopGroup eventLoopGroup;
     private Mac localMac;
     private IP localIp;
 
@@ -51,9 +54,10 @@ public class XdpIface implements Iface, XdpIngressHandler {
     private AtomicLong pollerSeq = new AtomicLong(0);
     private IfaceIngress ifaceIngress;
 
-    public XdpIface(String iface, XdpOpt opt) {
+    public XdpIface(String iface, XdpOpt opt, IoEventLoopGroup eventLoopGroup) {
         this.iface = iface;
         this.opt = opt;
+        this.eventLoopGroup = eventLoopGroup;
         try {
             this.ifindex = MemoryLifetimeScope.local().active(()-> Unix.INSTANCE.if_nametoindex(iface));
         } catch (Exception e) {
@@ -222,7 +226,7 @@ public class XdpIface implements Iface, XdpIngressHandler {
         sockets.stream()
                .gather(Gatherers.windowFixed(Math.max(1,sockets.size()/opt.getThreads())))
                .forEach(skts->{
-                   pollers.add(new XdpPoller(umemBufferPoll, skts, false,this));
+                   pollers.add(new XdpPoller(umemBufferPoll, skts, eventLoopGroup.next(),this));
                });
 
         XdpProg prog = Xdp.findFile(XDP_PROG, null, ifindex);
