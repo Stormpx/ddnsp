@@ -6,7 +6,7 @@ public class HttpOption {
     private boolean enable;
     private String host;
     private Integer port;
-
+    private String udpPath;
     private Path cert;
     private Path key;
     private String keyPassword;
@@ -35,6 +35,15 @@ public class HttpOption {
 
     public HttpOption setPort(Integer port) {
         this.port = port;
+        return this;
+    }
+
+    public String getUdpPath() {
+        return udpPath;
+    }
+
+    public HttpOption setUdpPath(String udpPath) {
+        this.udpPath = udpPath;
         return this;
     }
 

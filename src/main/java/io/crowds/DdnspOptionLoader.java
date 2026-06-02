@@ -181,6 +181,7 @@ public class DdnspOptionLoader {
             httpOption.setEnable(httpJson.getBoolean("enable",false))
                       .setHost(httpJson.getString("host","127.0.0.1"))
                       .setPort(httpJson.getInteger("port",13448))
+                      .setUdpPath(httpJson.getString("udpPath","/.well-known/masque/udp"))
                       .setCert(Optional.ofNullable(httpJson.getString("cert")).map(Path::of).orElse(null))
                       .setKey(Optional.ofNullable(httpJson.getString("key")).map(Path::of).orElse(null))
                       .setKeyPassword(httpJson.getString("keyPass"));

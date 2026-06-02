@@ -1,12 +1,15 @@
 package io.crowds.proxy.services.http;
 
+import io.crowds.compoments.capsule.Capsule;
+import io.crowds.compoments.capsule.CapsuleDecoder;
+import io.crowds.compoments.capsule.CapsuleEncoder;
 import io.crowds.proxy.Axis;
 import io.crowds.proxy.ProxyContext;
 import io.crowds.util.Inet;
 import io.crowds.util.Strs;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.*;
-import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.socket.DatagramPacket;
 import io.netty.handler.codec.http.*;
 import io.netty.util.ReferenceCountUtil;
 import org.slf4j.Logger;
@@ -19,19 +22,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-public class Http1ServerHandler extends ChannelInitializer<SocketChannel> {
+public class Http1ServerHandler extends HttpServerHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(Http1ServerHandler.class);
-    private final HttpOption httpOption;
-    private final Axis axis;
 
     public Http1ServerHandler(HttpOption httpOption, Axis axis) {
-        this.httpOption = httpOption;
-        this.axis = axis;
+        super(httpOption, axis);
     }
 
     @Override
-    protected void initChannel(SocketChannel ch) throws Exception {
+    protected void initChannel(Channel ch) throws Exception {
         HttpRequestDecoder decoder = new HttpRequestDecoder();
         decoder.setSingleDecode(true);
         ch.pipeline().addLast(decoder)
@@ -45,7 +45,6 @@ public class Http1ServerHandler extends ChannelInitializer<SocketChannel> {
         private final RequestEncoder encoder;
 
         private Intermediary intermediary;
-        private HttpRequest pendingReq;
 
         private io.netty.util.concurrent.Promise<Void> future;
 
@@ -117,6 +116,47 @@ public class Http1ServerHandler extends ChannelInitializer<SocketChannel> {
 
         }
 
+        private void handleUdp(ChannelHandlerContext ctx,HttpRequest req,URI uri){
+            if (req.method()!=HttpMethod.GET){
+                sendResponse(ctx,req,HttpResponseStatus.BAD_REQUEST);
+                return;
+            }
+            String host = req.headers().get(HttpHeaderNames.HOST);
+            String connection = req.headers().get(HttpHeaderNames.CONNECTION);
+            String upgrade = req.headers().get(HttpHeaderNames.UPGRADE);
+            String capsuleProtocol = req.headers().get("capsule-protocol");
+            if (Strs.isBlank(host)
+                    || !"upgrade".equalsIgnoreCase(connection)
+                    || !"connect-udp".equalsIgnoreCase(upgrade)
+                    || !"?1".equals(capsuleProtocol)) {
+                sendResponse(ctx, req, HttpResponseStatus.BAD_REQUEST);
+                return;
+            }
+            var address = extractUdpTargetFromUri(uri);
+            if (address==null){
+                sendResponse(ctx,req,HttpResponseStatus.BAD_REQUEST);
+                return;
+            }
+            ctx.pipeline().remove(HttpRequestDecoder.class);
+            ctx.pipeline().remove(HttpServerExpectContinueHandler.class);
+            ctx.pipeline().addLast(new CapsuleDecoder(65527),new CapsuleEncoder(),new DatagramRelayer(address));
+            DefaultHttpResponse response = new DefaultHttpResponse(req.protocolVersion(), HttpResponseStatus.SWITCHING_PROTOCOLS);
+            response.headers()
+                    .add(HttpHeaderNames.CONNECTION,HttpHeaderValues.UPGRADE)
+                    .add(HttpHeaderNames.UPGRADE,"connect-udp")
+                    .add("capsule-protocol","?1");
+            ctx.writeAndFlush(response)
+               .addListener(f->{
+                   if (!f.isSuccess()){
+                       ctx.close();
+                       return;
+                   }
+                   ctx.pipeline().remove(HttpResponseEncoder.class);
+                   ctx.pipeline().remove(this);
+               });
+
+        }
+
         private void determineIntermediary(ChannelHandlerContext ctx,HttpRequest req){
             if (req.method()== HttpMethod.CONNECT){
                 this.intermediary = Intermediary.TUNNEL;
@@ -136,22 +176,27 @@ public class Http1ServerHandler extends ChannelInitializer<SocketChannel> {
                         ctx.channel().attr(ProxyContext.SEND_ZC_SUPPORTED);
                     });
             }else{
-                InetSocketAddress address =null;
-                if (req.uri().startsWith("/")){
+                URI uri = URI.create(req.uri());
+                InetSocketAddress targetAddress;
+                if (isUdpRequest(uri)){
+                    this.intermediary = Intermediary.TUNNEL;
+                    handleUdp(ctx,req,uri);
+                    return;
+                }
+                if (uri.getHost()==null){
                     String host = req.headers().get("host");
                     if (Strs.isBlank(host)||Objects.equals(httpOption.getHost(),host)) {
                         sendResponse(ctx,req,HttpResponseStatus.BAD_REQUEST);
                         return;
                     }
 
-                    address=getTarget(URI.create(host));
+                    targetAddress=getTarget(URI.create(host));
                 }else {
-                    URI uri = URI.create(req.uri());
                     if (Strs.isBlank(uri.getHost())||Objects.equals(httpOption.getHost(),uri.getHost())) {
                         sendResponse(ctx,req,HttpResponseStatus.BAD_REQUEST);
                         return;
                     }
-                    address = getTarget(uri);
+                    targetAddress = getTarget(uri);
                     req.headers().remove("proxy-connection").set(
                             HttpHeaderNames.HOST, uri.getHost() + (uri.getPort() > 0 ? ":" + uri.getPort() : ""));
 
@@ -162,9 +207,9 @@ public class Http1ServerHandler extends ChannelInitializer<SocketChannel> {
                     }
                 }
                 this.intermediary = Intermediary.PROXY;
-                this.pendingReq=req;
 
-                this.future=axis.handleTcp(ctx.channel(), ctx.channel().remoteAddress(), address)
+                final HttpRequest pendingReq=req;
+                this.future=axis.handleTcp(ctx.channel(), ctx.channel().remoteAddress(), targetAddress)
                                 .addListener(f->{
                                     if (!f.isSuccess()){
                                         sendResponse(ctx, req,f.cause());
@@ -188,7 +233,7 @@ public class Http1ServerHandler extends ChannelInitializer<SocketChannel> {
                 ReferenceCountUtil.safeRelease(msg);
                 ctx.close();
             }else if (intermediary==Intermediary.TUNNEL){
-                if (!(msg instanceof LastHttpContent content) || content != LastHttpContent.EMPTY_LAST_CONTENT) {
+                if (!(msg instanceof LastHttpContent content && content == LastHttpContent.EMPTY_LAST_CONTENT)) {
                     ReferenceCountUtil.safeRelease(msg);
                     ctx.close();
                 }
@@ -222,4 +267,42 @@ public class Http1ServerHandler extends ChannelInitializer<SocketChannel> {
         }
 
     }
+
+    private class DatagramRelayer extends ChannelDuplexHandler{
+
+        private final InetSocketAddress targetAddress;
+
+        private DatagramRelayer(InetSocketAddress targetAddress) {
+            Objects.requireNonNull(targetAddress);
+            this.targetAddress = targetAddress;
+        }
+
+        @Override
+        public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+            if (!(msg instanceof Capsule capsule)) {
+                ReferenceCountUtil.safeRelease(msg);
+                if (!(msg instanceof LastHttpContent)) {
+                    ctx.close();
+                }
+                return;
+            }
+            if (capsule.type() != Capsule.TYPE_DATAGRAM){
+                ReferenceCountUtil.safeRelease(msg);
+                return;
+            }
+            axis.handleUdp0(ctx.channel(),
+                    new DatagramPacket(capsule.content(), targetAddress, (InetSocketAddress) ctx.channel().remoteAddress()),
+                    ReferenceCountUtil::safeRelease);
+        }
+
+        @Override
+        public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
+            if (!(msg instanceof DatagramPacket packet)){
+                ReferenceCountUtil.safeRelease(msg);
+                return;
+            }
+            ctx.write(Capsule.datagram(packet.content()),promise);
+        }
+    }
+
 }
