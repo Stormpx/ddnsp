@@ -103,13 +103,13 @@ public class ProxyContext {
     }
 
     private boolean isSpliceAvailable(EndPoint src,EndPoint dst){
-//        return false;
-        return src instanceof TcpEndPoint && dst instanceof TcpEndPoint
-                && src.channel() instanceof EpollSocketChannel srcSocket
-                && dst.channel() instanceof EpollSocketChannel dstSocket
-                && srcSocket.hasAttr(SEND_ZC_SUPPORTED)
-                && dstSocket.hasAttr(SEND_ZC_SUPPORTED)
-                && srcSocket.eventLoop()==dstSocket.eventLoop();
+        return false;
+//        return src instanceof TcpEndPoint && dst instanceof TcpEndPoint
+//                && src.channel() instanceof EpollSocketChannel srcSocket
+//                && dst.channel() instanceof EpollSocketChannel dstSocket
+//                && srcSocket.hasAttr(SEND_ZC_SUPPORTED)
+//                && dstSocket.hasAttr(SEND_ZC_SUPPORTED)
+//                && srcSocket.eventLoop()==dstSocket.eventLoop();
     }
 
     private void flushEndPoint(EndPoint target){
