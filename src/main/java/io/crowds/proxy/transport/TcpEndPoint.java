@@ -111,7 +111,7 @@ public class TcpEndPoint extends EndPoint {
             @Override
             public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
                 var shutdown = TcpEndPoint.this.shutdown;
-                if (evt instanceof ChannelInputShutdownEvent){
+                if (evt instanceof ChannelInputShutdownReadComplete){
                     ctx.channel().config().setAutoRead(false);
                     if (shutdown != Shutdown.INPUT) {
                         fireShutdown(TcpEndPoint.this.shutdown = Shutdown.INPUT);
