@@ -114,6 +114,12 @@ public class TcpEndPoint extends EndPoint {
                 if (evt instanceof ChannelInputShutdownReadComplete){
                     ctx.channel().config().setAutoRead(false);
                     if (shutdown != Shutdown.INPUT) {
+                        if (cumulation!=null){
+                            ByteBuf buf = cumulation;
+                            cumulation = null;
+                            fireBuf(buf);
+                            fireReadComplete();
+                        }
                         fireShutdown(TcpEndPoint.this.shutdown = Shutdown.INPUT);
                     }
                 }else if (evt instanceof ChannelOutputShutdownEvent){
@@ -163,8 +169,8 @@ public class TcpEndPoint extends EndPoint {
                     if (!f.isSuccess()){
                         fireException(f.cause());
                     }
-                    ChannelOutboundBuffer buffer = channel.unsafe().outboundBuffer();
                     if (this.shutdown==Shutdown.OUTPUT){
+                        ChannelOutboundBuffer buffer = channel.unsafe().outboundBuffer();
                         if (buffer!=null&&buffer.totalPendingWriteBytes() <= 0){
                             ((DuplexChannel)(channel)).shutdownOutput();
                         }
