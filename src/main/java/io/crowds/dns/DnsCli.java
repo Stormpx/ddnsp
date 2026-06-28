@@ -84,7 +84,7 @@ public class DnsCli implements InternalDnsResolver {
 
     private void tryCacheResponse(DnsResponse response){
         if (response.code()==DnsResponseCode.NOERROR&&!response.isTruncated()){
-            dnsCache.cacheMessage(response, eventLoopGroup.next());
+            dnsCache.cacheMessage(response);
         }
     }
 

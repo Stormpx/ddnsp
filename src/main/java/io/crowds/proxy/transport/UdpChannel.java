@@ -70,6 +70,9 @@ public class UdpChannel  extends ChannelInboundHandlerAdapter {
         if (msg instanceof DatagramPacket packet){
             InetSocketAddress address = packet.sender();
             Consumer<DatagramPacket> handler = handlers.get(address==null?NULL:address);
+            if (handler == null && address != null) {
+                handler = handlers.get(NULL);
+            }
             if (handler!=null) {
                 handler.accept(new DatagramPacket(packet.content(),src,address));
             }

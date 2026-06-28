@@ -31,6 +31,7 @@ public abstract class FullConeProxyTransport<OPT extends ProtocolOption> extends
         createChannel(proxyContext.getEventLoop(),proxyContext.getNetLocation())
                 .addListener((FutureListener<Channel>) f->{
                     if (!f.isSuccess()){
+                        promise.tryFailure(f.cause());
                         return;
                     }
                     Channel channel = f.get();
@@ -59,6 +60,7 @@ public abstract class FullConeProxyTransport<OPT extends ProtocolOption> extends
                                 udpFuture.addListener((FutureListener<UdpChannel>)future -> {
                                     if (!future.isSuccess()){
                                         udpChannelMap.remove(src,udpFuture);
+                                        return;
                                     }
                                     UdpChannel udpChannel = future.get();
 

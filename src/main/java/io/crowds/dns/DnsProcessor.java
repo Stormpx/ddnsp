@@ -14,10 +14,10 @@ import java.util.*;
 public class DnsProcessor {
     private final static Logger logger= LoggerFactory.getLogger(DnsProcessor.class);
     private DnsClient dnsClient;
-    private DnsOption option;
+    private volatile DnsOption option;
 
 
-    private Handler<DnsContext0> context0Handler=ctx->ctx.doQuery(ctx::resp);
+    private volatile Handler<DnsContext0> context0Handler=ctx->ctx.doQuery(ctx::resp);
 
     public DnsProcessor(DnsClient dnsClient) {
         this.dnsClient = dnsClient;

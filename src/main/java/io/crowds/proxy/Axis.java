@@ -52,17 +52,17 @@ public class Axis {
     private final Context context;
     private final ChannelCreator channelCreator;
 
-    private ProxyOption proxyOption;
+    private volatile ProxyOption proxyOption;
 
-    private FakeDns fakeDns;
+    private volatile FakeDns fakeDns;
 
-    private HostnameSniffer hostnameSniffer;
+    private volatile HostnameSniffer hostnameSniffer;
 
     private final NatMappings natMappings;
 
-    private Router router;
+    private volatile Router router;
 
-    private TransportProvider transportProvider;
+    private volatile TransportProvider transportProvider;
 
     private final UdpMappings mappings;
 

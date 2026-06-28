@@ -17,7 +17,7 @@ import java.util.List;
 public class ProxyServer {
     private final static Logger logger= LoggerFactory.getLogger(ProxyServer.class);
 
-    private ProxyOption proxyOption;
+    private volatile ProxyOption proxyOption;
     private final Context context;
     private final Axis axis;
 

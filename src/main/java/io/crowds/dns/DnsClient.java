@@ -31,7 +31,7 @@ public class DnsClient implements InternalDnsResolver {
         Objects.requireNonNull(option);
         this.eventLoopGroup= context.getEventLoopGroup();
         this.datagramChannelFactory = context.getChannelFactoryProvider().getDatagramChannelFactory();
-        this.dnsCache=new DnsCache(eventLoopGroup.next());
+        this.dnsCache=new DnsCache();
         var defaultStream = newDefaultUpstream();
         var upStreams = newUpStreams(context,option.getUpstreams());
         this.dnsCli = new DnsCli(eventLoopGroup,this.dnsCache,defaultStream,upStreams, option.isTryIpv6()&&Inet.isSupportsIpV6());
@@ -41,7 +41,7 @@ public class DnsClient implements InternalDnsResolver {
         Objects.requireNonNull(datagramChannelFactory);
         this.eventLoopGroup = eventLoopGroup;
         this.datagramChannelFactory = datagramChannelFactory;
-        this.dnsCache=new DnsCache(eventLoopGroup.next());
+        this.dnsCache=new DnsCache();
         var defaultStream = newDefaultUpstream();
         this.dnsCli = new DnsCli(eventLoopGroup,this.dnsCache,defaultStream, Inet.isSupportsIpV6());
     }

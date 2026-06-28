@@ -3,7 +3,6 @@ package dns.cache;
 import io.crowds.dns.DnsKit;
 import io.crowds.dns.cache.DnsCache;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.DefaultEventLoop;
 import io.netty.handler.codec.dns.DefaultDnsRawRecord;
 import io.netty.handler.codec.dns.DnsRawRecord;
 import io.netty.handler.codec.dns.DnsRecord;
@@ -21,11 +20,10 @@ public class CacheTest {
     @Test
     public void getTest() throws InterruptedException {
 
-        DefaultEventLoop eventLoop = new DefaultEventLoop();
-        DnsCache cache = new DnsCache(eventLoop);
+        DnsCache cache = new DnsCache();
         DefaultDnsRawRecord aRecord = new DefaultDnsRawRecord("foo.com.", DnsRecordType.A, 100,
                 Unpooled.buffer().writeInt(42));
-        cache.cache(aRecord,eventLoop);
+        cache.cache(aRecord);
         Thread.sleep(900);
         List<DnsRecord> records = cache.get("foo.com.", DnsRecordType.A, false);
         Assert.assertEquals(1,records.size());
@@ -36,7 +34,7 @@ public class CacheTest {
         var cnameRecord = new DefaultDnsRawRecord("bar.com.", DnsRecordType.CNAME, 100,
                 DnsKit.encodeDomainName("foo.com.",Unpooled.buffer()));
 
-        cache.cache(cnameRecord,eventLoop);
+        cache.cache(cnameRecord);
 
         records = cache.get("bar.com.", DnsRecordType.A, true);
         Assert.assertEquals(1,records.size());
@@ -52,7 +50,7 @@ public class CacheTest {
 
         var cnameRecord1 = new DefaultDnsRawRecord("test.com.", DnsRecordType.CNAME, 100,
                 DnsKit.encodeDomainName("bar.com.",Unpooled.buffer()));
-        cache.cache(cnameRecord1,eventLoop);
+        cache.cache(cnameRecord1);
         records = cache.get("test.com.", DnsRecordType.A, true);
         Assert.assertEquals(1,records.size());
         Assert.assertEquals(42, ((DnsRawRecord)records.get(0)).content().readInt());
@@ -63,11 +61,10 @@ public class CacheTest {
     @Test
     public void answerTest(){
 
-        DefaultEventLoop eventLoop = new DefaultEventLoop();
-        DnsCache cache = new DnsCache(eventLoop);
+        DnsCache cache = new DnsCache();
         DefaultDnsRawRecord aRecord = new DefaultDnsRawRecord("foo.com.", DnsRecordType.A, 100,
                 Unpooled.buffer().writeInt(42));
-        cache.cache(aRecord,eventLoop);
+        cache.cache(aRecord);
 
         List<DnsRecord> result = new ArrayList<>();
 
@@ -81,7 +78,7 @@ public class CacheTest {
         var cnameRecord = new DefaultDnsRawRecord("bar.com.", DnsRecordType.CNAME, 100,
                 DnsKit.encodeDomainName("foo.com.",Unpooled.buffer()));
 
-        cache.cache(cnameRecord,eventLoop);
+        cache.cache(cnameRecord);
 
         Assert.assertTrue(cache.getAnswer("bar.com.", DnsRecordType.A, true,result));
         Assert.assertEquals(2,result.size());
@@ -107,7 +104,7 @@ public class CacheTest {
 
         var cnameRecord1 = new DefaultDnsRawRecord("test.com.", DnsRecordType.CNAME, 100,
                 DnsKit.encodeDomainName("bar.com.",Unpooled.buffer()));
-        cache.cache(cnameRecord1,eventLoop);
+        cache.cache(cnameRecord1);
         Assert.assertTrue(cache.getAnswer("test.com.", DnsRecordType.A, true,result));
         Assert.assertEquals(3,result.size());
         Assert.assertEquals("bar.com.", DnsKit.decodeDomainName(((DnsRawRecord)result.get(0)).content()));

@@ -1,15 +1,13 @@
 package io.crowds.dns.cache;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.Expiry;
 import io.crowds.dns.DnsKit;
-import io.crowds.util.Lambdas;
-import io.netty.buffer.ByteBufUtil;
-import io.netty.channel.EventLoop;
 import io.netty.handler.codec.dns.*;
 
 import java.net.InetAddress;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -18,73 +16,72 @@ import java.util.stream.Stream;
 
 public class DnsCache {
 
-    private final EventLoop eventLoop;
-    private final Map<CacheKey, CacheEntries> cache;
+    private final Cache<CacheKey, CacheEntries> cache;
 
-    public DnsCache(EventLoop eventLoop) {
-        this.cache =new HashMap<>();
-        this.eventLoop = eventLoop;
+    public DnsCache() {
+        this.cache = Caffeine.newBuilder()
+                .expireAfter(new Expiry<CacheKey, CacheEntries>() {
+                    @Override
+                    public long expireAfterCreate(CacheKey key, CacheEntries entries, long currentTime) {
+                        return TimeUnit.SECONDS.toNanos(entries.maxTtl());
+                    }
+
+                    @Override
+                    public long expireAfterUpdate(CacheKey key, CacheEntries entries, long currentTime, long currentDuration) {
+                        return TimeUnit.SECONDS.toNanos(entries.maxTtl());
+                    }
+
+                    @Override
+                    public long expireAfterRead(CacheKey key, CacheEntries entries, long currentTime, long currentDuration) {
+                        return currentDuration;
+                    }
+                })
+                .build();
     }
-
 
 
     private Stream<TtlRecord> cacheSection(DnsMessage message, DnsSection section){
         return IntStream.range(0, message.count(section)).mapToObj(i -> (DnsRecord)message.recordAt(section,i)).map(TtlRecord::of);
     }
 
-    private void cache(CacheKey key,List<TtlRecord> value,EventLoop eventLoop){
-        cache.compute(key,((key_, entries) -> {
-            if (entries!=null)
-                entries.cancel();
-            CacheEntries cacheEntries;
-            if (key.type()==DnsRecordType.CNAME){
-                cacheEntries = new CnameEntries(value);
-            }else{
-                cacheEntries = new CacheEntries(value);
-            }
-            var loop =eventLoop==null?this.eventLoop:eventLoop;
-            long maxTtl = cacheEntries.maxTtl();
-            cacheEntries.withExpiration(
-                    loop.schedule(()-> {
-                        cache.remove(key,cacheEntries);
-                    }, maxTtl, TimeUnit.SECONDS)
-            );
-            return cacheEntries;
-        }));
+    private void cache(CacheKey key, List<TtlRecord> value){
+        CacheEntries cacheEntries;
+        if (key.type()==DnsRecordType.CNAME){
+            cacheEntries = new CnameEntries(value);
+        }else{
+            cacheEntries = new CacheEntries(value);
+        }
+        cache.put(key, cacheEntries);
     }
 
-    public void cache(DnsRecord record,EventLoop eventLoop){
+    public void cache(DnsRecord record){
         CacheKey key = new CacheKey(record);
-        cache(key,List.of(new TtlRecord(record)),eventLoop);
+        cache(key, List.of(new TtlRecord(record)));
     }
 
-    public void cacheMessage(DnsMessage message, EventLoop eventLoop){
+    public void cacheMessage(DnsMessage message){
         var ttlRecordGroups = Stream.of(cacheSection(message, DnsSection.ANSWER), cacheSection(message, DnsSection.AUTHORITY), cacheSection(message, DnsSection.ADDITIONAL))
                 .flatMap(Function.identity()).collect(Collectors.groupingBy(TtlRecord::cacheKey));
 
-
-        ttlRecordGroups.forEach((key, value) -> cache(key,value,eventLoop));
+        ttlRecordGroups.forEach((key, value) -> cache(key, value));
     }
 
 
 
     public void invalidate(CacheKey key){
-        cache.computeIfPresent(key,(k,v)->{
-            v.cancel();
-            return null;
-        });
+        cache.invalidate(key);
     }
 
     public void invalidateAll(){
-        cache.clear();
+        cache.invalidateAll();
     }
 
 
-    public boolean getAnswer(CacheKey key, boolean recursive,List<DnsRecord> results){
-        CacheEntries entries = cache.get(key);
+    public boolean getAnswer(CacheKey key, boolean recursive, List<DnsRecord> results){
+        CacheEntries entries = cache.getIfPresent(key);
         long ts = System.currentTimeMillis();
         if (entries==null){
-            CacheEntries cacheEntries = cache.get(new CacheKey(key.name(), DnsRecordType.CNAME));
+            CacheEntries cacheEntries = cache.getIfPresent(new CacheKey(key.name(), DnsRecordType.CNAME));
             if (cacheEntries instanceof CnameEntries cnameEntries && !cacheEntries.isTimeout(ts)){
                 String cname = cnameEntries.cname();
                 TtlRecord ttlRecord = cacheEntries.records().getFirst();
@@ -112,11 +109,11 @@ public class DnsCache {
 
 
     public List<DnsRecord> get(CacheKey key, boolean recursive){
-        CacheEntries entries = cache.get(key);
+        CacheEntries entries = cache.getIfPresent(key);
         long ts = System.currentTimeMillis();
         if (entries==null){
             if (recursive){
-                CacheEntries cacheEntries = cache.get(new CacheKey(key.name(), DnsRecordType.CNAME));
+                CacheEntries cacheEntries = cache.getIfPresent(new CacheKey(key.name(), DnsRecordType.CNAME));
                 if (cacheEntries instanceof CnameEntries cnameEntries && !cacheEntries.isTimeout(ts)){
                     return get(new CacheKey(cnameEntries.cname(), key.type()),true);
                 }
@@ -142,11 +139,11 @@ public class DnsCache {
         if (key.type()!=DnsRecordType.A&&key.type()!=DnsRecordType.AAAA){
             throw new UnsupportedOperationException("light-weight get cache only support A or AAAA type");
         }
-        CacheEntries entries = cache.get(key);
+        CacheEntries entries = cache.getIfPresent(key);
         long ts = System.currentTimeMillis();
         if (entries==null){
             if (recursive){
-                CacheEntries cacheEntries = cache.get(new CacheKey(key.name(), DnsRecordType.CNAME));
+                CacheEntries cacheEntries = cache.getIfPresent(new CacheKey(key.name(), DnsRecordType.CNAME));
                 if (cacheEntries instanceof CnameEntries cnameEntries && !cacheEntries.isTimeout(ts)){
                     return lightWeightGet(new CacheKey(cnameEntries.cname(), key.type()),true);
                 }

@@ -65,7 +65,7 @@ public class WireguardProxyTransport extends FullConeProxyTransport<WireguardOpt
             var channelFactory = DatagramChannelFactory
                     .newFactory(_ -> newPartialDatagramChannel(), this::newPartialDatagramChannel);
             var upstream = new UdpUpstream(eventLoop, channelFactory, wireguardOption.getDns());
-            var dnsCli = new DnsCli(eventLoopGroup, new DnsCache(eventLoop), upstream, wireguardOption.getAddress().address() instanceof IPv6);
+            var dnsCli = new DnsCli(eventLoopGroup, new DnsCache(), upstream, wireguardOption.getAddress().address() instanceof IPv6);
             this.variantResolver = new VariantResolver(()->dnsCli);
         }else{
             this.variantResolver = axis.getContext().getVariantResolver();

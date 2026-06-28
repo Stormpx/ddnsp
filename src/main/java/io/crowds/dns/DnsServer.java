@@ -35,7 +35,7 @@ public class DnsServer {
     private ServerChannel tcpServer;
     private LocalServerChannel localServer;
 
-    private DnsOption option;
+    private volatile DnsOption option;
 
     private final DnsProcessor processor;
 
