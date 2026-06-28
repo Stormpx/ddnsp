@@ -161,6 +161,7 @@ dependencies {
     val arch = DefaultNativePlatform.getCurrentArchitecture()
     logger.info("os is ${os.toFamilyName()}")
     logger.info("arch is ${arch.name}")
+    implementation("com.github.ben-manes.caffeine:caffeine:3.2.4")
     implementation("com.maxmind.geoip2:geoip2:5.0.2")
     implementation("org.bouncycastle:bcpkix-jdk18on:1.84")
     implementation("io.github.dreamlike-ocean:panama-generator:4.2.0-SNAPSHOT")

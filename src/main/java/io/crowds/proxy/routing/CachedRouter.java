@@ -1,9 +1,10 @@
 package io.crowds.proxy.routing;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import io.crowds.proxy.NetLocation;
 import io.crowds.proxy.routing.rule.Rule;
 import io.crowds.proxy.routing.rule.RuleType;
-import io.crowds.util.LRUK;
 
 import java.util.*;
 
@@ -16,7 +17,7 @@ public class CachedRouter extends AbstractRouter {
         var ref = new Object(){
             int counter=0;
         };
-        initRule(rules,it->this.slotMap.computeIfAbsent(it.type(),type->new Slot(type,k,missSize,hitSize)).addRule(new SequencedRule(ref.counter++,it)));
+        initRule(rules,it->this.slotMap.computeIfAbsent(it.type(),type->new Slot(type,missSize,hitSize)).addRule(new SequencedRule(ref.counter++,it)));
     }
 
 
@@ -37,33 +38,23 @@ public class CachedRouter extends AbstractRouter {
         }
 
         return result != null ? result.getTag() : defaultTag;
-//        return Arrays.stream(types)
-//                .map(it -> this.slotMap.get(it))
-//                .filter(Objects::nonNull)
-//                .map(slot -> slot.match(netLocation))
-//                .filter(Objects::nonNull)
-//                .min(Comparator.comparing(SequencedRule::seq))
-//                .map(SequencedRule::rule)
-//                .map(Rule::getTag)
-//                .orElse(defaultTag);
-
     }
 
     record SequencedRule(int seq,Rule rule){}
 
-    class Slot{
-        private final static Object NULL=new Object();
+    static class Slot{
+        private static final Object NULL=new Object();
         private final RuleType type;
         private final List<SequencedRule> rules;
-        private final LRUK<Object,Object> missCache;
-        private final LRUK<Object,SequencedRule> hitCache;
+        private final Cache<Object,Object> missCache;
+        private final Cache<Object,SequencedRule> hitCache;
         private int minimalSeq = Integer.MAX_VALUE;
 
-        public Slot(RuleType type,int k,int missSize,int hitSize) {
+        public Slot(RuleType type,int missSize,int hitSize) {
             this.type = type;
             this.rules=new ArrayList<>();
-            this.missCache=new LRUK<>(k,missSize);
-            this.hitCache=new LRUK<>(k,hitSize);
+            this.missCache = Caffeine.newBuilder().maximumSize(missSize).build();
+            this.hitCache = Caffeine.newBuilder().maximumSize(hitSize).build();
         }
 
         public void addRule(SequencedRule rule){
@@ -75,10 +66,13 @@ public class CachedRouter extends AbstractRouter {
 
         public SequencedRule match(NetLocation netLocation){
             Object key = type.getMatchKey(netLocation);
-            if (missCache.exists(key))
+            if (key==null)
                 return null;
 
-            var hit = hitCache.get(key);
+            if (missCache.getIfPresent(key) != null)
+                return null;
+
+            var hit = hitCache.getIfPresent(key);
             if (hit!=null){
                 return hit;
             }

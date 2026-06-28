@@ -7,11 +7,9 @@ import io.netty.channel.EventLoop;
 import io.netty.handler.codec.dns.*;
 
 import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -24,7 +22,7 @@ public class DnsCache {
     private final Map<CacheKey, CacheEntries> cache;
 
     public DnsCache(EventLoop eventLoop) {
-        this.cache =new ConcurrentHashMap<>();
+        this.cache =new HashMap<>();
         this.eventLoop = eventLoop;
     }
 

@@ -5,7 +5,7 @@ import io.crowds.util.IPCIDR;
 import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.LinkedList;
+import java.util.ArrayDeque;
 import java.util.Queue;
 
 public class IpPool {
@@ -23,7 +23,7 @@ public class IpPool {
 
     public void reset(IPCIDR ipcidr){
         this.address=ipcidr.getFirstAddress();
-        this.ipQueue=new LinkedList<>();
+        this.ipQueue=new ArrayDeque<>();
         int seqIndex = ipcidr.getMask() / 8;
         if (seqIndex<address.length)
             this.seq=this.address[seqIndex];
