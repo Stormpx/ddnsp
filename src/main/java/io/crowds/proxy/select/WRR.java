@@ -7,15 +7,16 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 public class WRR extends TransportSelector {
-    private List<String> tags;
+    private final List<String> tags;
 
-    private AtomicInteger cursor;
+    private final AtomicLong cursor;
     private int[] seq;
 
     public WRR(String name,List<WNode> nodes) {
@@ -23,7 +24,7 @@ public class WRR extends TransportSelector {
         Objects.requireNonNull(nodes);
         assert !nodes.isEmpty();
         calculate(nodes);
-        this.cursor=new AtomicInteger(0);
+        this.cursor=new AtomicLong(0);
         this.tags=nodes.stream().map(WNode::tag).collect(Collectors.toList());
     }
 
@@ -82,9 +83,9 @@ public class WRR extends TransportSelector {
 
     @Override
     public String nextTag(ProxyContext proxyContext) {
-        int index = cursor.getAndIncrement();
-        index%=seq.length;
-        return tags.get(seq[index]);
+        long index = cursor.getAndIncrement();
+        index = index % seq.length;
+        return tags.get(seq[(int) index]);
     }
 
     public static record WNode(int weight, String tag){}

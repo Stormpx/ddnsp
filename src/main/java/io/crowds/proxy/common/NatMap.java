@@ -103,7 +103,9 @@ public class NatMap {
             if (socketAddress.isUnresolved()) {
                 entry = new NatEntry.Domain(pattern, translator);
             } else {
-                entry = new NatEntry.Cidr(new IPMask(IP.of(socketAddress.getAddress().getAddress()),32), translator);
+                byte[] addr = socketAddress.getAddress().getAddress();
+                int mask = addr.length == 4 ? 32 : 128;
+                entry = new NatEntry.Cidr(new IPMask(IP.of(addr), mask), translator);
             }
         }
         switch (entry){

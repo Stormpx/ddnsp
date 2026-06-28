@@ -26,7 +26,7 @@ public interface Rule {
             case DOMAIN -> new Domain(content,tag);
             case EQ -> new Equal(content,tag);
             case EW -> new EndsWith(content,tag);
-            case KW-> new KeyWord(content,tag);
+            case KW-> new Keyword(content,tag);
             case SRC_CIDR-> new Cidr(content,tag,false);
             case CIDR-> new Cidr(content,tag,true);
             case SRC_POST-> new Port(content,tag,false);

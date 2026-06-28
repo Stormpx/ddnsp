@@ -103,7 +103,7 @@ public class FakeDns implements Handler<DnsContext0> {
             domainFakeMap.put(domain,fakeContext);
             addrFakeMap.put(fakeAddr,fakeContext);
             executors.schedule(()->{
-                boolean del = domainFakeMap.remove(domain,fakeContext) | addrFakeMap.remove(fakeAddr,fakeContext);
+                boolean del = domainFakeMap.remove(domain,fakeContext) & addrFakeMap.remove(fakeAddr,fakeContext);
                 if (del)
                     ipPool.release(fakeAddr);
             }, (long) (realAddr.ttl()*1.5), TimeUnit.SECONDS);
@@ -179,10 +179,10 @@ public class FakeDns implements Handler<DnsContext0> {
     }
 
     public IPCIDR getIPv4cidr(){
-        return ipv4Pool.getIpcidr();
+        return ipv4Pool != null ? ipv4Pool.getIpcidr() : null;
     }
     public IPCIDR getIPv6cidr(){
-        return ipv6Pool.getIpcidr();
+        return ipv6Pool != null ? ipv6Pool.getIpcidr() : null;
     }
 
     public boolean isFakeIp(InetAddress address){

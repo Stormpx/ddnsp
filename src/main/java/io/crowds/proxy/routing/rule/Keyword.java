@@ -3,14 +3,12 @@ package io.crowds.proxy.routing.rule;
 import io.crowds.proxy.DomainNetAddr;
 import io.crowds.proxy.NetLocation;
 
-import java.util.Locale;
-
-public class KeyWord implements Rule {
+public class Keyword implements Rule {
 
     private final String keyword;
     private final String tag;
 
-    public KeyWord(String keyword, String tag) {
+    public Keyword(String keyword, String tag) {
         this.keyword = keyword;
         this.tag = tag;
     }

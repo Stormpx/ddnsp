@@ -227,7 +227,7 @@ public class DdnspOptionLoader {
                         protocolOptions.add(protocolOption);
                     }
                 } catch (Exception e) {
-                    logger.error(e.getMessage(),e.getCause());
+                    logger.error(e.getMessage(),e);
                 }
             }
             proxy.setProxies(protocolOptions);
@@ -325,7 +325,7 @@ public class DdnspOptionLoader {
                 }else if (dnsRecordType==DnsRecordType.AAAA){
                     record =new DefaultDnsRawRecord(domain,DnsRecordType.AAAA,0, Unpooled.wrappedBuffer(Inet6Address.getByName(raw).getAddress()));
                 }else if (dnsRecordType==DnsRecordType.CNAME){
-                    new DefaultDnsRawRecord(domain,DnsRecordType.CNAME,0,Unpooled.wrappedBuffer(raw.getBytes()));
+                    record = new DefaultDnsRawRecord(domain,DnsRecordType.CNAME,0,Unpooled.wrappedBuffer(raw.getBytes()));
                 }else if (dnsRecordType==DnsRecordType.PTR) {
                     record=new DefaultDnsPtrRecord(domain, DnsRecord.CLASS_IN,0,raw);
                 }
