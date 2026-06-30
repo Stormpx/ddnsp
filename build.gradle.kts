@@ -174,7 +174,7 @@ dependencies {
 
     implementation("org.apache.sshd:sshd-core:2.15.0")
 
-    implementation("org.stormpx.partialtcp:net-netty:0.0.7")
+    implementation("org.stormpx.partialtcp:net-netty:0.0.8")
 
     implementation("org.drasyl:netty-tun:1.2.5")
     implementation("io.netty:netty-codec-protobuf:4.2.13.Final")
