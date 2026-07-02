@@ -1,5 +1,6 @@
 package io.crowds;
 
+import io.crowds.api.ApiOption;
 import io.crowds.ddns.DDnsOption;
 import io.crowds.dns.DnsOption;
 import io.crowds.proxy.ProxyOption;
@@ -15,6 +16,8 @@ public class DdnspOption {
     private DDnsOption ddns;
 
     private ProxyOption proxy;
+
+    private ApiOption api;
 
 
 
@@ -60,6 +63,15 @@ public class DdnspOption {
 
     public DdnspOption setMmdb(String mmdb) {
         this.mmdb = mmdb;
+        return this;
+    }
+
+    public ApiOption getApi() {
+        return api;
+    }
+
+    public DdnspOption setApi(ApiOption api) {
+        this.api = api;
         return this;
     }
 }

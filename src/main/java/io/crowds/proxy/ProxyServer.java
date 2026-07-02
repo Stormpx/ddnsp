@@ -67,5 +67,7 @@ public class ProxyServer {
         return this.axis.getFakeDns();
     }
 
-
+    public Axis getAxis() {
+        return axis;
+    }
 }

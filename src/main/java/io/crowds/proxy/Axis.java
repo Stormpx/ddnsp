@@ -465,6 +465,10 @@ public class Axis {
         return context;
     }
 
+    public RoutingManager getRouter() {
+        return router;
+    }
+
     public ChannelCreator getChannelCreator() {
         return channelCreator;
     }
