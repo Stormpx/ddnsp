@@ -7,8 +7,7 @@ import io.crowds.proxy.common.sniff.SniffOption;
 import io.crowds.proxy.dns.FakeContext;
 import io.crowds.proxy.dns.FakeDns;
 import io.crowds.proxy.dns.FakeOption;
-import io.crowds.proxy.routing.CachedRouter;
-import io.crowds.proxy.routing.Router;
+import io.crowds.proxy.routing.RoutingManager;
 import io.crowds.proxy.select.Transport;
 import io.crowds.proxy.select.TransportProvider;
 import io.crowds.proxy.transport.EndPoint;
@@ -60,7 +59,7 @@ public class Axis {
 
     private final NatMappings natMappings;
 
-    private volatile Router router;
+    private final RoutingManager router;
 
     private volatile TransportProvider transportProvider;
 
@@ -70,6 +69,7 @@ public class Axis {
         this.context = context;
         this.channelCreator = new ChannelCreator(context);
         this.natMappings = new NatMappings();
+        this.router = new RoutingManager();
         this.mappings=new UdpMappings();
     }
 
@@ -170,16 +170,15 @@ public class Axis {
         }
 
         if (proxyOption.getRules()!=null){
-            if (this.proxyOption==null||!proxyOption.getRules().equals(this.proxyOption.getRules())) {
-                this.router = new CachedRouter(proxyOption.getRules(),2,12,12);
-                if (this.fakeDns != null) this.fakeDns.setRouter(router);
+            if (this.proxyOption==null||!Objects.equals(proxyOption.getRules(), this.proxyOption.getRules())){
+                this.router.updateBaseRules(proxyOption.getRules());
                 logger.info("router rules setup.");
             }
         }
         if (this.transportProvider==null){
-            this.transportProvider =new TransportProvider(this,proxyOption.getProxies(),proxyOption.getSelectors());
+            this.transportProvider = new TransportProvider(this,proxyOption.getProxies(),proxyOption.getSelectors());
         }
-        if (this.router!=null&&this.fakeDns==null&&proxyOption.getFakeDns()!=null){
+        if (this.fakeDns==null&&proxyOption.getFakeDns()!=null){
             createFakeDns(proxyOption.getFakeDns());
         }
 
@@ -218,7 +217,7 @@ public class Axis {
     private Transport lookupTransport(ProxyContext proxyContext){
         NatMap preRouteNat = this.natMappings.preNat;
         Map<String, NatMap> postRouteNats = this.natMappings.postNats;
-        Router router = this.router;
+        RoutingManager router = this.router;
         NetLocation netLocation = proxyContext.getNetLocation();
         if (preRouteNat != null){
             NetAddr addr = preRouteNat.translate(netLocation.getDst());
@@ -229,11 +228,10 @@ public class Axis {
                 proxyContext.withNetLocation(netLocation);
             }
         }
-        if (router ==null){
+        String tag = router.routing(netLocation);
+        if (tag == null){
             return transportProvider.direct();
         }
-
-        String tag = router.routing(netLocation);
         proxyContext.withTag(tag);
 
         Transport transport = transportProvider.getTransport(proxyContext);
