@@ -5,6 +5,7 @@ import io.crowds.proxy.transport.EndPoint;
 import io.crowds.proxy.transport.TcpEndPoint;
 import io.crowds.util.Exceptions;
 import io.netty.channel.EventLoop;
+import io.netty.channel.MessageSizeEstimator;
 import io.netty.channel.epoll.EpollSocketChannel;
 import io.netty.channel.socket.DatagramPacket;
 import io.netty.util.AttributeKey;
@@ -34,10 +35,13 @@ public class ProxyContext {
             throw new InternalError(e);
         }
     }
-    private Ticker ticker = Ticker.systemTicker();
+    private final Ticker ticker = Ticker.systemTicker();
     private final EventLoop eventLoop;
+    private long timestamp;
     private EndPoint src;
+    private MessageSizeEstimator.Handle uploadEstimator;
     private EndPoint dst;
+    private MessageSizeEstimator.Handle downloadEstimator;
     private NetLocation netLocation;
     private List<NetLocation> prevLocations;
 
@@ -46,10 +50,11 @@ public class ProxyContext {
 
     private Consumer<DatagramPacket> fallbackPacketHandler;
 
-    private boolean close;
+    private volatile boolean close;
     private Consumer<Void> closeHandler;
 
     private final HalfClosureTimer halfClosureTimer = new HalfClosureTimer();
+    private final TrafficStats trafficStats = new TrafficStats(ticker);
 
     public ProxyContext(EventLoop eventLoop, NetLocation netLocation) {
         this.eventLoop = eventLoop;
@@ -124,10 +129,24 @@ public class ProxyContext {
         target.shutdown(shutdown.reverse());
     }
 
+    public void upload(Object message){
+        MessageSizeEstimator.Handle handle = this.uploadEstimator;
+        int size = handle.size(message);
+        trafficStats.upload(size);
+        dst.write(message);
+    }
+
+    public void download(Object message){
+        MessageSizeEstimator.Handle handle = this.downloadEstimator;
+        int size = handle.size(message);
+        trafficStats.download(size);
+        src.write(message);
+    }
+
     public void bridging(EndPoint src,EndPoint dst){
-        dst.bufferHandler(src::write);
+        dst.bufferHandler(this::download);
         dst.readCompleteHandler(()->flushEndPoint(src));
-        src.bufferHandler(dst::write);
+        src.bufferHandler(this::upload);
         src.readCompleteHandler(()->flushEndPoint(dst));
         src.writabilityHandler(dst::setAutoRead);
         dst.writabilityHandler(src::setAutoRead);
@@ -142,8 +161,10 @@ public class ProxyContext {
             src.close();
         });
         this.src=src;
+        this.uploadEstimator = src.channel().config().getMessageSizeEstimator().newHandle();
         this.dst=dst;
-
+        this.downloadEstimator = dst.channel().config().getMessageSizeEstimator().newHandle();
+        this.timestamp = System.currentTimeMillis();
     }
 
     public void setAutoRead(){
@@ -248,6 +269,14 @@ public class ProxyContext {
 
     public boolean isClosed() {
         return close;
+    }
+
+    public TrafficStats getTrafficStats() {
+        return trafficStats;
+    }
+
+    public long getTimestamp() {
+        return timestamp;
     }
 
     public ProxyContext closeHandler(Consumer<Void> closeHandler) {
