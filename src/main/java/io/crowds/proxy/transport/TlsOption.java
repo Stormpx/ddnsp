@@ -6,7 +6,6 @@ import java.util.Objects;
 
 public class TlsOption {
     private boolean enable;
-    private boolean warpHandler;
     private boolean allowInsecure=false;
     private List<String> alpn;
     private String serverName;
@@ -18,15 +17,6 @@ public class TlsOption {
         this.allowInsecure = other.allowInsecure;
         this.serverName = other.serverName;
         this.alpn = new ArrayList<>(Objects.requireNonNullElse(other.alpn,List.of()));
-    }
-
-    public boolean isWarpHandler() {
-        return warpHandler;
-    }
-
-    public TlsOption setWarpHandler(boolean warpHandler) {
-        this.warpHandler = warpHandler;
-        return this;
     }
 
     public boolean isAllowInsecure() {

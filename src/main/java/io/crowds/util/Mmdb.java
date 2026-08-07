@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class Mmdb {
     private final static Logger logger= LoggerFactory.getLogger(Mmdb.class);
-    private static Mmdb instance;
+    private static final StableValue<Mmdb> INSTANCE = StableValue.of();
     private final Vertx vertx;
     private final HttpClient httpClient;
 
@@ -50,15 +50,14 @@ public class Mmdb {
 
 
     public static Mmdb instance(){
-        return instance;
+        return INSTANCE.orElse(null);
     }
 
     public static Mmdb initialize(Vertx vertx, long duration, TimeUnit timeUnit){
-        if (Mmdb.instance!=null){
-            return Mmdb.instance;
+        if (!INSTANCE.isSet()){
+            INSTANCE.trySet(new Mmdb(vertx,duration,timeUnit));
         }
-        Mmdb.instance = new Mmdb(vertx,duration,timeUnit);
-        return Mmdb.instance;
+        return Mmdb.INSTANCE.orElse(null);
     }
 
     private void setReloadTimer(){
