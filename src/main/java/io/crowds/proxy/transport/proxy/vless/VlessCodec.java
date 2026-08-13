@@ -1,6 +1,5 @@
 package io.crowds.proxy.transport.proxy.vless;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import io.crowds.proxy.NetAddr;
 import io.crowds.proxy.TP;
 import io.crowds.proxy.transport.Destination;
@@ -15,6 +14,8 @@ import io.netty.util.ReferenceCountUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -30,6 +31,35 @@ public class VlessCodec extends CombinedChannelDuplexHandler<ByteToMessageDecode
     public VlessCodec(Destination dest) {
         this.dest = dest;
         this.init(new Decoder(),new Encoder());
+    }
+
+    /**
+     * 按 protobuf 线格式编码 addons 消息：
+     *   string Flow = 1;  -> tag 0x0A
+     *   bytes  Seed = 2;  -> tag 0x12
+     */
+    private static byte[] encodeAddons(Addons addons) {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        if (addons.getFlow() != null) {
+            byte[] bytes = addons.getFlow().getBytes(StandardCharsets.UTF_8);
+            out.write(0x0A);
+            writeVarint(out, bytes.length);
+            out.writeBytes(bytes);
+        }
+        if (addons.getSeed() != null) {
+            out.write(0x12);
+            writeVarint(out, addons.getSeed().length);
+            out.writeBytes(addons.getSeed());
+        }
+        return out.toByteArray();
+    }
+
+    private static void writeVarint(ByteArrayOutputStream out, int value) {
+        while ((value & ~0x7F) != 0) {
+            out.write((value & 0x7F) | 0x80);
+            value >>>= 7;
+        }
+        out.write(value);
     }
 
     private class Encoder extends MessageToByteEncoder<Object>{
@@ -107,7 +137,7 @@ public class VlessCodec extends CombinedChannelDuplexHandler<ByteToMessageDecode
             if (addons==null){
                 out.writeByte(0);
             }else{
-                byte[] bytes = addons.toByteArray();
+                byte[] bytes = encodeAddons(addons);
                 out.writeByte(bytes.length);
                 out.writeBytes(bytes);
             }

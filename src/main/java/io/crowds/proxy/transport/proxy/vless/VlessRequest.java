@@ -8,7 +8,7 @@ public class VlessRequest {
     private UUID id;
     private Destination destination;
     private Vless.Flow flow;
-    private AddonsOuterClass.Addons addons;
+    private Addons addons;
 
 
     public VlessRequest(UUID id, Destination destination) {
@@ -24,11 +24,11 @@ public class VlessRequest {
         return destination;
     }
 
-    public AddonsOuterClass.Addons getAddons() {
+    public Addons getAddons() {
         return addons;
     }
 
-    public VlessRequest setAddons(AddonsOuterClass.Addons addons) {
+    public VlessRequest setAddons(Addons addons) {
         this.addons = addons;
         return this;
     }

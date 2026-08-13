@@ -55,7 +55,7 @@ public class VlessHandler extends ChannelDuplexHandler {
         VlessRequest request = new VlessRequest(id, dest);
         if (flow == Vless.Flow.XRV){
             request.setFlow(flow);
-            request.setAddons(AddonsOuterClass.Addons.newBuilder().setFlow(flow.value()).build());
+            request.setAddons(new Addons().setFlow(flow.value()));
         }
         this.request = request;
         this.flow = flow;

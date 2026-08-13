@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package io.crowds.proxy.transport.proxy.vless;
-
-message Addons {
-  string Flow = 1;
-  bytes Seed = 2;
-}

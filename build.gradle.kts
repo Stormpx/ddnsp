@@ -9,7 +9,6 @@ plugins {
     application
     id("com.gradleup.shadow") version "9.1.0"
     id("me.champeau.jmh") version "0.7.2"
-    id("com.google.protobuf") version "0.9.6"
 }
 
 group="io.crowds"
@@ -110,15 +109,6 @@ tasks.register("installBoringtun"){
     libFile.copyTo(target.file(lib).asFile,true)
 }
 
-protobuf {
-    protoc {
-        artifact = "com.google.protobuf:protoc:3.22.0"
-    }
-    generateProtoTasks {
-        ofSourceSet("main")
-    }
-}
-
 repositories {
     mavenLocal()
     mavenCentral()
@@ -177,7 +167,6 @@ dependencies {
     implementation("org.stormpx.partialtcp:net-netty:0.0.8")
 
     implementation("org.drasyl:netty-tun:1.2.5")
-    implementation("io.netty:netty-codec-protobuf:4.2.13.Final")
 
     implementation("io.netty:netty-transport-native-epoll:4.2.13.Final:linux-${if(arch.isAmd64) {"x86_64"} else { "aarch_64" }}")
 
