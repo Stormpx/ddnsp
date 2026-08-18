@@ -3,7 +3,7 @@ package io.crowds.proxy.transport.proxy.wireguard;
 import io.crowds.Context;
 import io.crowds.compoments.dns.VariantResolver;
 import io.crowds.dns.DnsCli;
-import io.crowds.dns.UdpUpstream;
+import io.crowds.dns.upstream.UdpUpstream;
 import io.crowds.dns.cache.DnsCache;
 import io.crowds.proxy.Axis;
 import io.crowds.proxy.NetLocation;

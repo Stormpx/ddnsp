@@ -1,4 +1,4 @@
-package io.crowds.dns;
+package io.crowds.dns.upstream;
 
 import io.crowds.compoments.dns.InternalDnsResolver;
 import io.vertx.core.Future;

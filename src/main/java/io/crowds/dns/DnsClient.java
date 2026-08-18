@@ -4,6 +4,7 @@ package io.crowds.dns;
 import io.crowds.Context;
 import io.crowds.compoments.dns.InternalDnsResolver;
 import io.crowds.dns.cache.DnsCache;
+import io.crowds.dns.upstream.*;
 import io.crowds.util.*;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.DatagramChannel;
@@ -34,7 +35,8 @@ public class DnsClient implements InternalDnsResolver {
         this.dnsCache=new DnsCache();
         var defaultStream = newDefaultUpstream();
         var upStreams = newUpStreams(context,option.getUpstreams());
-        this.dnsCli = new DnsCli(eventLoopGroup,this.dnsCache,defaultStream,upStreams, option.isTryIpv6()&&Inet.isSupportsIpV6());
+        var strategy = DnsUpstreamStrategyFactory.create(option, upStreams);
+        this.dnsCli = new DnsCli(eventLoopGroup,this.dnsCache,defaultStream,strategy, option.isTryIpv6()&&Inet.isSupportsIpV6());
     }
     public DnsClient(EventLoopGroup eventLoopGroup, DatagramChannelFactory<? extends DatagramChannel> datagramChannelFactory) {
         Objects.requireNonNull(eventLoopGroup);
@@ -62,7 +64,7 @@ public class DnsClient implements InternalDnsResolver {
         return newUdpUpstream(address);
     }
 
-    private List<DnsUpstream> newUpStreams(Context context,List<URI> dnsServers){
+    private List<DnsUpstream> newUpStreams(Context context, List<URI> dnsServers){
         if (dnsServers==null){
             return List.of();
         }

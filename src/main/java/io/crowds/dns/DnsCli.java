@@ -3,6 +3,9 @@ package io.crowds.dns;
 import io.crowds.compoments.dns.InternalDnsResolver;
 import io.crowds.dns.cache.CacheKey;
 import io.crowds.dns.cache.DnsCache;
+import io.crowds.dns.upstream.DnsUpstream;
+import io.crowds.dns.upstream.DnsUpstreamStrategy;
+import io.crowds.dns.upstream.ParallelStrategy;
 import io.crowds.util.AddrType;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.dns.*;
@@ -24,21 +27,25 @@ public class DnsCli implements InternalDnsResolver {
     private final Logger logger= LoggerFactory.getLogger(DnsClient.class);
     private final EventLoopGroup eventLoopGroup;
     private final DnsCache dnsCache;
-    private final DnsUpstream defaultStream;
-    private final List<DnsUpstream> upStreams;
+    private final DnsUpstream defaultUpstream;
+    private final DnsUpstreamStrategy upstreamStrategy;
+//    private final List<DnsUpstream> upstreams;
     private final boolean useIPV6;
 
-
-    public DnsCli(EventLoopGroup eventLoopGroup, DnsCache dnsCache, DnsUpstream defaultStream, List<DnsUpstream> upStreams, boolean useIPV6) {
+    public DnsCli(EventLoopGroup eventLoopGroup, DnsCache dnsCache, DnsUpstream defaultUpstream, DnsUpstreamStrategy upstreamStrategy, boolean useIPV6) {
         this.eventLoopGroup = eventLoopGroup;
         this.dnsCache = dnsCache;
-        this.defaultStream = defaultStream;
-        this.upStreams = upStreams;
+        this.defaultUpstream = defaultUpstream;
+        this.upstreamStrategy = upstreamStrategy;
         this.useIPV6 = useIPV6;
     }
 
+    public DnsCli(EventLoopGroup eventLoopGroup, DnsCache dnsCache, DnsUpstream defaultUpstream, List<DnsUpstream> upstreams, boolean useIPV6) {
+        this(eventLoopGroup,dnsCache,defaultUpstream,new ParallelStrategy(upstreams),useIPV6);
+    }
+
     public DnsCli(EventLoopGroup eventLoopGroup, DnsCache dnsCache, DnsUpstream dnsUpStream, boolean useIPV6) {
-        this(eventLoopGroup,dnsCache,dnsUpStream,List.of(dnsUpStream),useIPV6);
+        this(eventLoopGroup,dnsCache,dnsUpStream,new ParallelStrategy(List.of(dnsUpStream)),useIPV6);
     }
 
 
@@ -51,34 +58,9 @@ public class DnsCli implements InternalDnsResolver {
                 .addRecord(DnsSection.QUESTION,new DefaultDnsQuestion(name,type));
     }
 
-    private DnsResponse copyResp(DnsResponse response){
-        if (response instanceof SafeDnsResponse){
-            return response;
-        }
-        DefaultDnsResponse dnsResponse = new SafeDnsResponse(response.id(), response.opCode(), response.code());
-        DnsKit.msgCopy(response,dnsResponse,true);
-        ReferenceCountUtil.safeRelease(response);
-        return dnsResponse;
-    }
 
     private Future<DnsResponse> scheduleUpStreams(DnsQuery dnsQuery){
-        return Future.any(
-                this.upStreams
-                        .stream()
-                        .map(upStreams->upStreams.lookup(dnsQuery).map(this::copyResp)
-                                                 .onFailure(e->{
-                                                     if (logger.isDebugEnabled()){
-                                                         logger.error("{}",e.getMessage(),e);
-                                                     }
-                                                 }))
-                        .collect(Collectors.toList())
-        ).compose(cf -> IntStream.range(0,cf.size())
-                                 .filter(cf::succeeded)
-                                 .mapToObj(cf::<DnsResponse>resultAt)
-                                 .findFirst()
-                                 .map(Future::succeededFuture)
-                                 .orElseGet(()->Future.failedFuture("no available upstream."))
-        );
+        return upstreamStrategy.lookup(dnsQuery);
     }
 
 
@@ -89,9 +71,6 @@ public class DnsCli implements InternalDnsResolver {
     }
 
     private Future<DnsResponse> request(DnsQuery dnsQuery,boolean useDefault){
-        if (this.upStreams.isEmpty()){
-            useDefault=true;
-        }
 
         DnsRecord record = dnsQuery.recordAt(DnsSection.QUESTION, 0);
 
@@ -111,7 +90,7 @@ public class DnsCli implements InternalDnsResolver {
             return Future.succeededFuture(response);
         }
 
-        var future =useDefault?this.defaultStream.lookup(dnsQuery).map(this::copyResp):scheduleUpStreams(dnsQuery);
+        var future =useDefault?this.defaultUpstream.lookup(dnsQuery).map(SafeDnsResponse::copy):scheduleUpStreams(dnsQuery);
 
         return future.onComplete(event::commit)
                      .onSuccess(this::tryCacheResponse);
@@ -125,9 +104,6 @@ public class DnsCli implements InternalDnsResolver {
 
 
     private Future<List<InetAddress>> request(String target,DnsRecordType type,boolean useDefault){
-        if (this.upStreams.isEmpty()){
-            useDefault=true;
-        }
 
         DomainLookupEvent event = new DomainLookupEvent(target,type.toString(),useDefault);
         event.begin();
@@ -140,7 +116,7 @@ public class DnsCli implements InternalDnsResolver {
         }
 
         DnsQuery dnsQuery = newQuery(target, type);
-        var future =useDefault?this.defaultStream.lookup(dnsQuery).map(this::copyResp):scheduleUpStreams(dnsQuery);
+        var future =useDefault?this.defaultUpstream.lookup(dnsQuery).map(SafeDnsResponse::copy):scheduleUpStreams(dnsQuery);
 
         return future.onComplete(event::commit)
                      .onSuccess(this::tryCacheResponse)

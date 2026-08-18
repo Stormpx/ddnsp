@@ -3,6 +3,7 @@ package io.crowds;
 import io.crowds.ddns.DDnsOption;
 import io.crowds.dns.DnsOption;
 import io.crowds.dns.RecordData;
+import io.crowds.dns.upstream.UpstreamMode;
 import io.crowds.proxy.ProxyOption;
 import io.crowds.proxy.common.sniff.SniffOption;
 import io.crowds.proxy.dns.FakeOption;
@@ -105,6 +106,7 @@ public class DdnspOptionLoader {
                     .setHost("127.0.0.1")
                     .setPort(53)
                     .setTtl(300)
+                    .setMode(UpstreamMode.PARALLEL)
                     .setDnsServers(provider.nameServerAddresses()
                             .stream()
                             .map(inet->{
@@ -151,13 +153,14 @@ public class DdnspOptionLoader {
         JsonObject json=config.getJsonObject("dns",new JsonObject());
         DnsOption dnsOption = new DnsOption();
         dnsOption.setEnable(json.getBoolean("enable"))
-                .setTtl(Optional.ofNullable(json.getInteger("ttl")).orElse(120))
-                .setHost(Optional.ofNullable(json.getString("host")).orElse("0.0.0.0"))
-                .setPort(Optional.ofNullable(json.getInteger("port")).filter(p->p>0&&p<=65535).orElse(53))
-                .setDnsServers(convert(json.getJsonArray("dnsServers")))
-                .setIpv6(json.getBoolean("ipv6",false))
+                 .setTtl(Optional.ofNullable(json.getInteger("ttl")).orElse(120))
+                 .setHost(Optional.ofNullable(json.getString("host")).orElse("0.0.0.0"))
+                 .setPort(Optional.ofNullable(json.getInteger("port")).filter(p->p>0&&p<=65535).orElse(53))
+                 .setMode(Optional.ofNullable(UpstreamMode.of(json.getString("mode"))).orElse(UpstreamMode.PARALLEL))
+                 .setDnsServers(convert(json.getJsonArray("dnsServers")))
+                 .setIpv6(json.getBoolean("ipv6",false))
 //                .setRecordsMap(getHosts(json.getJsonArray("records").getList()))
-                .setRrMap(getStaticRecord(json.getJsonArray("records",JsonArray.of()).getList()))
+                 .setRrMap(getStaticRecord(json.getJsonArray("records",JsonArray.of()).getList()))
         ;
         return dnsOption;
     }

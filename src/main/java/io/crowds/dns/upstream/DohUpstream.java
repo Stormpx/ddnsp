@@ -1,6 +1,8 @@
-package io.crowds.dns;
+package io.crowds.dns.upstream;
 
 import io.crowds.compoments.dns.InternalDnsResolver;
+import io.crowds.dns.DnsKit;
+import io.crowds.dns.SafeDnsResponse;
 import io.crowds.util.Inet;
 import io.netty.buffer.*;
 import io.netty.handler.codec.dns.*;

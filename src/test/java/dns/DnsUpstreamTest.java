@@ -1,6 +1,6 @@
 package dns;
 
-import io.crowds.dns.DnsUpstream;
+import io.crowds.dns.upstream.DnsUpstream;
 import io.netty.handler.codec.dns.*;
 import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;

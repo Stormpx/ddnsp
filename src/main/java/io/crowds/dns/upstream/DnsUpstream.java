@@ -1,4 +1,4 @@
-package io.crowds.dns;
+package io.crowds.dns.upstream;
 
 import io.netty.handler.codec.dns.DnsQuery;
 import io.netty.handler.codec.dns.DnsResponse;

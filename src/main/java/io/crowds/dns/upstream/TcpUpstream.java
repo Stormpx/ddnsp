@@ -1,7 +1,6 @@
-package io.crowds.dns;
+package io.crowds.dns.upstream;
 
-import io.crowds.compoments.dns.DdnspAddressResolverGroup;
-import io.crowds.compoments.dns.InternalDnsResolver;
+import io.crowds.dns.DnsKit;
 import io.crowds.proxy.common.BaseChannelInitializer;
 import io.crowds.util.Async;
 import io.netty.bootstrap.Bootstrap;
@@ -10,7 +9,6 @@ import io.netty.channel.pool.AbstractChannelPoolHandler;
 import io.netty.channel.pool.ChannelHealthChecker;
 import io.netty.channel.pool.ChannelPool;
 import io.netty.channel.pool.FixedChannelPool;
-import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.dns.*;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.Promise;

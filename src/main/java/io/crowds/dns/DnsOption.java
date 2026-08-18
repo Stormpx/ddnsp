@@ -1,5 +1,7 @@
 package io.crowds.dns;
 
+import io.crowds.dns.upstream.UpstreamMode;
+
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.List;
@@ -8,6 +10,7 @@ import java.util.Map;
 public class DnsOption {
     private boolean enable=false;
 
+    private UpstreamMode mode;
     private List<URI> dnsServers;
 
     private boolean ipv6;
@@ -20,6 +23,7 @@ public class DnsOption {
 
     public ClientOption genClientOption(){
         return new ClientOption()
+                .setMode(mode)
                 .setUpstreams(dnsServers)
                 .setTryIpv6(ipv6);
     }
@@ -48,6 +52,15 @@ public class DnsOption {
 
     public DnsOption setPort(Integer port) {
         this.port = port;
+        return this;
+    }
+
+    public UpstreamMode getMode() {
+        return mode;
+    }
+
+    public DnsOption setMode(UpstreamMode mode) {
+        this.mode = mode;
         return this;
     }
 

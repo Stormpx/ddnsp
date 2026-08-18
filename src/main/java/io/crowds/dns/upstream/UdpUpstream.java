@@ -1,5 +1,6 @@
-package io.crowds.dns;
+package io.crowds.dns.upstream;
 
+import io.crowds.dns.DnsKit;
 import io.crowds.util.Async;
 import io.crowds.util.DatagramChannelFactory;
 import io.netty.channel.ChannelHandlerContext;
