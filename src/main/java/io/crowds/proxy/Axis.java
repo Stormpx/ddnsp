@@ -362,7 +362,7 @@ public class Axis {
                 ProxyContext proxyContext = (ProxyContext) f.get();
                 NetLocation netLocation = proxyContext.getNetLocation();
                 if (!channel.isActive()){
-                    Throwable cause = errorListener==null?new ClosedChannelException():errorListener.cause;
+                    Throwable cause = errorListener==null||errorListener.cause==null?new ClosedChannelException():errorListener.cause;
                     logPreConnectError(netLocation,cause);
                     promise.tryFailure(cause);
                     return;
