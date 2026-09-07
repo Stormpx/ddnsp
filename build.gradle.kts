@@ -46,67 +46,154 @@ fun execCommand(vararg command: String, env: Array<String>? = null, dir:File? = 
 }
 
 tasks.register("installPanamaGenerator") {
-    val os = DefaultNativePlatform.getCurrentOperatingSystem()
-    val mvn = if(os.isLinux){"mvn"} else {"mvn.cmd"};
+    doLast {
+        val os = DefaultNativePlatform.getCurrentOperatingSystem()
+        val mvn = if(os.isLinux){"mvn"} else {"mvn.cmd"};
 
-    val url = "https://github.com/dreamlike-ocean/PanamaUring"
-    val hash = "0613da385d6cfa79dd94f5e1765f228f812bf140"
+        val url = "https://github.com/dreamlike-ocean/PanamaUring"
+        val hash = "0613da385d6cfa79dd94f5e1765f228f812bf140"
 
-    val dir = layout.projectDirectory.dir("code/PanamaUring")
+        val dir = layout.projectDirectory.dir("code/PanamaUring")
 
-    if (!dir.asFile.exists()||dir.asFile.listFiles().isEmpty()) {
-        dir.asFile.mkdirs()
-        if (execCommand( "git", "clone", url,dir = dir.dir("..").asFile) != 0 ){
-            throw RuntimeException("Failed to clone PanamaUring")
+        if (!dir.asFile.exists()||dir.asFile.listFiles().isEmpty()) {
+            dir.asFile.mkdirs()
+            if (execCommand( "git", "clone", url,dir = dir.dir("..").asFile) != 0 ){
+                throw RuntimeException("Failed to clone PanamaUring")
+            }
         }
-    }
-    execCommand("git", "checkout", "-f", hash,dir = dir.asFile)
+        execCommand("git", "checkout", "-f", hash,dir = dir.asFile)
 
-    val pom = dir.file("panama-generator/pom.xml")
-    val lines = pom.asFile.readLines(Charsets.UTF_8).toMutableList()
-    if (lines[39].contains("panama-generator-test-native")){
-        //skip the test-native build
-        for (idx in 37..40) {
-            lines.removeAt(37)
+        val pom = dir.file("panama-generator/pom.xml")
+        val lines = pom.asFile.readLines(Charsets.UTF_8).toMutableList()
+        if (lines[39].contains("panama-generator-test-native")){
+            //skip the test-native build
+            for (idx in 37..40) {
+                lines.removeAt(37)
+            }
+            pom.asFile.writeText(lines.joinToString("\n"))
         }
-        pom.asFile.writeText(lines.joinToString("\n"))
+        execCommand(mvn,"install","-DskipTests","-Dgpg.skip=true","-pl", ":panama-generator","-am",dir = dir.asFile)
     }
 
-
-
-    execCommand(mvn,"install","-DskipTests","-Dgpg.skip=true","-pl", ":panama-generator","-am",dir = dir.asFile)
 }
 
 tasks.register("installBoringtun"){
-
-    if (execCommand("cargo","--version")!=0){
-        throw RuntimeException("Rust installation required")
-    }
-
-    val url = "https://github.com/cloudflare/boringtun.git"
-    val hash = "08bc5ed19b797d8a741bb4f3bea1d627d8301735"
-
-    val dir = layout.projectDirectory.dir("code/boringtun")
-    val target = layout.projectDirectory.dir("src/main/resources/META-INF/native")
-    val lib = System.mapLibraryName("boringtun")
-
-    if (!dir.asFile.exists()||dir.asFile.listFiles().isEmpty()) {
-        dir.asFile.mkdirs()
-        if (execCommand( "git", "clone", url,dir = dir.dir("..").asFile) != 0 ){
-            throw RuntimeException("Failed to clone boringtun")
+    doLast {
+        if (execCommand("cargo","--version")!=0){
+            throw RuntimeException("Rust installation required")
         }
-    }
-    execCommand("git", "checkout", "-f", hash,dir = dir.asFile)
 
-    if (execCommand("cargo","rustc","-p","boringtun","--lib","--release","--features=ffi-bindings","--crate-type","cdylib",dir = dir.asFile)!=0){
-        throw RuntimeException("Failed to build boringtun shareLibrary")
+        val url = "https://github.com/cloudflare/boringtun.git"
+        val hash = "08bc5ed19b797d8a741bb4f3bea1d627d8301735"
+
+        val dir = layout.projectDirectory.dir("code/boringtun")
+        val target = layout.projectDirectory.dir("src/main/resources/META-INF/native")
+        val lib = System.mapLibraryName("boringtun")
+
+        if (!dir.asFile.exists()||dir.asFile.listFiles().isEmpty()) {
+            dir.asFile.mkdirs()
+            if (execCommand( "git", "clone", url,dir = dir.dir("..").asFile) != 0 ){
+                throw RuntimeException("Failed to clone boringtun")
+            }
+        }
+        execCommand("git", "checkout", "-f", hash,dir = dir.asFile)
+
+        if (execCommand("cargo","rustc","-p","boringtun","--lib","--release","--features=ffi-bindings","--crate-type","cdylib",dir = dir.asFile)!=0){
+            throw RuntimeException("Failed to build boringtun shareLibrary")
+        }
+
+        val libFile = dir.file("target/release/$lib").asFile
+        if (!libFile.exists()){
+            throw RuntimeException("Failed to build boringtun shareLibrary")
+        }
+        libFile.copyTo(target.file(lib).asFile,true)
     }
 
-    val libFile = dir.file("target/release/$lib").asFile
-    if (!libFile.exists()){
-        throw RuntimeException("Failed to build boringtun shareLibrary")
+}
+
+/*
+ * Find the real (non-symlink) shared library file starting with prefix in dir
+ * and copy it to toDir as destName
+ */
+fun copySharedLib(dir:File, prefix:String, toDir:File, destName:String){
+    val lib = dir.listFiles { f -> f.isFile && f.name.startsWith(prefix) && f.name.contains(".so.") }
+        ?.maxByOrNull { it.name } ?: throw RuntimeException("No $prefix shared library found in ${dir.absolutePath}")
+    lib.copyTo(File(toDir, destName),true)
+}
+
+/*
+ * One-shot pipeline: clone xdp-tools (pinned hash) -> build libbpf/libxdp shared libs ->
+ * copy libbpf.so/libxdp.so to META-INF/native -> compile the eBPF program standalone ->
+ * copy xdp_redirect_prog.o to META-INF/ebpf
+ *
+ * Note: the eBPF headers shipped with xdp-tools (xdp/xdp_helpers.h, xdp/parsing_helpers.h)
+ * only exist at specific commits and change between releases (e.g. parse_arphdr was
+ * added later). Pin the hash instead of following master or a tag.
+ */
+tasks.register("installLibxdp"){
+    doLast {
+        println("Required tools: git, make, gcc, clang, pkg-config, m4, readelf, objcopy, linux-libc-dev")
+        println("Install (Debian/Ubuntu): apt install -y git make gcc clang pkg-config m4 binutils linux-libc-dev")
+
+        val url = "https://github.com/xdp-project/xdp-tools"
+        val hash = "883a9b36e5624d0c201099f60f24ea36848b6b48"
+        val dir = layout.projectDirectory.dir("code/xdp-tools")
+        val projectDir = layout.projectDirectory.asFile
+
+        if (!dir.asFile.exists()||dir.asFile.listFiles().isEmpty()) {
+            dir.asFile.mkdirs()
+            if (execCommand( "git", "clone", "--recurse-submodules", url, dir = dir.dir("..").asFile) != 0 ){
+                throw RuntimeException("Failed to clone xdp-tools")
+            }
+        }
+        execCommand("git", "checkout", "-f", hash, dir = dir.asFile)
+        execCommand("git", "submodule", "update", "--init", "--recursive", "-f", dir = dir.asFile)
+
+        /*
+         * Only build the lib layer (libbpf.a+libbpf.so, libxdp.a+libxdp.so), not the tools.
+         * FORCE_SUBDIR_LIBBPF=1: always use the bundled libbpf submodule, statically linked
+         * into libxdp.so (matching the META-INF/native artifacts). Otherwise configure would
+         * detect an installed libbpf-dev (SYSTEM_LIBBPF=y) and make libxdp.so depend on the
+         * system libbpf dynamically.
+         */
+        if (execCommand("make", "libxdp", "-j", Runtime.getRuntime().availableProcessors().toString(),
+                env = arrayOf("FORCE_SUBDIR_LIBBPF=1"), dir = dir.asFile) != 0){
+            throw RuntimeException("Failed to build libbpf/libxdp")
+        }
+
+        val nativeDir = layout.projectDirectory.dir("src/main/resources/META-INF/native").asFile
+        nativeDir.mkdirs()
+        copySharedLib(dir.file("lib/libbpf/src").asFile, "libbpf", nativeDir, "libbpf.so")
+        copySharedLib(dir.file("lib/libxdp").asFile, "libxdp", nativeDir, "libxdp.so")
+
+        /*
+         * Compile the eBPF program standalone. Include paths:
+         *  - headers/                      : xdp/xdp_helpers.h, xdp/parsing_helpers.h (and vendored linux/bpf.h)
+         *  - lib/libbpf/src/root/include   : bpf/bpf_helpers.h, bpf/bpf_endian.h (generated by libbpf install_headers)
+         *  - /usr/include/<multiarch>      : <asm/types.h> (indirectly required by linux/bpf.h)
+         * Remaining linux headers (if_ether/if_arp/ip/ipv6/icmpv6/tcp/udp/in) come from system /usr/include/linux.
+         */
+        val arch = DefaultNativePlatform.getCurrentArchitecture()
+        val multiarch = if (arch.isAmd64) {"x86_64-linux-gnu"} else {"aarch64-linux-gnu"}
+        val incXdp = dir.file("headers").asFile.absolutePath
+        val incBpf = dir.file("lib/libbpf/src/root/include").asFile.absolutePath
+        val ebpfDir = layout.projectDirectory.dir("src/main/resources/META-INF/ebpf").asFile
+        ebpfDir.mkdirs()
+
+        if (execCommand("clang",
+                "-O2", "-g", "-Wall", "-Werror", "-target", "bpf", "-std=gnu2x",
+                "-Wno-unused-value", "-Wno-pointer-sign", "-Wno-compare-distinct-pointer-types",
+                "-Wno-visibility", "-fno-stack-protector",
+                "-I$incXdp", "-I$incBpf", "-I/usr/include/$multiarch",
+                "-c", "src/main/c/ebpf/xdp_redirect_prog.c",
+                "-o", "src/main/resources/META-INF/ebpf/xdp_redirect_prog.o",
+                dir = projectDir) != 0){
+            throw RuntimeException("Failed to compile xdp_redirect_prog.o")
+        }
+
+        println("libbpf.so/libxdp.so -> src/main/resources/META-INF/native")
+        println("xdp_redirect_prog.o  -> src/main/resources/META-INF/ebpf")
     }
-    libFile.copyTo(target.file(lib).asFile,true)
 }
 
 repositories {

@@ -7,8 +7,6 @@ import io.crowds.lib.xdp.ffi.BpfMap;
 import io.crowds.lib.xdp.ffi.LibBpf;
 import io.crowds.util.IPMask;
 import io.crowds.util.Inet;
-import io.netty.channel.EventLoop;
-import io.netty.channel.EventLoopGroup;
 import io.netty.channel.IoEventLoopGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,9 +21,11 @@ import org.stormpx.net.util.Mac;
 import org.stormpx.net.util.PacketUtils;
 import top.dreamlike.panama.generator.proxy.MemoryLifetimeScope;
 
+import java.io.IOException;
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
@@ -202,6 +202,15 @@ public class XdpIface implements Iface, XdpIngressHandler {
         }
     }
 
+    private XdpProg loadXdpProg(){
+        try {
+            Path filepath = EbpfProgFile.getProgFilepath(this.getClass().getClassLoader(), XDP_PROG);
+            return Xdp.openFile(filepath,ifindex);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     @Override
     public void init(NetworkParams networkParams, IfaceIngress ifaceIngress) {
         this.localIp = networkParams.localIps().getFirst();
@@ -229,7 +238,7 @@ public class XdpIface implements Iface, XdpIngressHandler {
                    pollers.add(new XdpPoller(umemBufferPoll, skts, eventLoopGroup.next(),this));
                });
 
-        XdpProg prog = Xdp.findFile(XDP_PROG, null, ifindex);
+        XdpProg prog = loadXdpProg();
         prog.attach(opt.getMode());
         BpfRingBuffer macRingBuffer = newMacRingBuffer(prog);
         if (macRingBuffer!=null) {

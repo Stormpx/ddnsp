@@ -11,7 +11,6 @@ import top.dreamlike.panama.generator.proxy.StructProxyGenerator;
 
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
-import java.lang.foreign.ValueLayout;
 import java.nio.file.Path;
 
 public class Xdp {
@@ -198,25 +197,23 @@ public class Xdp {
         return new XdpProg(xdpProgram,ifIndex);
     }
 
-    public static XdpProg openFile(Path path, String sectionName,int ifIndex){
-        Arena arena = Arena.global();
+    public static XdpProg openFile(Path path, int ifIndex){
+        Arena arena = Arena.ofAuto();
         var xdp = LibXdp.INSTANCE;
-        var xdpProgram = xdp.xdp_program__open_file(
-                arena.allocateFrom(path.toString()),
-                sectionName==null?MemorySegment.NULL:arena.allocateFrom(sectionName),
-                MemorySegment.NULL
-        );
+        XdpProgramOpts opts = Native.structAlloc(arena, XdpProgramOpts.class);
+        opts.setSz(StructProxyGenerator.findMemorySegment(opts).byteSize());
+        opts.setOpen_filename(arena.allocateFrom(path.toString()));
+        var xdpProgram = xdp.xdp_program__create(opts);
         return create(xdpProgram,ifIndex);
     }
 
-    public static XdpProg findFile(String filename,String sectionName,int ifIndex){
-        Arena arena = Arena.global();
+    public static XdpProg findFile(String filename, int ifIndex){
+        Arena arena = Arena.ofAuto();
         var xdp = LibXdp.INSTANCE;
-        var xdpProgram = xdp.xdp_program__find_file(
-                arena.allocateFrom(filename),
-                sectionName==null?MemorySegment.NULL:arena.allocateFrom(sectionName),
-                MemorySegment.NULL
-        );
+        XdpProgramOpts opts = Native.structAlloc(arena, XdpProgramOpts.class);
+        opts.setSz(StructProxyGenerator.findMemorySegment(opts).byteSize());
+        opts.setFind_filename(arena.allocateFrom(filename));
+        var xdpProgram = xdp.xdp_program__create(opts);
         return create(xdpProgram,ifIndex);
     }
 

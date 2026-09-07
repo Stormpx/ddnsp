@@ -335,12 +335,12 @@ public class XdpPoller {
                     assert txDesc !=null;
                     ByteArray data = txDesc.data();
 
+                    long txMetadataLen = Native.getLayout(XskTxMetadata.class).byteSize();
+                    if (chunkSize - txMetadataLen < data.length()){
+                        idx--;
+                        continue;
+                    }
                     if (txDesc.isFillMeta()){
-                        long txMetadataLen = Native.getLayout(XskTxMetadata.class).byteSize();
-                        if (chunkSize - txMetadataLen < data.length()){
-                            idx--;
-                            continue;
-                        }
                         XskTxMetadata txMetadata = Native.as(buffer.asSlice(0,txMetadataLen).fill((byte) 0), XskTxMetadata.class);
                         long flags = 0;
                         if (txDesc.isRequestChecksum()){
@@ -354,11 +354,9 @@ public class XdpPoller {
                         }
                         txMetadata.setFlags(flags);
                         desc.setOptions(desc.getOptions() | IfXdp.XDP_TX_METADATA);
-
-                        addr += txMetadataLen;
-                        buffer = buffer.asSlice(txMetadataLen);
-
                     }
+                    addr += txMetadataLen;
+                    buffer = buffer.asSlice(txMetadataLen);
 
 
                     ByteArray.wrap(buffer.asByteBuffer()).setBuffer(0, data,0, data.length());

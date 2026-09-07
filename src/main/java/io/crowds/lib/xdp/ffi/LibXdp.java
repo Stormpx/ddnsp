@@ -10,6 +10,13 @@ import java.lang.foreign.MemorySegment;
 public interface LibXdp {
     LibXdp INSTANCE = Native.nativeGenerate(LibXdp.class);
 
+
+    /**
+     * struct xdp_program *xdp_program__create(struct xdp_program_opts *opts);
+     */
+    @NativeFunction(returnIsPointer = true)
+    XdpProgram xdp_program__create(@Pointer XdpProgramOpts opts);
+
     /**
      * struct xdp_program *xdp_program__find_file(const char *filename,
      * 					   const char *section_name,
