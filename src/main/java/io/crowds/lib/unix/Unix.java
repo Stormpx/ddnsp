@@ -61,7 +61,6 @@ public interface Unix {
             MemoryLifetimeScope.of(arena).active(()->{
                 MemorySegment devname = arena.allocateFrom(dev);
                 int r = setsockopt(fd,SOL_SOCKET,SO_BINDTODEVICE,devname,devname.byteSize()-1);
-                System.out.println(r);
                 if (r==-1){
                     throw new RuntimeException(strError(ErrorNo.error.get()));
                 }

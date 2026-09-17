@@ -50,7 +50,6 @@ public class CapsuleDecoder extends ReplayingDecoder<CapsuleDecoder.State> {
             }
             case LENGTH -> {
                 length = decodeVarInt(in);
-                System.out.println(length);
                 if (length > Integer.MAX_VALUE) {
                     throw new TooLongFrameException(String.valueOf(length));
                 }
