@@ -8,6 +8,7 @@ import io.crowds.proxy.transport.ProtocolOption;
 import io.crowds.proxy.transport.DirectTransport;
 import io.crowds.proxy.transport.Transport;
 import io.crowds.util.AddrType;
+import io.crowds.util.Strs;
 import io.netty.channel.Channel;
 import io.netty.channel.EventLoop;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
@@ -36,9 +37,12 @@ public class WebsocketTransport extends DirectTransport {
 
         var uri=new URI(!tls?"ws":"wss",null, addr.getHost(), addr.getPort(), wsOption.getPath(),null,null);
 
+        String secProtocol = wsOption.getSecProtocol();
         return new WebsocketMaskHandler(
                 WebSocketClientHandshakerFactory.newHandshaker(
-                        uri, WebSocketVersion.V13,null,true,wsOption.getHeaders()!=null?wsOption.getHeaders():new DefaultHttpHeaders()));
+                        uri, WebSocketVersion.V13, Strs.isBlank(secProtocol)?null:secProtocol, true,
+                        wsOption.getHeaders()!=null?wsOption.getHeaders():new DefaultHttpHeaders(),
+                        wsOption.getMaxFramePayloadLength()));
     }
 
     @Override

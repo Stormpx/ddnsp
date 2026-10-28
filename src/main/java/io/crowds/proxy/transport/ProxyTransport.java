@@ -21,6 +21,8 @@ import io.crowds.proxy.transport.proxy.vmess.VmessOption;
 import io.crowds.proxy.transport.proxy.vmess.VmessProxyTransport;
 import io.crowds.proxy.transport.proxy.wireguard.WireguardOption;
 import io.crowds.proxy.transport.proxy.wireguard.WireguardProxyTransport;
+import io.crowds.proxy.transport.proxy.wisp.WispOption;
+import io.crowds.proxy.transport.proxy.wisp.WispProxyTransport;
 import io.netty.util.concurrent.Future;
 
 public interface ProxyTransport {
@@ -49,6 +51,8 @@ public interface ProxyTransport {
             return new WireguardProxyTransport(axis, (WireguardOption) protocolOption);
         } else if ("chain".equalsIgnoreCase(protocol)){
             return new ChainProxyTransport(channelCreator, (ChainOption) protocolOption);
+        } else if ("wisp".equalsIgnoreCase(protocol)){
+            return new WispProxyTransport(channelCreator, (WispOption) protocolOption);
         } else if ("direct".equalsIgnoreCase(protocol)){
             return new DirectProxyTransport(channelCreator,protocolOption);
         }

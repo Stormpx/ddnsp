@@ -25,6 +25,8 @@ import io.crowds.proxy.transport.proxy.vmess.Security;
 import io.crowds.proxy.transport.proxy.vmess.User;
 import io.crowds.proxy.transport.proxy.vmess.VmessOption;
 import io.crowds.proxy.transport.proxy.vmess.VmessProxyTransport;
+import io.crowds.proxy.transport.proxy.wisp.WispOption;
+import io.crowds.proxy.transport.proxy.wisp.WispProxyTransport;
 import io.crowds.proxy.transport.ws.WsOption;
 import io.crowds.util.Inet;
 import io.crowds.util.Lambdas;
@@ -183,6 +185,21 @@ public class ChainTest extends ProxyTestBase {
                 ()->new SshProxyTransport(channelCreator, sshRule.getInside())
         );
     }
+    @Rule
+    public WispRule wispRule = new WispRule(CONTAINER_NETWORK);
+    private ProxyServer createWispProxy(ChannelCreator channelCreator,String name) {
+        WispOption wispOption = new WispOption();
+        wispOption.setName("wisp")
+                  .setProtocol("wisp")
+                  .setNetwork("ws")
+                  .setTransport(new TransportOption().setWs(new WsOption()));
+        wispRule.start(wispOption);
+        return new ProxyServer(
+            name,
+            ()->new WispProxyTransport(channelCreator, wispRule.getOutside()),
+            ()->new WispProxyTransport(channelCreator, wispRule.getInside())
+        );
+    }
 
     private void setupSshServer() throws IOException {
         SshServer sshServer = SshServer.setUpDefaultServer();
@@ -258,7 +275,7 @@ public class ChainTest extends ProxyTestBase {
 //        setupSshServer();
         var list = new ArrayList<>(List.of(createVmessProxy(channelCreator,"vmess0"),createSsProxy(channelCreator,"ss0"),
                 createTrojanProxy(channelCreator,"trojan0"),createVlessProxy(channelCreator,"vless0"),createSshProxy(channelCreator,"ssh0"),
-                createSocksProxy(channelCreator,"socks0")));
+                createSocksProxy(channelCreator,"socks0"),createWispProxy(channelCreator,"wisp0")));
         Collections.shuffle(list);
         System.out.println(list.stream().map(ProxyServer::tag).collect(Collectors.joining(",")));
 //        List<ProxyTransport> proxies = new ArrayList<>();
@@ -289,7 +306,7 @@ public class ChainTest extends ProxyTestBase {
 
     @Test
     public void udpTest() throws Exception {
-        var list = List.of(createSsProxy(channelCreator,"ss0"),createVmessProxy(channelCreator,"vmess0"));
+        var list = List.of(createSsProxy(channelCreator,"ss0"),createVmessProxy(channelCreator,"vmess0"),createWispProxy(channelCreator,"wisp0"));
 
         for (int i = 0; i < list.size(); i++) {
             allCombination(list,new ArrayList<>(),i, Lambdas.rethrowConsumer(it->{

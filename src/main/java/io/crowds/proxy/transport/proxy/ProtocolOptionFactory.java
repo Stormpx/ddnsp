@@ -16,6 +16,7 @@ import io.crowds.proxy.transport.proxy.vmess.Security;
 import io.crowds.proxy.transport.proxy.vmess.User;
 import io.crowds.proxy.transport.proxy.vmess.VmessOption;
 import io.crowds.proxy.transport.proxy.wireguard.WireguardOption;
+import io.crowds.proxy.transport.proxy.wisp.WispOption;
 import io.crowds.proxy.transport.ws.WsOption;
 import io.crowds.util.IPCIDR;
 import io.crowds.util.Inet;
@@ -66,6 +67,11 @@ public class ProtocolOptionFactory {
         WsOption wsOption = new WsOption();
         String path = json.getString("path","/");
         wsOption.setPath(path);
+        wsOption.setSecProtocol(json.getString("secProtocol"));
+        Integer maxFramePayloadLength = json.getInteger("maxFramePayloadLength");
+        if (maxFramePayloadLength!=null){
+            wsOption.setMaxFramePayloadLength(maxFramePayloadLength);
+        }
         JsonObject headersJson = json.getJsonObject("headers");
         if (headersJson!=null){
             HttpHeaders headers = new DefaultHttpHeaders();
@@ -132,6 +138,25 @@ public class ProtocolOptionFactory {
         trojanOption.setAddress(address)
                 .setPassword(password);
         return trojanOption;
+    }
+
+    private static WispOption parseWisp(JsonObject json){
+        WispOption wispOption = new WispOption();
+        var host=json.getString("host");
+        var port=json.getInteger("port");
+        if (Strs.isBlank(host)){
+            throw new IllegalArgumentException("host is required");
+        }
+        if (port==null){
+            throw new IllegalArgumentException("port is required");
+        }
+        InetSocketAddress address = Inet.createSocketAddress(host,port);
+        wispOption.setAddress(address)
+                  .setUsername(json.getString("username"))
+                  .setPassword(json.getString("password"))
+                  .setPrivateKey(json.getString("privateKey"))
+                  .setPrivateKeyHex(json.getString("privateKeyHex"));
+        return wispOption;
     }
 
     private static SocksOption parseSocks(JsonObject json){
@@ -306,6 +331,8 @@ public class ProtocolOptionFactory {
                 protocolOption.setProtocol("wg");
             }else if ("chain".equals(protocol)){
                 protocolOption=parseChain(json);
+            }else if ("wisp".equalsIgnoreCase(protocol)){
+                protocolOption=parseWisp(json);
             }else if ("direct".equalsIgnoreCase(protocol)){
                 protocolOption=new ProtocolOption();
             }
