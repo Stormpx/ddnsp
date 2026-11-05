@@ -161,8 +161,8 @@ dependencies {
     implementation("io.github.dreamlike-ocean:panama-generator:4.2.0-SNAPSHOT")
     implementation("io.vertx:vertx-core:5.2.3")
     implementation("io.vertx:vertx-web:5.2.3")
-    implementation("io.vertx:vertx-config:5.0.12")
-    implementation("io.vertx:vertx-config-yaml:5.0.12")
+    implementation("io.vertx:vertx-config:5.2.3")
+    implementation("io.vertx:vertx-config-yaml:5.2.3")
     implementation("ch.qos.logback:logback-core:1.6.3")
     implementation("ch.qos.logback:logback-classic:1.6.3")
 
