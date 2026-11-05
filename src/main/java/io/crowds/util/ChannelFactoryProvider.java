@@ -31,7 +31,7 @@ public class ChannelFactoryProvider {
 
     public static ChannelFactoryProvider of(Transport transport){
         return new ChannelFactoryProvider(
-                DatagramChannelFactory.newFactory(transport::datagramChannel,transport::datagramChannel),
+                DatagramChannelFactory.newFactory(transport::datagramChannel,()->transport.datagramChannelFactory().newChannel()),
                 transport.channelFactory(false),
                 transport.serverChannelFactory(false)
         );

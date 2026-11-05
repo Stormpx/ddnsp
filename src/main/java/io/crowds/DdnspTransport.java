@@ -25,13 +25,13 @@ public class DdnspTransport implements Transport {
             }
 
             @Override
-            public DatagramChannel datagramChannel() {
-                return delegate.datagramChannel();
+            public DatagramChannel datagramChannel(InternetProtocolFamily family) {
+                return delegate.datagramChannel(family);
             }
 
             @Override
-            public DatagramChannel datagramChannel(InternetProtocolFamily family) {
-                return delegate.datagramChannel(family);
+            public ChannelFactory<? extends DatagramChannel> datagramChannelFactory() {
+                return delegate.datagramChannelFactory();
             }
 
             @Override

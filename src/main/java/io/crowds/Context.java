@@ -49,7 +49,7 @@ public class Context {
         return vertx.transport().datagramChannel(family);
     }
     public DatagramChannel getDatagramChannel(){
-        return vertx.transport().datagramChannel();
+        return vertx.transport().datagramChannelFactory().newChannel();
     }
 
     public ChannelFactory<? extends ServerChannel> getServerChannelFactory(){

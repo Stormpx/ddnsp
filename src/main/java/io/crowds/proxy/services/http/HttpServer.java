@@ -13,7 +13,7 @@ import io.netty.handler.codec.http2.Http2SecurityUtil;
 import io.netty.handler.ssl.*;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
-import io.vertx.core.http.impl.Http1xOrH2CHandler;
+import io.vertx.core.http.impl.tcp.Http1xOrH2CHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

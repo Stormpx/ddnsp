@@ -138,7 +138,7 @@ public class DohUpstream extends AbstractDnsUpstream {
                     })
                     .compose(buffer->{
                         try {
-                            return Future.succeededFuture(decodeResponse(((BufferImpl)buffer).byteBuf()));
+                            return Future.succeededFuture(decodeResponse(((BufferImpl)buffer).getByteBuf()));
                         } catch (Exception e) {
                             if (logger.isDebugEnabled()){
                                 logger.error("",e);

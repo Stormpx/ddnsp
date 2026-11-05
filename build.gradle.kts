@@ -157,14 +157,14 @@ dependencies {
     logger.info("arch is ${arch.name}")
     implementation("com.github.ben-manes.caffeine:caffeine:3.2.4")
     implementation("com.maxmind.geoip2:geoip2:5.0.2")
-    implementation("org.bouncycastle:bcpkix-jdk18on:1.84")
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.86")
     implementation("io.github.dreamlike-ocean:panama-generator:4.2.0-SNAPSHOT")
-    implementation("io.vertx:vertx-core:5.0.12")
-    implementation("io.vertx:vertx-web:5.0.12")
+    implementation("io.vertx:vertx-core:5.2.3")
+    implementation("io.vertx:vertx-web:5.2.3")
     implementation("io.vertx:vertx-config:5.0.12")
     implementation("io.vertx:vertx-config-yaml:5.0.12")
-    implementation("ch.qos.logback:logback-core:1.5.25")
-    implementation("ch.qos.logback:logback-classic:1.5.25")
+    implementation("ch.qos.logback:logback-core:1.6.3")
+    implementation("ch.qos.logback:logback-classic:1.6.3")
 
     implementation("org.apache.sshd:sshd-core:2.15.0")
 
@@ -172,21 +172,21 @@ dependencies {
 
     implementation("org.drasyl:netty-tun:1.2.5")
 
-    implementation("io.netty:netty-transport-native-epoll:4.2.13.Final:linux-${if(arch.isAmd64) {"x86_64"} else { "aarch_64" }}")
+    implementation("io.netty:netty-transport-native-epoll:4.2.20.Final:linux-${if(arch.isAmd64) {"x86_64"} else { "aarch_64" }}")
 
 
     if (os.isWindows){
-        implementation("io.netty:netty-tcnative-boringssl-static:2.0.71.Final:windows-x86_64")
+        implementation("io.netty:netty-tcnative-boringssl-static:2.0.85.Final:windows-x86_64")
     }else {
-        implementation("io.netty:netty-tcnative-boringssl-static:2.0.71.Final:${if(os.isLinux){"linux"}else {"osx"}}-${if(arch.isAmd64){"x86_64"} else {"aarch_64"}}")
+        implementation("io.netty:netty-tcnative-boringssl-static:2.0.85.Final:${if(os.isLinux){"linux"}else {"osx"}}-${if(arch.isAmd64){"x86_64"} else {"aarch_64"}}")
     }
 
 
-    testImplementation(group = "junit", name = "junit", version = "4.13.1")
+    testImplementation("junit:junit:4.13.1")
 
 
 
-    testImplementation("io.netty:netty-pkitesting:4.2.12.Final")
+    testImplementation("io.netty:netty-pkitesting:4.2.20.Final")
 
     testImplementation("org.testcontainers:testcontainers:1.21.2")
     testImplementation("org.testcontainers:testcontainers-nginx:2.0.1")

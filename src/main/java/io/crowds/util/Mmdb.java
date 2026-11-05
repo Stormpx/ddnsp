@@ -107,7 +107,7 @@ public class Mmdb {
                     })
                     .<Void>compose(buffer->{
                         try {
-                            load(new ByteBufInputStream(((BufferImpl)buffer).byteBuf()));
+                            load(new ByteBufInputStream(((BufferImpl)buffer).getByteBuf()));
                             return Future.succeededFuture(null);
                         } catch (Exception e) {
                             return Future.failedFuture(e);
