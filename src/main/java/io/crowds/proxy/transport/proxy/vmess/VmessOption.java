@@ -1,6 +1,7 @@
 package io.crowds.proxy.transport.proxy.vmess;
 
 import io.crowds.proxy.transport.ProtocolOption;
+import io.crowds.proxy.transport.proxy.xudp.XUDPOption;
 
 import java.net.InetSocketAddress;
 
@@ -8,6 +9,7 @@ public class VmessOption extends ProtocolOption {
     private InetSocketAddress address;
     private Security security;
     private User user;
+    private XUDPOption xudp;
 
     public VmessOption() {
     }
@@ -46,4 +48,12 @@ public class VmessOption extends ProtocolOption {
         return this;
     }
 
+    public XUDPOption getXudp() {
+        return xudp;
+    }
+
+    public VmessOption setXudp(XUDPOption xudp) {
+        this.xudp = xudp;
+        return this;
+    }
 }

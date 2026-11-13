@@ -3,6 +3,7 @@ package io.crowds.proxy.transport.proxy.vmess;
 import io.crowds.proxy.NetAddr;
 import io.crowds.proxy.TP;
 import io.crowds.proxy.transport.proxy.vmess.crypto.*;
+import io.crowds.proxy.transport.proxy.xudp.XUDPHandler;
 import io.crowds.util.*;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
@@ -14,6 +15,7 @@ import org.bouncycastle.crypto.digests.SHAKEDigest;
 import javax.crypto.*;
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
@@ -84,6 +86,7 @@ public class VmessMessageCodec extends ByteToMessageCodec<Object> {
     private void encodeRequest(VmessRequest request,ByteBuf out) throws Exception {
         VmessUser user = request.getUser();
         UUID uuid = user.getUuid();
+        NetAddr addr = request.getAddr();
 
         long timestmap = Instant.now().getEpochSecond();
         this.session=VmessSession.create(user,timestmap);
@@ -112,17 +115,21 @@ public class VmessMessageCodec extends ByteToMessageCodec<Object> {
         int p = (ThreadLocalRandom.current().nextInt()&0b1111);
         plain.writeByte((p<<4)|request.getSecurity().getValue());
         plain.writeByte(0);
-        plain.writeByte(request.getCmd()== TP.TCP?1:2);
 
-        NetAddr addr = request.getAddr();
-        byte[] addrBytes = addr.getByte();
-        plain.writeShort(addr.getPort());
-        if (addr.isIpv4()||addr.isIpv6()){
-            plain.writeByte(addr.isIpv4()?1:3);
-        }else{
-            plain.writeByte(2).writeByte(addrBytes.length);
+        if (Objects.equals(addr,XUDPHandler.ADDRESS)){
+            plain.writeByte(0x03);
+        }else {
+            plain.writeByte(request.getCmd() == TP.TCP ? 1 : 2);
+            byte[] addrBytes = addr.getByte();
+            plain.writeShort(addr.getPort());
+            if (addr.isIpv4()||addr.isIpv6()){
+                plain.writeByte(addr.isIpv4()?1:3);
+            }else{
+                plain.writeByte(2).writeByte(addrBytes.length);
+            }
+            plain.writeBytes(addrBytes);
         }
-        plain.writeBytes(addrBytes);
+
         for (int i = 0; i < p; i++) {
             plain.writeByte(ThreadLocalRandom.current().nextInt(0,256));
         }

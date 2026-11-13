@@ -4,6 +4,7 @@ import io.crowds.Ddnsp;
 import io.crowds.compoments.tls.TlsUtils;
 import io.crowds.proxy.TP;
 import io.crowds.proxy.transport.Destination;
+import io.crowds.proxy.transport.proxy.xudp.XUDPHandler;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
@@ -30,7 +31,7 @@ public class VlessHandler extends ChannelDuplexHandler {
     private static final int PADDING_ENDED = 2;
     private final Vless.Flow flow;
     private final UUID id;
-    private final Destination dest;
+    private final boolean xudp;
 
     private VlessRequest request;
     private VlessTlsClamp tlsClamp;
@@ -46,17 +47,22 @@ public class VlessHandler extends ChannelDuplexHandler {
     private int innerTlsCipher = -1;
 
 
-    public VlessHandler(Vless.Flow flow,UUID id, Destination dest) {
+    public VlessHandler(Vless.Flow flow, UUID id, Destination dest, boolean xudp) {
         this.id = id;
-        this.dest = dest;
-        if (flow == Vless.Flow.XRV && dest.tp()==TP.UDP){
+        this.xudp = xudp;
+        var dst = dest;
+        if (xudp){
+            dst = new Destination(XUDPHandler.ADDRESS,TP.TCP);
+        }
+        if (flow == Vless.Flow.XRV && dst.tp()==TP.UDP){
             flow = Vless.Flow.NONE;
         }
-        VlessRequest request = new VlessRequest(id, dest);
+        VlessRequest request = new VlessRequest(id, dst);
         if (flow == Vless.Flow.XRV){
             request.setFlow(flow);
             request.setAddons(new Addons().setFlow(flow.value()));
         }
+
         this.request = request;
         this.flow = flow;
     }

@@ -1,96 +1,22 @@
 package io.crowds.proxy.transport.proxy;
 
-import io.crowds.proxy.*;
-import io.crowds.proxy.transport.EndPoint;
+import io.crowds.proxy.ChannelCreator;
 import io.crowds.proxy.transport.ProtocolOption;
-import io.crowds.proxy.transport.UdpChannel;
-import io.crowds.proxy.transport.UdpEndPoint;
-import io.crowds.util.Lambdas;
-import io.netty.channel.Channel;
-import io.netty.channel.EventLoop;
-import io.netty.util.concurrent.Future;
-import io.netty.util.concurrent.FutureListener;
-import io.netty.util.concurrent.Promise;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
+/**
+ * A transport that is always full-cone: every UDP session uses the shape where all targets of one
+ * source address share a single underlying channel.
+ * <p>
+ * It is only a convenience wrapper around
+ * {@link AbstractProxyTransport#fullCone(java.util.function.Predicate)} and only holds for protocols
+ * that can carry several targets over one channel. Protocols that are full-cone in some cases only
+ * (vless/vmess with XUDP) should extend {@link AbstractProxyTransport} and pass their own policy.
+ */
 public abstract class FullConeProxyTransport<OPT extends ProtocolOption> extends AbstractProxyTransport<OPT> {
-
-    private final Map<NetAddr,Future<UdpChannel>> udpChannelMap;
 
     public FullConeProxyTransport(ChannelCreator channelCreator, OPT protocolOption) {
         super(channelCreator,protocolOption);
-        this.udpChannelMap=new ConcurrentHashMap<>();
-    }
-
-
-
-    private Future<UdpChannel> createUdpChannel(ProxyContext proxyContext) throws Exception {
-        Promise<UdpChannel> promise = proxyContext.getEventLoop().newPromise();
-        createChannel(proxyContext.getEventLoop(),proxyContext.getNetLocation())
-                .addListener((FutureListener<Channel>) f->{
-                    if (!f.isSuccess()){
-                        promise.tryFailure(f.cause());
-                        return;
-                    }
-                    Channel channel = f.get();
-                    UdpChannel udpChannel = new UdpChannel(channel,
-                            proxyContext.getNetLocation().getSrc().getAsInetAddr(),false);
-
-                    promise.trySuccess(udpChannel);
-
-                });
-        return promise;
-    }
-
-
-    @Override
-    public Future<EndPoint> createEndPoint(ProxyContext proxyContext) throws Exception {
-        NetLocation netLocation = proxyContext.getNetLocation();
-        if (netLocation.getTp()== TP.TCP){
-            return super.createEndPoint(proxyContext);
-        }else {
-            EventLoop eventLoop = proxyContext.getEventLoop();
-            NetAddr src = netLocation.getSrc();
-            Future<UdpChannel> channelFuture = udpChannelMap.computeIfAbsent(src,
-                    Lambdas.rethrowFunction(_->{
-                            var udpFuture = createUdpChannel(proxyContext);
-                            if (!udpFuture.isDone()||udpFuture.isSuccess()){
-                                udpFuture.addListener((FutureListener<UdpChannel>)future -> {
-                                    if (!future.isSuccess()){
-                                        udpChannelMap.remove(src,udpFuture);
-                                        return;
-                                    }
-                                    UdpChannel udpChannel = future.get();
-
-                                    if (proxyContext.fallbackPacketHandler()!=null)
-                                        udpChannel.fallbackHandler(proxyContext.fallbackPacketHandler());
-
-                                    udpChannel.getChannel().closeFuture()
-                                              .addListener(_->udpChannelMap.remove(src,udpFuture));
-                                });
-                            }
-                            return udpFuture;
-                    })
-            );
-
-            Promise<EndPoint> promise = eventLoop.newPromise();
-
-            channelFuture
-                    .addListener((FutureListener<UdpChannel>) f->{
-                        if (!f.isSuccess()){
-                            promise.tryFailure(f.cause());
-                            return;
-                        }
-                        UdpChannel udpChannel = f.get();
-                        promise.trySuccess(new UdpEndPoint(udpChannel,netLocation.getDst()));
-                    });
-
-            return promise;
-        }
-
-
+        fullCone(_->true);
     }
 
 }

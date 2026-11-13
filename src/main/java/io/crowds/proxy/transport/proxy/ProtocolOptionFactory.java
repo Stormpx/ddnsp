@@ -17,6 +17,7 @@ import io.crowds.proxy.transport.proxy.vmess.User;
 import io.crowds.proxy.transport.proxy.vmess.VmessOption;
 import io.crowds.proxy.transport.proxy.wireguard.WireguardOption;
 import io.crowds.proxy.transport.proxy.wisp.WispOption;
+import io.crowds.proxy.transport.proxy.xudp.XUDPOption;
 import io.crowds.proxy.transport.ws.WsOption;
 import io.crowds.util.IPCIDR;
 import io.crowds.util.Inet;
@@ -100,6 +101,11 @@ public class ProtocolOptionFactory {
         Security security = Security.of(securityStr);
         vmessOption.setSecurity(security);
 
+        JsonObject xudp = json.getJsonObject("xudp");
+        if (xudp!=null){
+            vmessOption.setXudp(parseXUdp(xudp));
+        }
+
         return vmessOption;
     }
 
@@ -169,15 +175,30 @@ public class ProtocolOptionFactory {
         return socksOption;
     }
 
+    private static XUDPOption parseXUdp(JsonObject json){
+        Boolean enable = json.getBoolean("enable",true);
+        Boolean proxy443 = json.getBoolean("proxy443",false);
+        return new XUDPOption()
+            .setEnable(enable)
+            .setProxy443(proxy443);
+    }
+
     private static VlessOption parseVless(JsonObject json){
         VlessOption vlessOption = new VlessOption();
         var host=json.getString("host");
         var port=json.getInteger("port");
         InetSocketAddress address = Inet.createSocketAddress(host,port);
         String id = json.getString("id");
+        String flow = json.getString("flow");
+        JsonObject xudp = json.getJsonObject("xudp");
 
         vlessOption.setAddress(address)
-                .setId(id);
+                   .setId(id)
+                   .setFlow(flow);
+        if (xudp!=null){
+            vlessOption.setXudp(parseXUdp(xudp));
+        }
+
         return vlessOption;
     }
 

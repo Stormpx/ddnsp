@@ -44,6 +44,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
@@ -249,6 +251,50 @@ public abstract class ProxyTestBase {
         tcpTest(proxyTransport,new DomainNetAddr("nginx", 443));
     }
 
+
+    /**
+     * Sends a query from one source address to several UDP targets at once, with one EndPoint per
+     * target, and returns those EndPoints once every target received its response.
+     * Used to tell the full-cone shape (all targets share one channel) from the per destination one.
+     */
+    public List<EndPoint> udpMultiTargetTest(ProxyTransport proxyTransport, NetAddr... targets) throws Exception {
+        EmbeddedChannel channel = new EmbeddedChannel(new DatagramDnsQueryEncoder(), new DatagramDnsResponseDecoder());
+        NetAddr src = new NetAddr(Inet.createSocketAddress("127.0.0.1", 64423));
+        CountDownLatch countDownLatch = new CountDownLatch(targets.length);
+        List<EndPoint> endPoints = new ArrayList<>(targets.length);
+
+        for (int i = 0; i < targets.length; i++) {
+            NetAddr target = targets[i];
+            NetLocation location = new NetLocation(src, target, TP.UDP);
+
+            DatagramDnsQuery query = new DatagramDnsQuery(null, target.getAsInetAddr(), i, DnsOpCode.QUERY);
+            query.setRecursionDesired(true);
+            query.addRecord(DnsSection.QUESTION,new DefaultDnsQuestion(i % 2 == 0 ? "www.google.com." : "www.bilibili.com.",DnsRecordType.A));
+            channel.writeOutbound(query);
+            DatagramPacket packet = channel.readOutbound();
+
+            EndPoint endPoint = createEndPoint(proxyTransport, location);
+            endPoint.bufferHandler(buf->{
+                try {
+                    channel.writeInbound(buf);
+                    DnsResponse response=channel.readInbound();
+                    System.out.println(response);
+                    countDownLatch.countDown();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+            endPoint.write(packet);
+            endPoint.flush();
+            endPoints.add(endPoint);
+        }
+
+        if (!countDownLatch.await(15,TimeUnit.SECONDS)){
+            endPoints.forEach(EndPoint::close);
+            throw new RuntimeException("timeout..");
+        }
+        return endPoints;
+    }
 
     public void udpTest(ProxyTransport proxyTransport) throws Exception {
         EmbeddedChannel channel = new EmbeddedChannel(new DatagramDnsQueryEncoder(),new DatagramDnsResponseDecoder());

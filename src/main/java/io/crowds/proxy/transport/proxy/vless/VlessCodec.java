@@ -3,14 +3,13 @@ package io.crowds.proxy.transport.proxy.vless;
 import io.crowds.proxy.NetAddr;
 import io.crowds.proxy.TP;
 import io.crowds.proxy.transport.Destination;
+import io.crowds.proxy.transport.proxy.xudp.XUDPHandler;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.CombinedChannelDuplexHandler;
 import io.netty.channel.socket.DatagramPacket;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.MessageToByteEncoder;
-import io.netty.util.ReferenceCountUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,13 +27,12 @@ public class VlessCodec extends CombinedChannelDuplexHandler<ByteToMessageDecode
     private Destination dest;
     private Vless.Flow flow = Vless.Flow.NONE;
 
-    public VlessCodec(Destination dest) {
-        this.dest = dest;
+    public VlessCodec() {
         this.init(new Decoder(),new Encoder());
     }
 
     /**
-     * 按 protobuf 线格式编码 addons 消息：
+     * Encodes the addons message using the protobuf wire format:
      *   string Flow = 1;  -> tag 0x0A
      *   bytes  Seed = 2;  -> tag 0x12
      */
@@ -128,6 +126,7 @@ public class VlessCodec extends CombinedChannelDuplexHandler<ByteToMessageDecode
         private void encodeRequest(VlessRequest request, ByteBuf out){
             var id = request.getId();
             var dest = request.getDestination();
+            VlessCodec.this.dest = dest;
             Objects.requireNonNull(id);
             Objects.requireNonNull(dest);
             var addons = request.getAddons();
@@ -142,16 +141,20 @@ public class VlessCodec extends CombinedChannelDuplexHandler<ByteToMessageDecode
                 out.writeBytes(bytes);
             }
 
-            out.writeByte(dest.tp()== TP.TCP?1:2);
-            NetAddr addr = dest.addr();
-            byte[] addrBytes = addr.getByte();
-            out.writeShort(addr.getPort());
-            if (addr.isIpv4()||addr.isIpv6()){
-                out.writeByte(addr.isIpv4()?1:3);
+            if (Objects.equals(dest.addr(), XUDPHandler.ADDRESS)){
+                out.writeByte(0x03);
             }else{
-                out.writeByte(2).writeByte(addrBytes.length);
+                out.writeByte(dest.tp()== TP.TCP?1:2);
+                NetAddr addr = dest.addr();
+                byte[] addrBytes = addr.getByte();
+                out.writeShort(addr.getPort());
+                if (addr.isIpv4()||addr.isIpv6()){
+                    out.writeByte(addr.isIpv4()?1:3);
+                }else{
+                    out.writeByte(2).writeByte(addrBytes.length);
+                }
+                out.writeBytes(addrBytes);
             }
-            out.writeBytes(addrBytes);
 
             uuid = id;
             flow = request.getFlow();

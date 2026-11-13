@@ -5,8 +5,8 @@ import io.crowds.proxy.transport.Destination;
 import java.util.UUID;
 
 public class VlessRequest {
-    private UUID id;
-    private Destination destination;
+    private final UUID id;
+    private final Destination destination;
     private Vless.Flow flow;
     private Addons addons;
 

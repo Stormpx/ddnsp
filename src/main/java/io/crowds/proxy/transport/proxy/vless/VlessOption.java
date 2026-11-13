@@ -1,6 +1,7 @@
 package io.crowds.proxy.transport.proxy.vless;
 
 import io.crowds.proxy.transport.ProtocolOption;
+import io.crowds.proxy.transport.proxy.xudp.XUDPOption;
 
 import java.net.InetSocketAddress;
 import java.util.UUID;
@@ -9,6 +10,7 @@ public class VlessOption extends ProtocolOption {
     private InetSocketAddress address;
     private String id;
     private String flow;
+    private XUDPOption xudp;
 
     public VlessOption() {
     }
@@ -47,6 +49,15 @@ public class VlessOption extends ProtocolOption {
 
     public VlessOption setFlow(String flow) {
         this.flow = flow;
+        return this;
+    }
+
+    public XUDPOption getXudp() {
+        return xudp;
+    }
+
+    public VlessOption setXudp(XUDPOption xudp) {
+        this.xudp = xudp;
         return this;
     }
 }

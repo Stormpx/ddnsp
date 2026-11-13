@@ -11,12 +11,17 @@ import io.netty.util.concurrent.Promise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Objects;
+import java.util.function.Predicate;
+
 public abstract class AbstractProxyTransport<OPT extends ProtocolOption> implements ProxyTransport {
     private final static Logger logger= LoggerFactory.getLogger(AbstractProxyTransport.class);
     private final OPT protocolOption;
     private final String protocol;
     protected final ChannelCreator channelCreator;
     protected Transport transport;
+    private SharedUdpChannels sharedUdpChannels;
+    private Predicate<ProxyContext> fullConePolicy;
 
     public AbstractProxyTransport(ChannelCreator channelCreator,OPT protocolOption) {
         this.channelCreator = channelCreator;
@@ -40,6 +45,20 @@ public abstract class AbstractProxyTransport<OPT extends ProtocolOption> impleme
 
     protected HandlerName handlerName(){
         return new HandlerName(protocol+"-"+getTag());
+    }
+
+    /**
+     * Enables the full-cone shape for UDP: for every session the policy accepts, all targets of the
+     * same source address share a single underlying channel. When it is not enabled, or the policy
+     * rejects the session, the default one channel per target path is used.
+     * <p>
+     * The policy may only return true when the underlying protocol can carry several targets over
+     * one channel (XUDP for example), and its condition must be the same one used when the pipeline
+     * of that channel is built.
+     */
+    protected void fullCone(Predicate<ProxyContext> policy){
+        this.fullConePolicy = Objects.requireNonNull(policy);
+        this.sharedUdpChannels = new SharedUdpChannels();
     }
 
     public Destination getRemote(TP tp){return null;}
@@ -71,6 +90,11 @@ public abstract class AbstractProxyTransport<OPT extends ProtocolOption> impleme
     @Override
     public Future<EndPoint> createEndPoint(ProxyContext proxyContext) throws Exception {
         NetLocation netLocation = proxyContext.getNetLocation();
+        SharedUdpChannels sharedUdpChannels = this.sharedUdpChannels;
+
+        if (netLocation.getTp()==TP.UDP && sharedUdpChannels!=null && fullConePolicy.test(proxyContext)){
+            return sharedUdpChannels.createEndPoint(proxyContext,this::createChannel);
+        }
 
         Promise<EndPoint> promise = proxyContext.getEventLoop().newPromise();
         Async.cascadeFailure(createChannel(proxyContext.getEventLoop(),proxyContext.getNetLocation()),promise,f->{

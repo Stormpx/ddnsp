@@ -3,7 +3,8 @@ package io.crowds.proxy.transport.proxy.vmess;
 import io.crowds.proxy.NetAddr;
 import io.crowds.proxy.NetLocation;
 import io.crowds.proxy.TP;
-import io.crowds.proxy.common.HandlerName;
+import io.crowds.proxy.transport.proxy.xudp.XUDPHandler;
+import io.crowds.proxy.transport.proxy.xudp.XUDPOption;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
@@ -14,34 +15,38 @@ import io.netty.channel.socket.DatagramPacket;
 import java.util.Set;
 
 public class VmessHandler extends ChannelDuplexHandler {
-    private final HandlerName baseName;
     private final Channel channel;
-    private final VmessOption vmessOption;
+    private final User user;
+    private final Security security;
+    private final boolean xudp;
     private final NetLocation netLocation;
+    private boolean handshake = false;
 
-
-    public VmessHandler(HandlerName baseName, Channel channel, VmessOption vmessOption, NetLocation netLocation) {
-        this.baseName=baseName;
+    public VmessHandler(Channel channel, User user, Security security, boolean xudp, NetLocation netLocation) {
         this.channel = channel;
-        this.vmessOption = vmessOption;
+        this.user = user;
+        this.security = security;
+        this.xudp = xudp;
         this.netLocation = netLocation;
-        this.channel.pipeline()
-                .addLast(baseName.with("codec"), new VmessMessageCodec())
-                .addLast(baseName.with("handler"), this);
     }
 
 
-
-    public void handshake(){
+    private void handshake(ChannelHandlerContext ctx){
         NetAddr dest = netLocation.getDst();
-        User user = vmessOption.getUser();
         VmessRequest request = new VmessRequest(Set.of(Option.CHUNK_STREAM,Option.CHUNK_MASKING), netLocation.getTp(), dest);
         request.setUser(user.randomUser());
-        request.setSecurity(vmessOption.getSecurity());
+        request.setSecurity(security);
+        if (netLocation.getTp()== TP.UDP && xudp){
+            request.setAddr(XUDPHandler.ADDRESS);
+        }
 
-        channel.writeAndFlush(request);
+        ctx.write(request);
+        handshake = true;
+    }
 
-
+    @Override
+    public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
+        super.handlerAdded(ctx);
     }
 
     @Override
@@ -56,6 +61,9 @@ public class VmessHandler extends ChannelDuplexHandler {
 
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
+        if (!handshake){
+            handshake(ctx);
+        }
         if (msg instanceof DatagramPacket packet){
             msg=packet.content();
         }
@@ -69,7 +77,7 @@ public class VmessHandler extends ChannelDuplexHandler {
             return;
         }
         if (msg instanceof ByteBuf buf) {
-            if (netLocation.getTp()== TP.UDP){
+            if (netLocation.getTp()== TP.UDP && !xudp){
                 msg=new DatagramPacket(buf,null,netLocation.getDst().getAsInetAddr());
             }
         }

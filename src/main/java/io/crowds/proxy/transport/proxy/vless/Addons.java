@@ -1,9 +1,9 @@
 package io.crowds.proxy.transport.proxy.vless;
 
 /**
- * VLESS 请求头中的 addons 扩展字段（对应原 addons.proto 中的 Addons 消息）。
+ * The addons extension field of the VLESS request header (the Addons message of the former addons.proto).
  *
- * 字段定义：
+ * Field definitions:
  *   string Flow = 1;
  *   bytes  Seed = 2;
  */
