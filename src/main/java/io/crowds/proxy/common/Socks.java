@@ -70,7 +70,7 @@ public class Socks {
             String host = addr.getHost();
             out.ensureWritable(1+1+host.length());
             out.writeByte(0x03);
-            if (host.length()>256){
+            if (host.length()>255){
                 throw new IllegalArgumentException("dest domain "+ host +" to long");
             }
             out.writeByte(host.length());
