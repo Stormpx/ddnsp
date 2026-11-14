@@ -45,7 +45,7 @@ public class SharedUdpChannels {
         this.channels = new ConcurrentHashMap<>();
     }
 
-    public Future<EndPoint> createEndPoint(ProxyContext proxyContext, ChannelOpener opener) {
+    public Future<UdpChannel> getChannel(ProxyContext proxyContext, ChannelOpener opener){
         NetLocation netLocation = proxyContext.getNetLocation();
         EventLoop eventLoop = proxyContext.getEventLoop();
         NetAddr src = netLocation.getSrc();
@@ -88,15 +88,7 @@ public class SharedUdpChannels {
             channels.remove(src, channelFuture);
         }
 
-        Promise<EndPoint> promise = eventLoop.newPromise();
-        channelFuture.addListener((FutureListener<UdpChannel>) f -> {
-            if (!f.isSuccess()) {
-                promise.tryFailure(f.cause());
-                return;
-            }
-            promise.trySuccess(new UdpEndPoint(f.get(), netLocation.getDst()));
-        });
-        return promise;
+        return channelFuture;
     }
 
 }

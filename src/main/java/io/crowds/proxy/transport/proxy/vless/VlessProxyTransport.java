@@ -27,8 +27,6 @@ public class VlessProxyTransport extends AbstractProxyTransport<VlessOption> {
             throw new IllegalArgumentException("XTLS flow requires TLS to be enabled");
         }
         this.xudp = vlessOption.getXudp() == null? new XUDPOption() : vlessOption.getXudp();
-        //only XUDP can carry several UDP targets over one channel, so full-cone applies to XUDP sessions only
-        fullCone(ctx->xudpEnabled(ctx.getNetLocation()));
     }
 
     /**
@@ -64,5 +62,11 @@ public class VlessProxyTransport extends AbstractProxyTransport<VlessOption> {
             channel.pipeline().addLast(new MuxCodec(),new XUDPHandler(globalId));
         }
         return channel.eventLoop().newSucceededFuture(channel);
+    }
+
+    //only XUDP can carry several UDP targets over one channel, so full-cone applies to XUDP sessions only
+    @Override
+    protected boolean fullConeSupport(ProxyContext proxyContext) {
+        return xudpEnabled(proxyContext.getNetLocation());
     }
 }

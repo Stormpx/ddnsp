@@ -19,8 +19,6 @@ public class VmessProxyTransport extends AbstractProxyTransport<VmessOption> {
         Objects.requireNonNull(vmessOption);
         super(channelCreator,vmessOption);
         this.xudp = vmessOption.getXudp() == null? new XUDPOption() : vmessOption.getXudp();
-        //only XUDP can carry several UDP targets over one channel, so full-cone applies to XUDP sessions only
-        fullCone(ctx->xudpEnabled(ctx.getNetLocation()));
     }
 
     /**
@@ -58,5 +56,9 @@ public class VmessProxyTransport extends AbstractProxyTransport<VmessOption> {
         return channel.eventLoop().newSucceededFuture(channel);
     }
 
-
+    //only XUDP can carry several UDP targets over one channel, so full-cone applies to XUDP sessions only
+    @Override
+    protected boolean fullConeSupport(ProxyContext proxyContext) {
+        return xudpEnabled(proxyContext.getNetLocation());
+    }
 }
