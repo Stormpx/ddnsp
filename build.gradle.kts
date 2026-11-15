@@ -158,6 +158,7 @@ dependencies {
     implementation("com.github.ben-manes.caffeine:caffeine:3.2.4")
     implementation("com.maxmind.geoip2:geoip2:5.0.2")
     implementation("org.bouncycastle:bcpkix-jdk18on:1.86")
+    implementation("org.bouncycastle:bctls-jdk18on:1.86")
     implementation("io.github.dreamlike-ocean:panama-generator:4.2.0-SNAPSHOT")
     implementation("io.vertx:vertx-core:5.2.3")
     implementation("io.vertx:vertx-web:5.2.3")

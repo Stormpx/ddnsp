@@ -1,5 +1,7 @@
 package io.crowds.proxy.transport;
 
+import io.crowds.compoments.tls.reality.RealityOption;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -9,6 +11,7 @@ public class TlsOption {
     private boolean allowInsecure=false;
     private List<String> alpn;
     private String serverName;
+    private RealityOption reality;
 
     public TlsOption() {
     }
@@ -17,6 +20,23 @@ public class TlsOption {
         this.allowInsecure = other.allowInsecure;
         this.serverName = other.serverName;
         this.alpn = new ArrayList<>(Objects.requireNonNullElse(other.alpn,List.of()));
+        this.reality = other.reality == null ? null : new RealityOption(other.reality);
+    }
+
+    public RealityOption getReality() {
+        return reality;
+    }
+
+    public boolean isReality() {
+        return reality != null;
+    }
+
+    public TlsOption setReality(RealityOption reality) {
+        this.reality = reality;
+        if (reality != null) {
+            this.enable = true;
+        }
+        return this;
     }
 
     public boolean isAllowInsecure() {

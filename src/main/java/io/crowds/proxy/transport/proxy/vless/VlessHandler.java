@@ -1,7 +1,6 @@
 package io.crowds.proxy.transport.proxy.vless;
 
-import io.crowds.Ddnsp;
-import io.crowds.compoments.tls.TlsUtils;
+import io.crowds.compoments.tls.reality.RealityTlsHandler;
 import io.crowds.proxy.TP;
 import io.crowds.proxy.transport.Destination;
 import io.crowds.proxy.transport.proxy.xudp.XUDPHandler;
@@ -10,12 +9,9 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.handler.ssl.SslHandler;
-import io.netty.handler.ssl.SslHandshakeCompletionEvent;
-import org.slf4j.Logger;
+import io.netty.handler.ssl.SslHandshakeCompletionEvent;import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodType;
 import java.util.Arrays;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -35,7 +31,7 @@ public class VlessHandler extends ChannelDuplexHandler {
 
     private VlessRequest request;
     private VlessTlsClamp tlsClamp;
-    private SslHandler tlsHandler;
+    private ChannelHandlerContext tlsContext;
 
     private int serverPaddingCounter = 0;
     private int clientPaddingCounter = 0;
@@ -68,11 +64,22 @@ public class VlessHandler extends ChannelDuplexHandler {
     }
 
     private void checkOuterTlsV13(){
-        if (this.tlsHandler!=null){
-            if (!"TLSv1.3".equalsIgnoreCase(tlsHandler.engine().getSession().getProtocol())){
-                logger.error("Vless XTLS require TLSv1.3, but got {}", tlsHandler.engine().getSession().getProtocol());
+        if (this.tlsContext!=null){
+            String protocol = tlsProtocol(this.tlsContext.handler());
+            if (protocol!=null && !"TLSv1.3".equalsIgnoreCase(protocol)){
+                logger.error("Vless XTLS require TLSv1.3, but got {}", protocol);
             }
         }
+    }
+
+    private static String tlsProtocol(ChannelHandler handler){
+        if (handler instanceof SslHandler sslHandler){
+            return sslHandler.engine().getSession().getProtocol();
+        }
+        if (handler instanceof RealityTlsHandler realityTlsHandler){
+            return realityTlsHandler.protocol();
+        }
+        return null;
     }
 
 
@@ -80,11 +87,11 @@ public class VlessHandler extends ChannelDuplexHandler {
 
         if (this.tlsClamp.isSkipRead() && this.tlsClamp.isSkipWrite()){
             ctx.executor().submit(()->{
-                ctx.pipeline()
-                   .remove(tlsHandler)
-                   .remove(tlsClamp.getRead())
-                   .remove(tlsClamp.getWrite());
-                this.tlsHandler = null;
+                ChannelPipeline pipeline = ctx.pipeline();
+                pipeline.remove(tlsContext.name());
+                pipeline.remove(tlsClamp.getRead());
+                pipeline.remove(tlsClamp.getWrite());
+                this.tlsContext = null;
                 this.tlsClamp = null;
             });
         }
@@ -164,10 +171,16 @@ public class VlessHandler extends ChannelDuplexHandler {
         },50, TimeUnit.MILLISECONDS);
 
         if (flow == Vless.Flow.XRV){
-            ChannelHandlerContext tlsHandlerContext = ctx.pipeline().context(SslHandler.class);
-            assert tlsHandlerContext!=null;
-            this.tlsClamp = VlessTlsClamp.clamp(ctx.pipeline(), tlsHandlerContext.name());
-            this.tlsHandler = (SslHandler) tlsHandlerContext.handler();
+            ChannelHandlerContext tlsContext = ctx.pipeline().context("tls");
+            if (tlsContext==null){
+                tlsContext = ctx.pipeline().context(SslHandler.class);
+            }
+            if (tlsContext==null){
+                tlsContext = ctx.pipeline().context(RealityTlsHandler.class);
+            }
+            assert tlsContext!=null;
+            this.tlsContext = tlsContext;
+            this.tlsClamp = VlessTlsClamp.clamp(ctx.pipeline(), tlsContext.name());
         }
     }
 

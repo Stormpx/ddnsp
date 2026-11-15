@@ -107,9 +107,12 @@ public class DirectTransport implements Transport {
         Promise<Channel> promise=eventLoop.newPromise();
         TlsOption tlsOption = protocolOption.getTls();
         if (tlsOption!=null&& tlsOption.isEnable()){
-            initializer.tls(true,tlsOption.isAllowInsecure(),
-                    tlsOption.getServerName()==null?dst.getHost():tlsOption.getServerName(),
-                    dst.getPort(), tlsOption.getAlpn());
+            String serverName = tlsOption.getServerName()==null?dst.getHost():tlsOption.getServerName();
+            if (tlsOption.isReality()){
+                initializer.reality(tlsOption.getReality(), serverName, tlsOption.getAlpn());
+            }else {
+                initializer.tls(true,tlsOption.isAllowInsecure(),serverName, dst.getPort(), tlsOption.getAlpn());
+            }
         }
         Async.cascadeFailure(resolve(eventLoop,preferType,dst),promise,resolveFuture->{
             NetAddr dest = resolveFuture.get();

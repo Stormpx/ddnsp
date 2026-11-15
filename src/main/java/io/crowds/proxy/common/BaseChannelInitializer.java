@@ -1,7 +1,9 @@
 package io.crowds.proxy.common;
 
+import io.crowds.compoments.tls.reality.RealityTlsHandler;
 import io.crowds.lib.unix.Unix;
 import io.crowds.lib.windows.Windows;
+import io.crowds.compoments.tls.reality.RealityOption;
 import io.crowds.util.Inet;
 import io.crowds.util.Reflect;
 import io.netty.channel.Channel;
@@ -35,8 +37,10 @@ public class BaseChannelInitializer extends ChannelInitializer<Channel> {
 
 
     private SslContext sslContext;
+    private RealityOption realityOption;
     private String tlsServerName;
     private int port;
+    private List<String> alpn;
 
     private Integer connIdle;
     private BiConsumer<Channel,IdleStateEvent> idleEventHandler;
@@ -74,6 +78,14 @@ public class BaseChannelInitializer extends ChannelInitializer<Channel> {
         }else {
             this.sslContext=null;
         }
+        return this;
+    }
+
+    public BaseChannelInitializer reality(RealityOption reality, String serverName, List<String> alpn) {
+        this.sslContext = null;
+        this.realityOption = reality;
+        this.tlsServerName = serverName;
+        this.alpn = alpn;
         return this;
     }
 
@@ -126,7 +138,9 @@ public class BaseChannelInitializer extends ChannelInitializer<Channel> {
         if (this.identity !=null){
             bindToDevice(ch);
         }
-        if (sslContext!=null){
+        if (realityOption != null) {
+            ch.pipeline().addLast("tls", new RealityTlsHandler(realityOption, tlsServerName, alpn));
+        } else if (sslContext != null){
             ch.pipeline().addLast("tls",sslContext.newHandler(ch.alloc(),this.tlsServerName,this.port));
         }
         if (logLevel!=null) {

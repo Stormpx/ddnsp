@@ -35,9 +35,19 @@ public class XrayRule extends AbstractRule {
 
     private ProtocolOption inside;
     private ProtocolOption outside;
+    private RealityKeys realityKeys;
+    private String realityDest;
+    private String realityServerName;
 
     public XrayRule(Network network) {
         super(network);
+    }
+
+    public XrayRule setReality(RealityKeys realityKeys, String dest, String serverName) {
+        this.realityKeys = realityKeys;
+        this.realityDest = dest;
+        this.realityServerName = serverName;
+        return this;
     }
 
     public XrayRule setName(String name) {
@@ -56,8 +66,15 @@ public class XrayRule extends AbstractRule {
     private JsonObject buildStreamSettings(ProtocolOption protocolOption) throws Exception {
         JsonObject json = new JsonObject();
         TlsOption tls = protocolOption.getTls();
-        if (tls!=null) {
-            if (tls.isEnable()) {
+        if (tls!=null && tls.isEnable()) {
+            if (tls.isReality()) {
+                json.put("security", "reality")
+                    .put("realitySettings", new JsonObject()
+                            .put("dest", realityDest)
+                            .put("serverNames", JsonArray.of(realityServerName))
+                            .put("privateKey", realityKeys.privateKeyBase64())
+                            .put("shortIds", JsonArray.of(realityKeys.shortIdHex())));
+            } else {
                 X509Bundle x509Bundle = new CertificateBuilder()
                         .subject("cn=localhost")
                         .setIsCertificateAuthority(true)

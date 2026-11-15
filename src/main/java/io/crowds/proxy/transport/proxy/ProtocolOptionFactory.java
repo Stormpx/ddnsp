@@ -2,6 +2,7 @@ package io.crowds.proxy.transport.proxy;
 
 import io.crowds.compoments.wireguard.PeerOption;
 import io.crowds.proxy.transport.ProtocolOption;
+import io.crowds.compoments.tls.reality.RealityOption;
 import io.crowds.proxy.transport.TlsOption;
 import io.crowds.proxy.transport.TransportOption;
 import io.crowds.proxy.transport.proxy.chain.ChainOption;
@@ -58,8 +59,71 @@ public class ProtocolOptionFactory {
                 .setServerName(tlsServerName)
                 .setAlpn(alpn);
 
+        String security = json.getString("security", "tls");
+        if ("reality".equalsIgnoreCase(security)) {
+            tlsOption.setReality(parseReality(json.getJsonObject("reality"), tlsServerName))
+                     .setEnable(true);
+        } else if (!"tls".equalsIgnoreCase(security)) {
+            throw new IllegalArgumentException("unsupported tls security: " + security);
+        }
+
         return tlsOption;
 
+    }
+
+    private static RealityOption parseReality(JsonObject json, String serverName) {
+        if (Strs.isBlank(serverName)) {
+            throw new IllegalArgumentException("tls.serverName is required when tls.security is reality");
+        }
+        if (json == null) {
+            throw new IllegalArgumentException("tls.reality settings are required when tls.security is reality");
+        }
+        RealityOption realityOption = new RealityOption();
+        byte[] publicKey = decodeBase64(json.getString("publicKey"), "tls.reality.publicKey");
+        if (publicKey == null || publicKey.length != 32) {
+            throw new IllegalArgumentException("tls.reality.publicKey must be a 32 bytes x25519 public key");
+        }
+        realityOption.setPublicKey(publicKey);
+
+        String shortId = json.getString("shortId");
+        if (!Strs.isBlank(shortId)) {
+            realityOption.setShortId(decodeHex(shortId, "tls.reality.shortId"));
+        }
+        String clientVersion = json.getString("clientVersion");
+        if (!Strs.isBlank(clientVersion)) {
+            realityOption.setClientVersion(clientVersion);
+        }
+        realityOption.setSpiderX(json.getString("spiderX"));
+
+        byte[] mldsa65Verify = decodeBase64(json.getString("mldsa65Verify"), "tls.reality.mldsa65Verify");
+        if (mldsa65Verify != null) {
+            realityOption.setMldsa65Verify(mldsa65Verify);
+        }
+        realityOption.validate();
+        return realityOption;
+    }
+
+    private static byte[] decodeBase64(String value, String field) {
+        if (Strs.isBlank(value)) {
+            return null;
+        }
+        try {
+            return Base64.getUrlDecoder().decode(value);
+        } catch (IllegalArgumentException e) {
+            try {
+                return Base64.getDecoder().decode(value);
+            } catch (IllegalArgumentException ignored) {
+                throw new IllegalArgumentException(field + " is not a valid base64 value");
+            }
+        }
+    }
+
+    private static byte[] decodeHex(String value, String field) {
+        try {
+            return HexFormat.of().parseHex(value);
+        } catch (RuntimeException e) {
+            throw new IllegalArgumentException(field + " is not a valid hex value");
+        }
     }
 
     private static WsOption parseWs(JsonObject json){
