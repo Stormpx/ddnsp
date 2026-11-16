@@ -1,10 +1,7 @@
 package io.crowds.proxy.transport.proxy.vless;
 
-import io.crowds.Ddnsp;
-import io.crowds.compoments.tls.TlsUtils;
 import io.crowds.proxy.TP;
 import io.crowds.proxy.transport.Destination;
-import io.crowds.proxy.transport.proxy.xudp.XUDPHandler;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
@@ -14,8 +11,6 @@ import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodType;
 import java.util.Arrays;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -31,7 +26,6 @@ public class VlessHandler extends ChannelDuplexHandler {
     private static final int PADDING_ENDED = 2;
     private final Vless.Flow flow;
     private final UUID id;
-    private final boolean xudp;
 
     private VlessRequest request;
     private VlessTlsClamp tlsClamp;
@@ -47,13 +41,8 @@ public class VlessHandler extends ChannelDuplexHandler {
     private int innerTlsCipher = -1;
 
 
-    public VlessHandler(Vless.Flow flow, UUID id, Destination dest, boolean xudp) {
+    public VlessHandler(Vless.Flow flow, UUID id, Destination dst) {
         this.id = id;
-        this.xudp = xudp;
-        var dst = dest;
-        if (xudp){
-            dst = new Destination(XUDPHandler.ADDRESS,TP.TCP);
-        }
         if (flow == Vless.Flow.XRV && dst.tp()==TP.UDP){
             flow = Vless.Flow.NONE;
         }

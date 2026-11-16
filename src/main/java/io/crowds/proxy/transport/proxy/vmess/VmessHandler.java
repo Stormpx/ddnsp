@@ -1,12 +1,8 @@
 package io.crowds.proxy.transport.proxy.vmess;
 
-import io.crowds.proxy.NetAddr;
-import io.crowds.proxy.NetLocation;
 import io.crowds.proxy.TP;
-import io.crowds.proxy.transport.proxy.xudp.XUDPHandler;
-import io.crowds.proxy.transport.proxy.xudp.XUDPOption;
+import io.crowds.proxy.transport.Destination;
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
@@ -15,30 +11,22 @@ import io.netty.channel.socket.DatagramPacket;
 import java.util.Set;
 
 public class VmessHandler extends ChannelDuplexHandler {
-    private final Channel channel;
     private final User user;
     private final Security security;
-    private final boolean xudp;
-    private final NetLocation netLocation;
+    private final Destination dst;
     private boolean handshake = false;
 
-    public VmessHandler(Channel channel, User user, Security security, boolean xudp, NetLocation netLocation) {
-        this.channel = channel;
+    public VmessHandler(User user, Security security, Destination dst) {
         this.user = user;
         this.security = security;
-        this.xudp = xudp;
-        this.netLocation = netLocation;
+        this.dst = dst;
     }
 
 
     private void handshake(ChannelHandlerContext ctx){
-        NetAddr dest = netLocation.getDst();
-        VmessRequest request = new VmessRequest(Set.of(Option.CHUNK_STREAM,Option.CHUNK_MASKING), netLocation.getTp(), dest);
+        VmessRequest request = new VmessRequest(Set.of(Option.CHUNK_STREAM,Option.CHUNK_MASKING), dst.tp(), dst.addr());
         request.setUser(user.randomUser());
         request.setSecurity(security);
-        if (netLocation.getTp()== TP.UDP && xudp){
-            request.setAddr(XUDPHandler.ADDRESS);
-        }
 
         ctx.write(request);
         handshake = true;
@@ -77,8 +65,8 @@ public class VmessHandler extends ChannelDuplexHandler {
             return;
         }
         if (msg instanceof ByteBuf buf) {
-            if (netLocation.getTp()== TP.UDP && !xudp){
-                msg=new DatagramPacket(buf,null,netLocation.getDst().getAsInetAddr());
+            if (dst.tp()== TP.UDP){
+                msg=new DatagramPacket(buf,null,dst.addr().getAsInetAddr());
             }
         }
         super.channelRead(ctx, msg);

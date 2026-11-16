@@ -3,7 +3,6 @@ package io.crowds.proxy.transport.proxy.vless;
 import io.crowds.proxy.*;
 import io.crowds.proxy.common.HandlerName;
 import io.crowds.proxy.transport.Destination;
-import io.crowds.proxy.transport.EndPoint;
 import io.crowds.proxy.transport.TlsOption;
 import io.crowds.proxy.transport.proxy.AbstractProxyTransport;
 import io.crowds.proxy.transport.proxy.xudp.MuxCodec;
@@ -50,12 +49,12 @@ public class VlessProxyTransport extends AbstractProxyTransport<VlessOption> {
     protected Future<Channel> proxy(Channel channel, NetLocation netLocation) {
         VlessOption vlessOption = getProtocolOption();
         HandlerName baseName = handlerName();
-        Destination dest = new Destination(netLocation);
         boolean xudpSetup = xudpEnabled(netLocation);
 
+        Destination dst = xudpSetup ? new Destination(XUDPHandler.ADDRESS,TP.TCP) : new Destination(netLocation);
         channel.pipeline()
                .addLast(baseName.with("codec"), new VlessCodec())
-               .addLast(baseName.with("handler"), new VlessHandler(flow, vlessOption.getUUID(), dest,xudpSetup));
+               .addLast(baseName.with("handler"), new VlessHandler(flow, vlessOption.getUUID(), dst));
 
         if (xudpSetup){
             byte[] globalId = XUDPHandler.getGlobalId(netLocation.getSrc());

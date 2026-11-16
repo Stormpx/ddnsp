@@ -42,11 +42,11 @@ public class VmessProxyTransport extends AbstractProxyTransport<VmessOption> {
     protected Future<Channel> proxy(Channel channel, NetLocation netLocation) {
         boolean xudpFlag = xudpEnabled(netLocation);
 
+        Destination destination = xudpFlag ? new Destination(XUDPHandler.ADDRESS, TP.TCP) : new Destination(netLocation);
         VmessOption vmessOption = getProtocolOption();
-        VmessHandler vmessHandler = new VmessHandler(channel, vmessOption.getUser(), vmessOption.getSecurity(), xudpFlag, netLocation);
         channel.pipeline()
                .addLast(handlerName().with("codec"), new VmessMessageCodec())
-               .addLast(handlerName().with("handler"), vmessHandler);
+               .addLast(handlerName().with("handler"), new VmessHandler(vmessOption.getUser(), vmessOption.getSecurity(), destination));
 
         if (xudpFlag){
             byte[] globalId = XUDPHandler.getGlobalId(netLocation.getSrc());

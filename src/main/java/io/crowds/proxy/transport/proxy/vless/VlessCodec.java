@@ -224,13 +224,13 @@ public class VlessCodec extends CombinedChannelDuplexHandler<ByteToMessageDecode
 
         private void decodeNoneFlow(ChannelHandlerContext ctx, ByteBuf in, List<Object> out){
             if (dest.tp()==TP.TCP){
-                out.add(in.readRetainedSlice(in.readableBytes()));
+                out.add(in.readBytes(in.readableBytes()));
             }else{
                 if (packetLen==-1){
                     packetLen = in.readUnsignedShort();
                 }
                 if (packetLen!=-1){
-                    ByteBuf buf = in.readRetainedSlice(packetLen);
+                    ByteBuf buf = in.readBytes(packetLen);
                     out.add(new DatagramPacket(buf,null, dest.addr().getAsInetAddr()));
                     packetLen=-1;
                 }
@@ -239,7 +239,7 @@ public class VlessCodec extends CombinedChannelDuplexHandler<ByteToMessageDecode
 
         private void decodeVisionFlow(ChannelHandlerContext ctx, ByteBuf in, List<Object> out){
             if (!paddingBuffer){
-                out.add(in.readRetainedSlice(in.readableBytes()));
+                out.add(in.readBytes(in.readableBytes()));
                 return;
             }
             if (!uuidRead){
@@ -266,7 +266,7 @@ public class VlessCodec extends CombinedChannelDuplexHandler<ByteToMessageDecode
                 return;
             }
 
-            ByteBuf content = in.readRetainedSlice(contentLen);
+            ByteBuf content = in.readBytes(contentLen);
             in.skipBytes(paddingLen);
             VisionData visionData = new VisionData(paddingCommand, content, false, false);
             if (paddingCommand == Vless.COMMAND_PADDING_END || paddingCommand == Vless.COMMAND_PADDING_DIRECT) {
